@@ -1,1 +1,1067 @@
 
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strivio - Premium Subscriptions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Montserrat', sans-serif;
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            background-color: #f8f8f8;
+            overflow-x: hidden;
+        }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(40,40,40,0.8) 100%);
+        }
+        
+        .card {
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .subscription-logo {
+            height: 60px;
+            width: auto;
+            margin: 0 auto;
+            display: block;
+            background-color: white;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        
+        .profile-option {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .profile-option.active {
+            background-color: #000;
+            color: white;
+        }
+        
+        .profile-option:hover:not(.active) {
+            background-color: #f0f0f0;
+        }
+        
+        .animate-fade-in {
+            opacity: 0;
+            animation: fadeIn 0.8s ease forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .staggered-animation > * {
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+        }
+        
+        .staggered-animation > *:nth-child(1) { animation-delay: 0.1s; }
+        .staggered-animation > *:nth-child(2) { animation-delay: 0.2s; }
+        .staggered-animation > *:nth-child(3) { animation-delay: 0.3s; }
+        .staggered-animation > *:nth-child(4) { animation-delay: 0.4s; }
+        .staggered-animation > *:nth-child(5) { animation-delay: 0.5s; }
+        .staggered-animation > *:nth-child(6) { animation-delay: 0.6s; }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .gradient-text {
+            background: linear-gradient(90deg, #000, #555);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .pricing-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .pricing-item {
+            flex: 1;
+            min-width: 80px;
+            background: #f8f8f8;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid #eaeaea;
+        }
+        
+        .pricing-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .pricing-duration {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .pricing-value {
+            font-weight: 600;
+            color: #000;
+        }
+        
+        /* Custom logo styles */
+        .netflix-logo {
+            color: #E50914;
+            font-weight: bold;
+            font-size: 24px;
+            text-align: center;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .prime-logo {
+            color: #00A8E1;
+            font-weight: bold;
+            font-size: 20px;
+            text-align: center;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .disney-logo {
+            color: #0063e5;
+            font-weight: bold;
+            font-size: 22px;
+            text-align: center;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .shahid-logo {
+            color: #0F9D58;
+            font-weight: bold;
+            font-size: 22px;
+            text-align: center;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .spotify-logo {
+            color: #1DB954;
+            font-weight: bold;
+            font-size: 22px;
+            text-align: center;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .snapchat-logo {
+            color: #FFFC00;
+            font-weight: bold;
+            font-size: 22px;
+            text-align: center;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
+        }
+        
+        /* iPhone mockup */
+        .iphone-mockup {
+            position: relative;
+            width: 280px;
+            height: 570px;
+            background: #1a1a1a;
+            border-radius: 50px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            border: 6px solid #333;
+            overflow: hidden;
+            transform: rotate(-5deg);
+            margin: 0 auto;
+        }
+        
+        .dynamic-island {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 35px;
+            background: #000;
+            border-radius: 20px;
+            z-index: 10;
+        }
+        
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #121212, #2a2a2a);
+            overflow: hidden;
+        }
+        
+        .app-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            margin: 10px;
+        }
+        
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            padding: 60px 20px 20px;
+        }
+        
+        .notification {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            animation: slideDown 0.5s ease forwards, fadeOut 0.5s ease 4s forwards;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translate(-50%, -20px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        
+        .dock {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            height: 80px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 15px;
+        }
+        
+        .dock-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.fixed{position:fixed}.z-50{z-index:50}.mx-auto{margin-left:auto;margin-right:auto}.mb-12{margin-bottom:3rem}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.mr-4{margin-right:1rem}.mt-10{margin-top:2.5rem}.mt-8{margin-top:2rem}.block{display:block}.inline-block{display:inline-block}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-10{height:2.5rem}.h-16{height:4rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.w-10{width:2.5rem}.w-16{width:4rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-full{width:100%}.max-w-4xl{max-width:56rem}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-8{gap:2rem}.space-x-2 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(0.5rem * var(--tw-space-x-reverse));margin-left:calc(0.5rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-4 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(1rem * var(--tw-space-x-reverse));margin-left:calc(1rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-8 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(2rem * var(--tw-space-x-reverse));margin-left:calc(2rem * calc(1 - var(--tw-space-x-reverse)))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.overflow-hidden{overflow:hidden}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:0.5rem}.rounded-md{border-radius:0.375rem}.rounded-xl{border-radius:0.75rem}.border{border-width:1px}.border-t{border-top-width:1px}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.border-gray-800{--tw-border-opacity:1;border-color:rgb(31 41 55 / var(--tw-border-opacity, 1))}.bg-black{--tw-bg-opacity:1;background-color:rgb(0 0 0 / var(--tw-bg-opacity, 1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-50{--tw-bg-opacity:1;background-color:rgb(249 250 251 / var(--tw-bg-opacity, 1))}.bg-gray-800{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.bg-gray-900{--tw-bg-opacity:1;background-color:rgb(17 24 39 / var(--tw-bg-opacity, 1))}.bg-green-100{--tw-bg-opacity:1;background-color:rgb(220 252 231 / var(--tw-bg-opacity, 1))}.bg-purple-100{--tw-bg-opacity:1;background-color:rgb(243 232 255 / var(--tw-bg-opacity, 1))}.bg-red-100{--tw-bg-opacity:1;background-color:rgb(254 226 226 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-gradient-to-br{background-image:linear-gradient(to bottom right, var(--tw-gradient-stops))}.from-blue-500{--tw-gradient-from:#3b82f6 var(--tw-gradient-from-position);--tw-gradient-to:rgb(59 130 246 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-blue-800{--tw-gradient-from:#1e40af var(--tw-gradient-from-position);--tw-gradient-to:rgb(30 64 175 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-green-500{--tw-gradient-from:#22c55e var(--tw-gradient-from-position);--tw-gradient-to:rgb(34 197 94 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-red-600{--tw-gradient-from:#dc2626 var(--tw-gradient-from-position);--tw-gradient-to:rgb(220 38 38 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-yellow-400{--tw-gradient-from:#facc15 var(--tw-gradient-from-position);--tw-gradient-to:rgb(250 204 21 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.to-blue-700{--tw-gradient-to:#1d4ed8 var(--tw-gradient-to-position)}.to-blue-900{--tw-gradient-to:#1e3a8a var(--tw-gradient-to-position)}.to-green-700{--tw-gradient-to:#15803d var(--tw-gradient-to-position)}.to-red-800{--tw-gradient-to:#991b1b var(--tw-gradient-to-position)}.to-yellow-500{--tw-gradient-to:#eab308 var(--tw-gradient-to-position)}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-8{padding-left:2rem;padding-right:2rem}.py-12{padding-top:3rem;padding-bottom:3rem}.py-16{padding-top:4rem;padding-bottom:4rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.pb-16{padding-bottom:4rem}.pb-4{padding-bottom:1rem}.pt-24{padding-top:6rem}.pt-8{padding-top:2rem}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.text-black{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235 / var(--tw-text-opacity, 1))}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1))}.text-gray-800{--tw-text-opacity:1;color:rgb(31 41 55 / var(--tw-text-opacity, 1))}.text-green-600{--tw-text-opacity:1;color:rgb(22 163 74 / var(--tw-text-opacity, 1))}.text-purple-600{--tw-text-opacity:1;color:rgb(147 51 234 / var(--tw-text-opacity, 1))}.text-red-600{--tw-text-opacity:1;color:rgb(220 38 38 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-md{--tw-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-300{transition-duration:300ms}.hover\:bg-gray-200:hover{--tw-bg-opacity:1;background-color:rgb(229 231 235 / var(--tw-bg-opacity, 1))}.hover\:bg-gray-700:hover{--tw-bg-opacity:1;background-color:rgb(55 65 81 / var(--tw-bg-opacity, 1))}.hover\:bg-gray-800:hover{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.hover\:text-black:hover{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.hover\:text-white:hover{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-black:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(0 0 0 / var(--tw-ring-opacity, 1))}@media (min-width: 768px){.md\:mt-0{margin-top:0px}.md\:flex{display:flex}.md\:hidden{display:none}.md\:w-1\/2{width:50%}.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:flex-row{flex-direction:row}.md\:text-4xl{font-size:2.25rem;line-height:2.5rem}.md\:text-5xl{font-size:3rem;line-height:1}}@media (min-width: 1024px){.lg\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}}</style></head>
+<body>
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md fixed w-full z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl font-bold gradient-text">Strivio</span>
+            </div>
+            <div class="hidden md:flex space-x-8">
+                <a href="#home" class="text-gray-800 hover:text-black font-medium transition duration-300">Home</a>
+                <a href="#subscriptions" class="text-gray-800 hover:text-black font-medium transition duration-300">Subscriptions</a>
+                <a href="#contact" class="text-gray-800 hover:text-black font-medium transition duration-300">Contact</a>
+            </div>
+            <div class="md:hidden">
+                <button id="menu-toggle" class="focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden bg-white pb-4 px-4">
+            <a href="#home" class="block py-2 text-gray-800 hover:text-black font-medium">Home</a>
+            <a href="#subscriptions" class="block py-2 text-gray-800 hover:text-black font-medium">Subscriptions</a>
+            <a href="#contact" class="block py-2 text-gray-800 hover:text-black font-medium">Contact</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero-gradient text-white pt-24 pb-16">
+        <div class="container mx-auto px-4 py-12">
+            <div class="flex flex-col md:flex-row items-center">
+                <div class="md:w-1/2 animate-fade-in">
+                    <h1 class="text-4xl md:text-5xl font-bold mb-6">Premium Streaming Subscriptions</h1>
+                    <p class="text-xl mb-8">Get access to the best streaming platforms at competitive prices. Netflix, Prime Video, Spotify, Disney+, and Shahid VIP all in one place.</p>
+                    <a href="#subscriptions" class="bg-white text-black font-bold py-3 px-8 rounded-full hover:bg-gray-200 transition duration-300 inline-block pulse">View Plans</a>
+                </div>
+                <div class="md:w-1/2 mt-10 md:mt-0 flex justify-center animate-fade-in" style="animation-delay: 0.3s;">
+                    <!-- iPhone Mockup -->
+                    <div class="iphone-mockup">
+                        <div class="dynamic-island"></div>
+                        <div class="screen">
+                            
+                            <div class="app-grid">
+                                <div class="app-icon" style="background: #E50914;">
+                                    <i class="fab fa-netflix"></i>
+                                </div>
+                                <div class="app-icon" style="background: #00A8E1;">
+                                    <i class="fab fa-amazon"></i>
+                                </div>
+                                <div class="app-icon" style="background: #0063e5;">
+                                    <i class="fab fa-disney-plus"></i>
+                                </div>
+                                <div class="app-icon" style="background: #0F9D58;">
+                                    <span>S</span>
+                                </div>
+                                <div class="app-icon" style="background: #1DB954;">
+                                    <i class="fab fa-spotify"></i>
+                                </div>
+                                <div class="app-icon" style="background: #FFFC00; color: #000;">
+                                    <i class="fab fa-snapchat"></i>
+                                </div>
+                                <div class="app-icon" style="background: #FF0000;">
+                                    <i class="fab fa-youtube"></i>
+                                </div>
+                                <div class="app-icon" style="background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);">
+                                    <i class="fab fa-instagram"></i>
+                                </div>
+                            </div>
+                            <div class="dock">
+                                <div class="dock-icon" style="background: #4CAF50;">
+                                    <i class="fas fa-phone"></i>
+                                </div>
+                                <div class="dock-icon" style="background: #2196F3;">
+                                    <i class="fas fa-comment"></i>
+                                </div>
+                                <div class="dock-icon" style="background: #FF9800;">
+                                    <i class="fas fa-music"></i>
+                                </div>
+                                <div class="dock-icon" style="background: #9C27B0;">
+                                    <i class="fas fa-tv"></i>
+                                </div>
+                            </div>
+                        <div class="notification"><strong>Strivio:</strong> Shahid VIP - Your payment was successful. Subscription extended.</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Subscriptions Section -->
+    <section id="subscriptions" class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Our Premium Subscriptions</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 staggered-animation">
+                <!-- Netflix Card -->
+                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-8 bg-gradient-to-br from-red-600 to-red-800">
+                        <div class="netflix-logo text-3xl">NETFLIX</div>
+                    </div>
+                    <div class="p-8">
+                        <div class="flex justify-center mb-6">
+                            <div class="flex flex-wrap gap-2 justify-center">
+                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300 active" data-profiles="1" data-service="netflix">1 Profile</div>
+                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="2" data-service="netflix">2 Profiles</div>
+                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="3" data-service="netflix">3 Profiles</div>
+                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="4" data-service="netflix">4 Profiles</div>
+                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="5" data-service="netflix">5 Profiles</div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <p class="text-gray-600 mb-4 text-lg">Premium 4K Streaming</p>
+                            <div class="pricing-display netflix-pricing">
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">1 Month</div>
+                                    <div class="pricing-value">1,200 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">3 Months</div>
+                                    <div class="pricing-value">3,400 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">6 Months</div>
+                                    <div class="pricing-value">6,500 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">12 Months</div>
+                                    <div class="pricing-value">12,000 DZD</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Prime Video Card -->
+                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-8 bg-gradient-to-br from-blue-500 to-blue-700">
+                        <div class="prime-logo text-3xl">Prime Video</div>
+                    </div>
+                    <div class="p-8">
+                        <div class="flex justify-center mb-6">
+                            <div class="flex flex-wrap gap-2 justify-center">
+                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300 active" data-profiles="1" data-service="prime">1 Profile</div>
+                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="2" data-service="prime">2 Profiles</div>
+                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="3" data-service="prime">3 Profiles</div>
+                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="4" data-service="prime">4 Profiles</div>
+                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="5" data-service="prime">5 Profiles</div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <p class="text-gray-600 mb-4 text-lg">Full HD Streaming</p>
+                            <div class="pricing-display prime-pricing">
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">1 Month</div>
+                                    <div class="pricing-value">800 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">3 Months</div>
+                                    <div class="pricing-value">2,300 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">6 Months</div>
+                                    <div class="pricing-value">4,400 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">12 Months</div>
+                                    <div class="pricing-value">8,000 DZD</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Disney+ Card -->
+                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-8 bg-gradient-to-br from-blue-800 to-blue-900">
+                        <div class="disney-logo text-3xl">Disney+</div>
+                    </div>
+                    <div class="p-8">
+                        <div class="flex justify-center mb-6">
+                            <div class="flex flex-wrap gap-2 justify-center">
+                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300 active" data-profiles="1" data-service="disney">1 Profile</div>
+                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="2" data-service="disney">2 Profiles</div>
+                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="3" data-service="disney">3 Profiles</div>
+                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="4" data-service="disney">4 Profiles</div>
+                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="5" data-service="disney">5 Profiles</div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <p class="text-gray-600 mb-4 text-lg">4K HDR Streaming</p>
+                            <div class="pricing-display disney-pricing">
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">1 Month</div>
+                                    <div class="pricing-value">900 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">3 Months</div>
+                                    <div class="pricing-value">2,600 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">6 Months</div>
+                                    <div class="pricing-value">4,900 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">12 Months</div>
+                                    <div class="pricing-value">9,000 DZD</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Shahid VIP Card -->
+                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-8 bg-gradient-to-br from-green-500 to-green-700">
+                        <div class="shahid-logo text-3xl">Shahid VIP</div>
+                    </div>
+                    <div class="p-8">
+                        <div class="flex justify-center mb-6">
+                            <div class="flex flex-wrap gap-2 justify-center">
+                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="1" data-service="shahid">1 Profile</div>
+                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="2" data-service="shahid">2 Profiles</div>
+                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="3" data-service="shahid">3 Profiles</div>
+                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300 active" data-profiles="4" data-service="shahid">4 Profiles</div>
+                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="5" data-service="shahid">5 Profiles</div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <p class="text-gray-600 mb-4 text-lg">Premium Arabic Content</p>
+                            <div class="pricing-display shahid-pricing"><div class="pricing-item"><div class="pricing-duration">1 Month</div><div class="pricing-value">1,150 DZD</div></div><div class="pricing-item"><div class="pricing-duration">3 Months</div><div class="pricing-value">3,300 DZD</div></div><div class="pricing-item"><div class="pricing-duration">6 Months</div><div class="pricing-value">6,200 DZD</div></div><div class="pricing-item"><div class="pricing-duration">12 Months</div><div class="pricing-value">11,500 DZD</div></div></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Spotify Card -->
+                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-8 bg-gradient-to-br from-green-500 to-green-700">
+                        <div class="spotify-logo text-3xl">Spotify</div>
+                    </div>
+                    <div class="p-8">
+                        <div class="text-center">
+                            <p class="text-gray-600 mb-4 text-lg">Premium Music Streaming</p>
+                            <div class="pricing-display spotify-pricing">
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">1 Month</div>
+                                    <div class="pricing-value">500 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">3 Months</div>
+                                    <div class="pricing-value">1,400 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">6 Months</div>
+                                    <div class="pricing-value">2,700 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">12 Months</div>
+                                    <div class="pricing-value">5,000 DZD</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Snapchat+ Card -->
+                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-8 bg-gradient-to-br from-yellow-400 to-yellow-500">
+                        <div class="snapchat-logo text-3xl">Snapchat</div>
+                    </div>
+                    <div class="p-8">
+                        <div class="text-center">
+                            <p class="text-gray-600 mb-4 text-lg">Snapchat+ Premium Features</p>
+                            <div class="pricing-display snapchat-pricing">
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">1 Month</div>
+                                    <div class="pricing-value">400 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">3 Months</div>
+                                    <div class="pricing-value">1,100 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">6 Months</div>
+                                    <div class="pricing-value">2,100 DZD</div>
+                                </div>
+                                <div class="pricing-item">
+                                    <div class="pricing-duration">12 Months</div>
+                                    <div class="pricing-value">4,000 DZD</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-16 bg-gray-100">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Why Choose Strivio?</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-center mb-2">Premium Quality</h3>
+                    <p class="text-gray-600 text-center">Enjoy high-quality streaming with 4K and HDR support on compatible platforms.</p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zm7-10a1 1 0 01.707.293l.707.707.707-.707A1 1 0 0115 2a1 1 0 01.707 1.707L15 4.414l.707.707A1 1 0 0115 7a1 1 0 01-.707-.293L13.586 6l-.707.707A1 1 0 0112 7a1 1 0 01-.707-1.707L12 4.414l-.707-.707A1 1 0 0112 2z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-center mb-2">Affordable Pricing</h3>
+                    <p class="text-gray-600 text-center">Get the best streaming services at competitive prices with flexible profile options.</p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-center mb-2">Multiple Profiles</h3>
+                    <p class="text-gray-600 text-center">Share your subscription with family and friends with multiple profile options.</p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-center mb-2">Instant Access</h3>
+                    <p class="text-gray-600 text-center">Get immediate access to your subscription after purchase with no waiting time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Contact Us</h2>
+            
+            <div class="max-w-4xl mx-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-gray-50 p-8 rounded-xl shadow-md">
+                        <h3 class="text-2xl font-bold mb-4">Get In Touch</h3>
+                        <p class="text-gray-600 mb-6">Have questions about our subscriptions? Contact us and we'll get back to you as soon as possible.</p>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-black rounded-full flex items-center justify-center mr-4">
+                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-sm">Email</p>
+                                    <p class="font-medium">info@Strivio.store</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-black rounded-full flex items-center justify-center mr-4">
+                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-sm">Phone</p>
+                                    <p class="font-medium">+213 562961410</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-black rounded-full flex items-center justify-center mr-4">
+                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                        <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.477 0 10c0 4.991 3.657 9.128 8.438 9.879V12.89h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.989C16.343 19.129 20 14.99 20 10c0-5.523-4.477-10-10-10z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-sm">Facebook</p>
+                                    <p class="font-medium">Strivio Store</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-black rounded-full flex items-center justify-center mr-4">
+                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 text-sm">Instagram</p>
+                                    <p class="font-medium">Strivio.Store</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-8 rounded-xl shadow-md">
+                        <h3 class="text-2xl font-bold mb-4">Send a Message</h3>
+                        <form>
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-medium mb-2" for="name">Name</label>
+                                <input class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black" type="text" id="name" placeholder="Your name">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-medium mb-2" for="email">Email</label>
+                                <input class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black" type="email" id="email" placeholder="Your email">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 text-sm font-medium mb-2" for="message">Message</label>
+                                <textarea class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black" id="message" rows="4" placeholder="Your message"></textarea>
+                            </div>
+                            
+                            <button class="w-full bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-800 transition duration-300">Send Message</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Strivio</h3>
+                    <p class="text-gray-400">Premium streaming subscriptions at competitive prices. Get access to the best entertainment platforms all in one place.</p>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Quick Links</h3>
+                    <ul class="space-y-2">
+                        <li><a href="#home" class="text-gray-400 hover:text-white transition duration-300">Home</a></li>
+                        <li><a href="#subscriptions" class="text-gray-400 hover:text-white transition duration-300">Subscriptions</a></li>
+                        <li><a href="#contact" class="text-gray-400 hover:text-white transition duration-300">Contact</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Follow Us</h3>
+                    <div class="flex space-x-4">
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700 transition duration-300">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.477 0 10c0 4.991 3.657 9.128 8.438 9.879V12.89h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.989C16.343 19.129 20 14.99 20 10c0-5.523-4.477-10-10-10z" clip-rule="evenodd"></path>
+                            </svg>
+                        </a>
+                        
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700 transition duration-300">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"></path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center">
+                <p class="text-gray-400">© 2023 Strivio. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile menu toggle
+        document.getElementById('menu-toggle').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        });
+        
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+                
+                // Close mobile menu if open
+                const mobileMenu = document.getElementById('mobile-menu');
+                if (!mobileMenu.classList.contains('hidden')) {
+                    mobileMenu.classList.add('hidden');
+                }
+            });
+        });
+        
+        // Pricing data
+        const pricingData = {
+            netflix: {
+                1: {
+                    1: 1200,
+                    3: 3400,
+                    6: 6500,
+                    12: 12000
+                },
+                2: {
+                    1: 1400,
+                    3: 4000,
+                    6: 7600,
+                    12: 14000
+                },
+                3: {
+                    1: 1600,
+                    3: 4600,
+                    6: 8700,
+                    12: 16000
+                },
+                4: {
+                    1: 1800,
+                    3: 5200,
+                    6: 9800,
+                    12: 18000
+                },
+                5: {
+                    1: 2000,
+                    3: 5800,
+                    6: 10900,
+                    12: 20000
+                }
+            },
+            prime: {
+                1: {
+                    1: 800,
+                    3: 2300,
+                    6: 4400,
+                    12: 8000
+                },
+                2: {
+                    1: 950,
+                    3: 2700,
+                    6: 5200,
+                    12: 9500
+                },
+                3: {
+                    1: 1100,
+                    3: 3100,
+                    6: 6000,
+                    12: 11000
+                },
+                4: {
+                    1: 1250,
+                    3: 3600,
+                    6: 6800,
+                    12: 12500
+                },
+                5: {
+                    1: 1400,
+                    3: 4000,
+                    6: 7600,
+                    12: 14000
+                }
+            },
+            disney: {
+                1: {
+                    1: 900,
+                    3: 2600,
+                    6: 4900,
+                    12: 9000
+                },
+                2: {
+                    1: 1050,
+                    3: 3000,
+                    6: 5700,
+                    12: 10500
+                },
+                3: {
+                    1: 1200,
+                    3: 3400,
+                    6: 6500,
+                    12: 12000
+                },
+                4: {
+                    1: 1350,
+                    3: 3900,
+                    6: 7300,
+                    12: 13500
+                },
+                5: {
+                    1: 1500,
+                    3: 4300,
+                    6: 8100,
+                    12: 15000
+                }
+            },
+            shahid: {
+                1: {
+                    1: 700,
+                    3: 2000,
+                    6: 3800,
+                    12: 7000
+                },
+                2: {
+                    1: 850,
+                    3: 2400,
+                    6: 4600,
+                    12: 8500
+                },
+                3: {
+                    1: 1000,
+                    3: 2900,
+                    6: 5400,
+                    12: 10000
+                },
+                4: {
+                    1: 1150,
+                    3: 3300,
+                    6: 6200,
+                    12: 11500
+                },
+                5: {
+                    1: 1300,
+                    3: 3700,
+                    6: 7000,
+                    12: 13000
+                }
+            },
+            spotify: {
+                1: {
+                    1: 500,
+                    3: 1400,
+                    6: 2700,
+                    12: 5000
+                }
+            },
+            snapchat: {
+                1: {
+                    1: 400,
+                    3: 1100,
+                    6: 2100,
+                    12: 4000
+                }
+            }
+        };
+        
+        // Profile selection functionality
+        const profileOptions = document.querySelectorAll('.profile-option');
+        
+        // Track current selections
+        const currentSelection = {
+            netflix: { profiles: 1 },
+            prime: { profiles: 1 },
+            disney: { profiles: 1 },
+            shahid: { profiles: 1 }
+        };
+        
+        // Update price based on current selection
+        function updatePrice(service) {
+            const profiles = currentSelection[service].profiles;
+            const pricingDisplay = document.querySelector(`.${service}-pricing`);
+            
+            if (pricingDisplay) {
+                // Clear existing pricing items
+                pricingDisplay.innerHTML = '';
+                
+                // Add pricing items for each duration
+                for (let duration of [1, 3, 6, 12]) {
+                    const price = pricingData[service][profiles][duration];
+                    
+                    const pricingItem = document.createElement('div');
+                    pricingItem.className = 'pricing-item';
+                    
+                    const durationDiv = document.createElement('div');
+                    durationDiv.className = 'pricing-duration';
+                    durationDiv.textContent = `${duration} ${duration === 1 ? 'Month' : 'Months'}`;
+                    
+                    const valueDiv = document.createElement('div');
+                    valueDiv.className = 'pricing-value';
+                    valueDiv.textContent = `${price.toLocaleString()} DZD`;
+                    
+                    pricingItem.appendChild(durationDiv);
+                    pricingItem.appendChild(valueDiv);
+                    
+                    pricingDisplay.appendChild(pricingItem);
+                }
+            }
+        }
+        
+        // Profile option click handler
+        profileOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Get service and profiles
+                const service = this.getAttribute('data-service');
+                const profiles = parseInt(this.getAttribute('data-profiles'));
+                
+                // Update current selection
+                currentSelection[service].profiles = profiles;
+                
+                // Remove active class from all options in the same service
+                document.querySelectorAll(`.${service}-profile`).forEach(opt => {
+                    opt.classList.remove('active');
+                });
+                
+                // Add active class to clicked option
+                this.classList.add('active');
+                
+                // Update price
+                updatePrice(service);
+            });
+        });
+        
+        // iPhone notification animation
+        function showNotification() {
+            const screen = document.querySelector('.screen');
+            if (!screen) return;
+            
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            
+            const services = ['Netflix', 'Prime Video', 'Disney+', 'Shahid VIP', 'Spotify'];
+            const messages = [
+                'Your subscription is active! Enjoy unlimited streaming.',
+                'New content available! Check it out now.',
+                'Your payment was successful. Subscription extended.',
+                'Special offer: Get 20% off on annual plans today!'
+            ];
+            
+            const randomService = services[Math.floor(Math.random() * services.length)];
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            
+            notification.innerHTML = `<strong>Strivio:</strong> ${randomService} - ${randomMessage}`;
+            
+            // Remove any existing notification
+            const existingNotification = document.querySelector('.notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+            
+            screen.appendChild(notification);
+            
+            // Remove notification after animation completes
+            setTimeout(() => {
+                if (notification.parentNode === screen) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+        
+        // Show notifications periodically
+        setInterval(showNotification, 6000);
+        
+        // Show initial notification after page load
+        setTimeout(showNotification, 1500);
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'949f150ce62f2b39',t:'MTc0ODk1MjU3My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;" __idm_id__="3252225"></iframe>
+
+</body></html>
