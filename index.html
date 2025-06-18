@@ -1,1038 +1,1443 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strivio - Premium Subscriptions</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Strivio - Premium Streaming Services</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+        :root {
+            --primary-color: #ffffff;
+            --secondary-color: #000000;
+            --accent-color: #333333;
+            --text-color: #000000;
+            --background-color: #ffffff;
+            --card-color: #f5f5f5;
+            --hover-color: #e9e9e9;
+            --border-color: #dddddd;
+        }
         
         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
             font-family: 'Montserrat', sans-serif;
-            scroll-behavior: smooth;
         }
         
         body {
-            background-color: #f8f8f8;
-            overflow-x: hidden;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            scroll-behavior: smooth;
         }
         
-        .hero-gradient {
-            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(40,40,40,0.8) 100%);
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
         }
         
-        .card {
-            transition: all 0.3s ease;
+        header {
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            font-size: 26px;
+            color: var(--secondary-color);
+            letter-spacing: -0.5px;
+        }
+        
+        .logo svg {
+            margin-right: 10px;
+        }
+        
+        nav ul {
+            display: flex;
+            list-style: none;
+        }
+        
+        nav ul li {
+            margin-left: 25px;
+        }
+        
+        nav ul li a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-size: 17px;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            position: relative;
+            padding: 5px 0;
+        }
+        
+        nav ul li a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: var(--secondary-color);
+            transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        
+        nav ul li a:hover::after {
+            width: 100%;
+        }
+        
+        nav ul li a:hover {
+            color: var(--accent-color);
+        }
+        
+        .hero {
+            padding: 140px 0 80px;
+            text-align: center;
+            background: linear-gradient(to bottom, #f9f9f9, #ffffff);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .hero h1 {
+            font-size: 52px;
+            margin-bottom: 20px;
+            font-weight: 800;
+            color: var(--secondary-color);
+            letter-spacing: -1px;
+        }
+        
+        .hero p {
+            font-size: 20px;
+            max-width: 600px;
+            margin: 0 auto 30px;
+            color: var(--accent-color);
+        }
+        
+        .btn {
+            display: inline-block;
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+            padding: 14px 28px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            border: none;
+            cursor: pointer;
+            font-size: 17px;
+            letter-spacing: 0.3px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            border: 2px solid var(--secondary-color);
+            color: var(--secondary-color);
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+        }
+        
+        .section-title {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .section-title h2 {
+            font-size: 40px;
+            margin-bottom: 15px;
+            color: var(--secondary-color);
+            letter-spacing: -0.5px;
+        }
+        
+        .section-title p {
+            font-size: 19px;
+            color: var(--accent-color);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .services {
+            padding: 100px 0;
+            background-color: var(--primary-color);
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 35px;
+        }
+        
+        .service-card {
+            background-color: var(--card-color);
+            border-radius: 18px;
+            overflow: hidden;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 300px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            aspect-ratio: 1/1;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .service-card.expanded {
+            transform: scale(1.08);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            border: 2px solid var(--secondary-color);
+            z-index: 10;
+            aspect-ratio: auto;
+            min-height: 450px;
+        }
+        
+        .service-card.dimmed {
+            transform: scale(0.98);
+            opacity: 0.7;
+            filter: blur(1px);
+        }
+        
+        .service-icon {
+            width: 90px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        
+        .service-content {
+            padding: 25px;
+            text-align: center;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .service-card.expanded .service-content {
+            padding-bottom: 15px;
+        }
+        
+        .service-content h3 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            color: var(--secondary-color);
+            font-weight: 700;
+        }
+        
+        .service-card.expanded .service-content h3 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .service-content p {
+            font-size: 16px;
+            color: var(--accent-color);
+            margin-bottom: 15px;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        
+        .profile-selector {
+            display: none;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 0 20px 20px;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .service-card.expanded .profile-selector {
+            display: flex;
+            opacity: 1;
             transform: translateY(0);
         }
         
-        .card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        
-        .subscription-logo {
-            height: 60px;
-            width: auto;
-            margin: 0 auto;
-            display: block;
-            background-color: white;
-            padding: 5px;
-            border-radius: 5px;
-        }
-        
-        .profile-option {
-            transition: all 0.2s ease;
+        .profile-btn {
+            min-width: 110px;
+            height: 45px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e0e0e0;
+            color: var(--accent-color);
             cursor: pointer;
-            font-size: 0.8rem;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            border: 1px solid var(--border-color);
+            font-weight: 600;
+            margin: 5px;
+            font-size: 15px;
         }
         
-        .profile-option.active {
-            background-color: #000;
-            color: white;
+        .profile-btn:hover {
+            background-color: #d0d0d0;
+            transform: translateY(-2px);
         }
         
-        .profile-option:hover:not(.active) {
-            background-color: #f0f0f0;
+        .profile-btn.active {
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
         
-        .animate-fade-in {
+        .pricing-container {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            background-color: rgba(0, 0, 0, 0.03);
+            width: 100%;
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .pricing-container.active {
+            max-height: 1000px;
+        }
+        
+        .pricing-options {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            padding: 25px;
             opacity: 0;
-            animation: fadeIn 0.8s ease forwards;
+            transform: translateY(20px);
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            transition-delay: 0.1s;
         }
         
+        .pricing-container.active .pricing-options {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .pricing-card {
+            background-color: var(--primary-color);
+            border-radius: 14px;
+            padding: 18px;
+            width: calc(33.333% - 10px);
+            min-width: 110px;
+            text-align: center;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            border: 1px solid var(--border-color);
+            transform: scale(0.95);
+        }
+        
+        .pricing-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            border-color: var(--secondary-color);
+        }
+        
+        .pricing-card h3 {
+            font-size: 17px;
+            margin-bottom: 12px;
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+        
+        .pricing-card .price {
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--secondary-color);
+        }
+        
+        .pricing-card .price span {
+            font-size: 16px;
+            font-weight: normal;
+        }
+        
+        .why-us {
+            padding: 100px 0;
+            background-color: #f9f9f9;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 35px;
+        }
+        
+        .feature {
+            background-color: var(--primary-color);
+            border-radius: 18px;
+            padding: 35px;
+            text-align: center;
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .feature:hover {
+            transform: translateY(-10px);
+            border-color: var(--secondary-color);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature-icon {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+        }
+        
+        .feature-icon svg {
+            fill: var(--secondary-color);
+            width: 35px;
+            height: 35px;
+        }
+        
+        .feature h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: var(--secondary-color);
+            font-weight: 700;
+        }
+        
+        .feature p {
+            font-size: 17px;
+            color: var(--accent-color);
+        }
+        
+        .contact {
+            padding: 100px 0;
+            background-color: var(--primary-color);
+        }
+        
+        .contact-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 50px;
+        }
+        
+        .contact-info {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .contact-info h3 {
+            font-size: 28px;
+            margin-bottom: 25px;
+            color: var(--secondary-color);
+            font-weight: 700;
+        }
+        
+        .contact-info p {
+            margin-bottom: 25px;
+            color: var(--accent-color);
+            font-size: 17px;
+        }
+        
+        .contact-info .info-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .contact-info .info-item .icon {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+        }
+        
+        .contact-info .info-item .icon svg {
+            fill: var(--secondary-color);
+            width: 24px;
+            height: 24px;
+        }
+        
+        .contact-info .info-item span {
+            font-size: 17px;
+            color: var(--accent-color);
+        }
+        
+        .contact-form {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .contact-form h3 {
+            font-size: 28px;
+            margin-bottom: 25px;
+            color: var(--secondary-color);
+            font-weight: 700;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 15px 18px;
+            background-color: #f5f5f5;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--secondary-color);
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        textarea.form-control {
+            min-height: 140px;
+            resize: vertical;
+        }
+        
+        footer {
+            background-color: var(--secondary-color);
+            padding: 35px 0;
+            text-align: center;
+            color: var(--primary-color);
+        }
+        
+        footer p {
+            color: #cccccc;
+            font-size: 16px;
+        }
+        
+        .social-links {
+            display: flex;
+            justify-content: center;
+            margin-top: 25px;
+        }
+        
+        .social-links a {
+            width: 45px;
+            height: 45px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 12px;
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        
+        .social-links a:hover {
+            background-color: var(--primary-color);
+            transform: translateY(-5px);
+        }
+        
+        .social-links a svg {
+            width: 22px;
+            height: 22px;
+            fill: white;
+            transition: fill 0.3s ease;
+        }
+        
+        .social-links a:hover svg {
+            fill: var(--secondary-color);
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 40px;
+            }
+            
+            .hero p {
+                font-size: 18px;
+            }
+            
+            .section-title h2 {
+                font-size: 32px;
+            }
+            
+            .section-title p {
+                font-size: 17px;
+            }
+            
+            .nav-menu {
+                display: none;
+                position: absolute;
+                top: 70px;
+                left: 0;
+                right: 0;
+                background-color: rgba(255, 255, 255, 0.95);
+                padding: 20px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            }
+            
+            .nav-menu.active {
+                display: block;
+            }
+            
+            nav ul {
+                flex-direction: column;
+            }
+            
+            nav ul li {
+                margin: 12px 0;
+            }
+            
+            .menu-toggle {
+                display: block;
+            }
+            
+            .pricing-card {
+                width: calc(50% - 10px);
+            }
+            
+            .services-grid {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .pricing-card {
+                width: 100%;
+            }
+            
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .service-card.expanded {
+                transform: scale(1.04);
+            }
+        }
+        
+        /* Animation */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        .staggered-animation > * {
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .fade-in {
             opacity: 0;
-            animation: fadeIn 0.5s ease forwards;
+            animation: fadeIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         
-        .staggered-animation > *:nth-child(1) { animation-delay: 0.1s; }
-        .staggered-animation > *:nth-child(2) { animation-delay: 0.2s; }
-        .staggered-animation > *:nth-child(3) { animation-delay: 0.3s; }
-        .staggered-animation > *:nth-child(4) { animation-delay: 0.4s; }
-        .staggered-animation > *:nth-child(5) { animation-delay: 0.5s; }
-        .staggered-animation > *:nth-child(6) { animation-delay: 0.6s; }
-        
-        .pulse {
-            animation: pulse 2s infinite;
+        .scale-in {
+            opacity: 0;
+            animation: scaleIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+        .slide-in {
+            opacity: 0;
+            animation: slideIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         
-        .gradient-text {
-            background: linear-gradient(90deg, #000, #555);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .delay-400 { animation-delay: 0.4s; }
+        .delay-500 { animation-delay: 0.5s; }
         
-        .pricing-display {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 15px;
-        }
+        /* Service specific colors */
+        .netflix-color { background-color: #E50914; }
+        .spotify-color { background-color: #1DB954; }
+        .disney-color { background-color: #0063e5; }
+        .prime-color { background-color: #00A8E1; }
+        .shahid-color { background-color: #770088; }
+        .chatgpt-color { background-color: #10a37f; }
+        .snapchat-color { background-color: #FFFC00; }
+        .osn-color { background-color: #E6007E; }
         
-        .pricing-item {
-            flex: 1;
-            min-width: 80px;
-            background: #f8f8f8;
-            border-radius: 10px;
-            padding: 10px;
-            text-align: center;
-            transition: all 0.3s ease;
-            border: 1px solid #eaeaea;
-        }
-        
-        .pricing-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-        
-        .pricing-duration {
-            font-size: 0.8rem;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        
-        .pricing-value {
-            font-weight: 600;
-            color: #000;
-        }
-        
-        /* Custom logo styles */
-        .netflix-logo {
-            color: #E50914;
-            font-weight: bold;
-            font-size: 24px;
-            text-align: center;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        
-        .prime-logo {
-            color: #00A8E1;
-            font-weight: bold;
-            font-size: 20px;
-            text-align: center;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        
-        .disney-logo {
-            color: #0063e5;
-            font-weight: bold;
-            font-size: 22px;
-            text-align: center;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        
-        .shahid-logo {
-            color: #0F9D58;
-            font-weight: bold;
-            font-size: 22px;
-            text-align: center;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        
-        .spotify-logo {
-            color: #1DB954;
-            font-weight: bold;
-            font-size: 22px;
-            text-align: center;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        
-        .snapchat-logo {
-            color: #FFFC00;
-            font-weight: bold;
-            font-size: 22px;
-            text-align: center;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
-        }
-        
-        /* iPhone mockup */
-        .iphone-mockup {
-            position: relative;
-            width: 280px;
-            height: 570px;
-            background: #1a1a1a;
-            border-radius: 50px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-            border: 6px solid #333;
-            overflow: hidden;
-            transform: rotate(-5deg);
-            margin: 0 auto;
-        }
-        
-        .dynamic-island {
+        /* Close button for expanded cards */
+        .close-btn {
             position: absolute;
-            top: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120px;
+            top: 18px;
+            right: 18px;
+            width: 35px;
             height: 35px;
-            background: #000;
-            border-radius: 20px;
-            z-index: 10;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            opacity: 0;
+            transform: scale(0.8) rotate(-90deg);
+            pointer-events: none;
+            z-index: 5;
         }
         
-        .screen {
+        .service-card.expanded .close-btn {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+            pointer-events: auto;
+        }
+        
+        .close-btn:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+            transform: scale(1.1) rotate(90deg);
+        }
+        
+        .close-btn::before,
+        .close-btn::after {
+            content: '';
             position: absolute;
+            width: 18px;
+            height: 2px;
+            background-color: var(--secondary-color);
+            transition: background-color 0.3s ease;
+        }
+        
+        .close-btn:hover::before,
+        .close-btn:hover::after {
+            background-color: var(--secondary-color);
+        }
+        
+        .close-btn::before {
+            transform: rotate(45deg);
+        }
+        
+        .close-btn::after {
+            transform: rotate(-45deg);
+        }
+        
+        /* Overlay for expanded card */
+        .overlay {
+            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #121212, #2a2a2a);
-            overflow: hidden;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 5;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            backdrop-filter: blur(3px);
         }
         
-        .app-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 15px;
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Scroll indicator */
+        .scroll-indicator {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 55px;
+            height: 55px;
+            background-color: var(--secondary-color);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            color: white;
-            margin: 10px;
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         
-        .app-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            padding: 60px 20px 20px;
+        .scroll-indicator.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
         
-        .notification {
-            position: absolute;
-            top: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 15px;
-            color: white;
-            font-size: 14px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            animation: slideDown 0.5s ease forwards, fadeOut 0.5s ease 4s forwards;
-        }
-        
-        @keyframes slideDown {
-            from { transform: translate(-50%, -20px); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
-        }
-        
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-        
-        .dock {
-            position: absolute;
-            bottom: 25px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            height: 80px;
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 25px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 15px;
-        }
-        
-        .dock-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            color: white;
+        .scroll-indicator svg {
+            fill: var(--primary-color);
+            width: 28px;
+            height: 28px;
         }
     </style>
-<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.fixed{position:fixed}.z-50{z-index:50}.mx-auto{margin-left:auto;margin-right:auto}.mb-12{margin-bottom:3rem}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.mr-4{margin-right:1rem}.mt-10{margin-top:2.5rem}.mt-8{margin-top:2rem}.block{display:block}.inline-block{display:inline-block}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-10{height:2.5rem}.h-16{height:4rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.w-10{width:2.5rem}.w-16{width:4rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-full{width:100%}.max-w-4xl{max-width:56rem}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-8{gap:2rem}.space-x-2 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(0.5rem * var(--tw-space-x-reverse));margin-left:calc(0.5rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-4 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(1rem * var(--tw-space-x-reverse));margin-left:calc(1rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-8 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(2rem * var(--tw-space-x-reverse));margin-left:calc(2rem * calc(1 - var(--tw-space-x-reverse)))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.overflow-hidden{overflow:hidden}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:0.5rem}.rounded-md{border-radius:0.375rem}.rounded-xl{border-radius:0.75rem}.border{border-width:1px}.border-t{border-top-width:1px}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.border-gray-800{--tw-border-opacity:1;border-color:rgb(31 41 55 / var(--tw-border-opacity, 1))}.bg-black{--tw-bg-opacity:1;background-color:rgb(0 0 0 / var(--tw-bg-opacity, 1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-50{--tw-bg-opacity:1;background-color:rgb(249 250 251 / var(--tw-bg-opacity, 1))}.bg-gray-800{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.bg-gray-900{--tw-bg-opacity:1;background-color:rgb(17 24 39 / var(--tw-bg-opacity, 1))}.bg-green-100{--tw-bg-opacity:1;background-color:rgb(220 252 231 / var(--tw-bg-opacity, 1))}.bg-purple-100{--tw-bg-opacity:1;background-color:rgb(243 232 255 / var(--tw-bg-opacity, 1))}.bg-red-100{--tw-bg-opacity:1;background-color:rgb(254 226 226 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-gradient-to-br{background-image:linear-gradient(to bottom right, var(--tw-gradient-stops))}.from-blue-500{--tw-gradient-from:#3b82f6 var(--tw-gradient-from-position);--tw-gradient-to:rgb(59 130 246 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-blue-800{--tw-gradient-from:#1e40af var(--tw-gradient-from-position);--tw-gradient-to:rgb(30 64 175 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-green-500{--tw-gradient-from:#22c55e var(--tw-gradient-from-position);--tw-gradient-to:rgb(34 197 94 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-red-600{--tw-gradient-from:#dc2626 var(--tw-gradient-from-position);--tw-gradient-to:rgb(220 38 38 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-yellow-400{--tw-gradient-from:#facc15 var(--tw-gradient-from-position);--tw-gradient-to:rgb(250 204 21 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.to-blue-700{--tw-gradient-to:#1d4ed8 var(--tw-gradient-to-position)}.to-blue-900{--tw-gradient-to:#1e3a8a var(--tw-gradient-to-position)}.to-green-700{--tw-gradient-to:#15803d var(--tw-gradient-to-position)}.to-red-800{--tw-gradient-to:#991b1b var(--tw-gradient-to-position)}.to-yellow-500{--tw-gradient-to:#eab308 var(--tw-gradient-to-position)}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-8{padding-left:2rem;padding-right:2rem}.py-12{padding-top:3rem;padding-bottom:3rem}.py-16{padding-top:4rem;padding-bottom:4rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.pb-16{padding-bottom:4rem}.pb-4{padding-bottom:1rem}.pt-24{padding-top:6rem}.pt-8{padding-top:2rem}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.text-black{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235 / var(--tw-text-opacity, 1))}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1))}.text-gray-800{--tw-text-opacity:1;color:rgb(31 41 55 / var(--tw-text-opacity, 1))}.text-green-600{--tw-text-opacity:1;color:rgb(22 163 74 / var(--tw-text-opacity, 1))}.text-purple-600{--tw-text-opacity:1;color:rgb(147 51 234 / var(--tw-text-opacity, 1))}.text-red-600{--tw-text-opacity:1;color:rgb(220 38 38 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-md{--tw-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-300{transition-duration:300ms}.hover\:bg-gray-200:hover{--tw-bg-opacity:1;background-color:rgb(229 231 235 / var(--tw-bg-opacity, 1))}.hover\:bg-gray-700:hover{--tw-bg-opacity:1;background-color:rgb(55 65 81 / var(--tw-bg-opacity, 1))}.hover\:bg-gray-800:hover{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.hover\:text-black:hover{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.hover\:text-white:hover{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-black:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(0 0 0 / var(--tw-ring-opacity, 1))}@media (min-width: 768px){.md\:mt-0{margin-top:0px}.md\:flex{display:flex}.md\:hidden{display:none}.md\:w-1\/2{width:50%}.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:flex-row{flex-direction:row}.md\:text-4xl{font-size:2.25rem;line-height:2.5rem}.md\:text-5xl{font-size:3rem;line-height:1}}@media (min-width: 1024px){.lg\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}}</style><style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.fixed{position:fixed}.z-50{z-index:50}.mx-auto{margin-left:auto;margin-right:auto}.mb-12{margin-bottom:3rem}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.mr-4{margin-right:1rem}.mt-10{margin-top:2.5rem}.mt-8{margin-top:2rem}.block{display:block}.inline-block{display:inline-block}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-10{height:2.5rem}.h-16{height:4rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.w-10{width:2.5rem}.w-16{width:4rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-full{width:100%}.max-w-4xl{max-width:56rem}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-8{gap:2rem}.space-x-2 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(0.5rem * var(--tw-space-x-reverse));margin-left:calc(0.5rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-4 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(1rem * var(--tw-space-x-reverse));margin-left:calc(1rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-8 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(2rem * var(--tw-space-x-reverse));margin-left:calc(2rem * calc(1 - var(--tw-space-x-reverse)))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.overflow-hidden{overflow:hidden}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:0.5rem}.rounded-md{border-radius:0.375rem}.rounded-xl{border-radius:0.75rem}.border{border-width:1px}.border-t{border-top-width:1px}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.border-gray-800{--tw-border-opacity:1;border-color:rgb(31 41 55 / var(--tw-border-opacity, 1))}.bg-black{--tw-bg-opacity:1;background-color:rgb(0 0 0 / var(--tw-bg-opacity, 1))}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-50{--tw-bg-opacity:1;background-color:rgb(249 250 251 / var(--tw-bg-opacity, 1))}.bg-gray-800{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.bg-gray-900{--tw-bg-opacity:1;background-color:rgb(17 24 39 / var(--tw-bg-opacity, 1))}.bg-green-100{--tw-bg-opacity:1;background-color:rgb(220 252 231 / var(--tw-bg-opacity, 1))}.bg-purple-100{--tw-bg-opacity:1;background-color:rgb(243 232 255 / var(--tw-bg-opacity, 1))}.bg-red-100{--tw-bg-opacity:1;background-color:rgb(254 226 226 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-gradient-to-br{background-image:linear-gradient(to bottom right, var(--tw-gradient-stops))}.from-blue-500{--tw-gradient-from:#3b82f6 var(--tw-gradient-from-position);--tw-gradient-to:rgb(59 130 246 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-blue-800{--tw-gradient-from:#1e40af var(--tw-gradient-from-position);--tw-gradient-to:rgb(30 64 175 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-green-500{--tw-gradient-from:#22c55e var(--tw-gradient-from-position);--tw-gradient-to:rgb(34 197 94 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-red-600{--tw-gradient-from:#dc2626 var(--tw-gradient-from-position);--tw-gradient-to:rgb(220 38 38 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-yellow-400{--tw-gradient-from:#facc15 var(--tw-gradient-from-position);--tw-gradient-to:rgb(250 204 21 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.to-blue-700{--tw-gradient-to:#1d4ed8 var(--tw-gradient-to-position)}.to-blue-900{--tw-gradient-to:#1e3a8a var(--tw-gradient-to-position)}.to-green-700{--tw-gradient-to:#15803d var(--tw-gradient-to-position)}.to-red-800{--tw-gradient-to:#991b1b var(--tw-gradient-to-position)}.to-yellow-500{--tw-gradient-to:#eab308 var(--tw-gradient-to-position)}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-8{padding-left:2rem;padding-right:2rem}.py-12{padding-top:3rem;padding-bottom:3rem}.py-16{padding-top:4rem;padding-bottom:4rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.pb-16{padding-bottom:4rem}.pb-4{padding-bottom:1rem}.pt-24{padding-top:6rem}.pt-8{padding-top:2rem}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.text-black{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235 / var(--tw-text-opacity, 1))}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1))}.text-gray-800{--tw-text-opacity:1;color:rgb(31 41 55 / var(--tw-text-opacity, 1))}.text-green-600{--tw-text-opacity:1;color:rgb(22 163 74 / var(--tw-text-opacity, 1))}.text-purple-600{--tw-text-opacity:1;color:rgb(147 51 234 / var(--tw-text-opacity, 1))}.text-red-600{--tw-text-opacity:1;color:rgb(220 38 38 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-md{--tw-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-300{transition-duration:300ms}.hover\:bg-gray-200:hover{--tw-bg-opacity:1;background-color:rgb(229 231 235 / var(--tw-bg-opacity, 1))}.hover\:bg-gray-700:hover{--tw-bg-opacity:1;background-color:rgb(55 65 81 / var(--tw-bg-opacity, 1))}.hover\:bg-gray-800:hover{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.hover\:text-black:hover{--tw-text-opacity:1;color:rgb(0 0 0 / var(--tw-text-opacity, 1))}.hover\:text-white:hover{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-black:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(0 0 0 / var(--tw-ring-opacity, 1))}@media (min-width: 768px){.md\:mt-0{margin-top:0px}.md\:flex{display:flex}.md\:hidden{display:none}.md\:w-1\/2{width:50%}.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:flex-row{flex-direction:row}.md\:text-4xl{font-size:2.25rem;line-height:2.5rem}.md\:text-5xl{font-size:3rem;line-height:1}}@media (min-width: 1024px){.lg\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}}</style></head>
+</head>
 <body>
-    <!-- Navigation -->
-    <nav class="bg-white shadow-md fixed w-full z-50">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <span class="text-2xl font-bold gradient-text">Strivio</span>
-            </div>
-            <div class="hidden md:flex space-x-8">
-                <a href="#home" class="text-gray-800 hover:text-black font-medium transition duration-300">Home</a>
-                <a href="#subscriptions" class="text-gray-800 hover:text-black font-medium transition duration-300">Subscriptions</a>
-                <a href="#contact" class="text-gray-800 hover:text-black font-medium transition duration-300">Contact</a>
-            </div>
-            <div class="md:hidden">
-                <button id="menu-toggle" class="focus:outline-none">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+    <div class="overlay" id="overlay"></div>
+    
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="black">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"></path>
                     </svg>
-                </button>
-            </div>
-        </div>
-        <div id="mobile-menu" class="hidden md:hidden bg-white pb-4 px-4">
-            <a href="#home" class="block py-2 text-gray-800 hover:text-black font-medium">Home</a>
-            <a href="#subscriptions" class="block py-2 text-gray-800 hover:text-black font-medium">Subscriptions</a>
-            <a href="#contact" class="block py-2 text-gray-800 hover:text-black font-medium">Contact</a>
-        </div>
-    </nav>
-
-    <!-- Hero Section -->
-    <section id="home" class="hero-gradient text-white pt-24 pb-16">
-        <div class="container mx-auto px-4 py-12">
-            <div class="flex flex-col md:flex-row items-center">
-                <div class="md:w-1/2 animate-fade-in">
-                    <h1 class="text-4xl md:text-5xl font-bold mb-6">Premium Streaming Subscriptions</h1>
-                    <p class="text-xl mb-8">Get access to the best streaming platforms at competitive prices. Netflix, Prime Video, Spotify, Disney+, and Shahid VIP all in one place.</p>
-                    <a href="#subscriptions" class="bg-white text-black font-bold py-3 px-8 rounded-full hover:bg-gray-200 transition duration-300 inline-block pulse">View Plans</a>
+                    Strivio
                 </div>
-                <div class="md:w-1/2 mt-10 md:mt-0 flex justify-center animate-fade-in" style="animation-delay: 0.3s;">
-                    
-                    
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Subscriptions Section -->
-    <section id="subscriptions" class="py-16 bg-white">
-        <div class="container mx-auto px-4">
-            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Our Premium Subscriptions</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 staggered-animation">
-                <!-- Netflix Card -->
-                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
-                    <div class="p-8 bg-gradient-to-br from-red-600 to-red-800">
-                        <div class="netflix-logo text-3xl">NETFLIX</div>
-                    </div>
-                    <div class="p-8">
-                        <div class="flex justify-center mb-6">
-                            <div class="flex flex-wrap gap-2 justify-center">
-                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300 active" data-profiles="1" data-service="netflix">1 Profile</div>
-                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="2" data-service="netflix">2 Profiles</div>
-                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="3" data-service="netflix">3 Profiles</div>
-                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="4" data-service="netflix">4 Profiles</div>
-                                <div class="profile-option netflix-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="5" data-service="netflix">5 Profiles</div>
-                            </div>
-                        </div>
-                        
-                        <div class="text-center">
-                            <p class="text-gray-600 mb-4 text-lg">Premium 4K Streaming</p>
-                            <div class="pricing-display netflix-pricing">
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">1 Month</div>
-                                    <div class="pricing-value">1,200 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">3 Months</div>
-                                    <div class="pricing-value">3,400 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">6 Months</div>
-                                    <div class="pricing-value">6,500 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">12 Months</div>
-                                    <div class="pricing-value">12,000 DZD</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Prime Video Card -->
-                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
-                    <div class="p-8 bg-gradient-to-br from-blue-500 to-blue-700">
-                        <div class="prime-logo text-3xl">Prime Video</div>
-                    </div>
-                    <div class="p-8">
-                        <div class="flex justify-center mb-6">
-                            <div class="flex flex-wrap gap-2 justify-center">
-                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300 active" data-profiles="1" data-service="prime">1 Profile</div>
-                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="2" data-service="prime">2 Profiles</div>
-                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="3" data-service="prime">3 Profiles</div>
-                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="4" data-service="prime">4 Profiles</div>
-                                <div class="profile-option prime-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="5" data-service="prime">5 Profiles</div>
-                            </div>
-                        </div>
-                        
-                        <div class="text-center">
-                            <p class="text-gray-600 mb-4 text-lg">Full HD Streaming</p>
-                            <div class="pricing-display prime-pricing">
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">1 Month</div>
-                                    <div class="pricing-value">800 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">3 Months</div>
-                                    <div class="pricing-value">2,300 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">6 Months</div>
-                                    <div class="pricing-value">4,400 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">12 Months</div>
-                                    <div class="pricing-value">8,000 DZD</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Disney+ Card -->
-                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
-                    <div class="p-8 bg-gradient-to-br from-blue-800 to-blue-900">
-                        <div class="disney-logo text-3xl">Disney+</div>
-                    </div>
-                    <div class="p-8">
-                        <div class="flex justify-center mb-6">
-                            <div class="flex flex-wrap gap-2 justify-center">
-                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300 active" data-profiles="1" data-service="disney">1 Profile</div>
-                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="2" data-service="disney">2 Profiles</div>
-                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="3" data-service="disney">3 Profiles</div>
-                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="4" data-service="disney">4 Profiles</div>
-                                <div class="profile-option disney-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="5" data-service="disney">5 Profiles</div>
-                            </div>
-                        </div>
-                        
-                        <div class="text-center">
-                            <p class="text-gray-600 mb-4 text-lg">4K HDR Streaming</p>
-                            <div class="pricing-display disney-pricing">
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">1 Month</div>
-                                    <div class="pricing-value">900 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">3 Months</div>
-                                    <div class="pricing-value">2,600 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">6 Months</div>
-                                    <div class="pricing-value">4,900 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">12 Months</div>
-                                    <div class="pricing-value">9,000 DZD</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Shahid VIP Card -->
-                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
-                    <div class="p-8 bg-gradient-to-br from-green-500 to-green-700">
-                        <div class="shahid-logo text-3xl">Shahid VIP</div>
-                    </div>
-                    <div class="p-8">
-                        <div class="flex justify-center mb-6">
-                            <div class="flex flex-wrap gap-2 justify-center">
-                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300 active" data-profiles="1" data-service="shahid">1 Profile</div>
-                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="2" data-service="shahid">2 Profiles</div>
-                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="3" data-service="shahid">3 Profiles</div>
-                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="4" data-service="shahid">4 Profiles</div>
-                                <div class="profile-option shahid-profile px-3 py-2 rounded-md border border-gray-300" data-profiles="5" data-service="shahid">5 Profiles</div>
-                            </div>
-                        </div>
-                        
-                        <div class="text-center">
-                            <p class="text-gray-600 mb-4 text-lg">Premium Arabic Content</p>
-                            <div class="pricing-display shahid-pricing">
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">1 Month</div>
-                                    <div class="pricing-value">700 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">3 Months</div>
-                                    <div class="pricing-value">2,000 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">6 Months</div>
-                                    <div class="pricing-value">3,800 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">12 Months</div>
-                                    <div class="pricing-value">7,000 DZD</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Spotify Card -->
-                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
-                    <div class="p-8 bg-gradient-to-br from-green-500 to-green-700">
-                        <div class="spotify-logo text-3xl">Spotify</div>
-                    </div>
-                    <div class="p-8">
-                        <div class="text-center">
-                            <p class="text-gray-600 mb-4 text-lg">Premium Music Streaming</p>
-                            <div class="pricing-display spotify-pricing">
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">1 Month</div>
-                                    <div class="pricing-value">500 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">3 Months</div>
-                                    <div class="pricing-value">1,400 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">6 Months</div>
-                                    <div class="pricing-value">2,700 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">12 Months</div>
-                                    <div class="pricing-value">5,000 DZD</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Snapchat+ Card -->
-                <div class="card bg-white rounded-xl shadow-lg overflow-hidden">
-                    <div class="p-8 bg-gradient-to-br from-yellow-400 to-yellow-500">
-                        <div class="snapchat-logo text-3xl">Snapchat</div>
-                    </div>
-                    <div class="p-8">
-                        <div class="text-center">
-                            <p class="text-gray-600 mb-4 text-lg">Snapchat+ Premium Features</p>
-                            <div class="pricing-display snapchat-pricing">
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">1 Month</div>
-                                    <div class="pricing-value">400 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">3 Months</div>
-                                    <div class="pricing-value">1,100 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">6 Months</div>
-                                    <div class="pricing-value">2,100 DZD</div>
-                                </div>
-                                <div class="pricing-item">
-                                    <div class="pricing-duration">12 Months</div>
-                                    <div class="pricing-value">4,000 DZD</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Features Section -->
-    <section class="py-16 bg-gray-100">
-        <div class="container mx-auto px-4">
-            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Why Choose Strivio?</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-center mb-2">Premium Quality</h3>
-                    <p class="text-gray-600 text-center">Enjoy high-quality streaming with 4K and HDR support on compatible platforms.</p>
-                </div>
-                
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zm7-10a1 1 0 01.707.293l.707.707.707-.707A1 1 0 0115 2a1 1 0 01.707 1.707L15 4.414l.707.707A1 1 0 0115 7a1 1 0 01-.707-.293L13.586 6l-.707.707A1 1 0 0112 7a1 1 0 01-.707-1.707L12 4.414l-.707-.707A1 1 0 0112 2z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-center mb-2">Affordable Pricing</h3>
-                    <p class="text-gray-600 text-center">Get the best streaming services at competitive prices with flexible profile options.</p>
-                </div>
-                
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-center mb-2">Multiple Profiles</h3>
-                    <p class="text-gray-600 text-center">Share your subscription with family and friends with multiple profile options.</p>
-                </div>
-                
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-center mb-2">Instant Access</h3>
-                    <p class="text-gray-600 text-center">Get immediate access to your subscription after purchase with no waiting time.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Contact Section -->
-    <section id="contact" class="py-16 bg-white">
-        <div class="container mx-auto px-4">
-            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Contact Us</h2>
-            
-            <div class="max-w-4xl mx-auto">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="bg-gray-50 p-8 rounded-xl shadow-md">
-                        <h3 class="text-2xl font-bold mb-4">Get In Touch</h3>
-                        <p class="text-gray-600 mb-6">Have questions about our subscriptions? Contact us and we'll get back to you as soon as possible.</p>
-                        
-                        <div class="space-y-4">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 bg-black rounded-full flex items-center justify-center mr-4">
-                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
-                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500 text-sm">Email</p>
-                                    <p class="font-medium">info@Strivio.store</p>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 bg-black rounded-full flex items-center justify-center mr-4">
-                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500 text-sm">Phone</p>
-                                    <p class="font-medium">+213 562961410</p>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 bg-black rounded-full flex items-center justify-center mr-4">
-                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                        <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.477 0 10c0 4.991 3.657 9.128 8.438 9.879V12.89h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.989C16.343 19.129 20 14.99 20 10c0-5.523-4.477-10-10-10z" clip-rule="evenodd"></path>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500 text-sm">Facebook</p>
-                                    <p class="font-medium">Strivio Store</p>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 bg-black rounded-full flex items-center justify-center mr-4">
-                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"></path>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="text-gray-500 text-sm">Instagram</p>
-                                    <p class="font-medium">Strivio.Store</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-gray-50 p-8 rounded-xl shadow-md">
-                        <h3 class="text-2xl font-bold mb-4">Send a Message</h3>
-                        <form>
-                            <div class="mb-4">
-                                <label class="block text-gray-700 text-sm font-medium mb-2" for="name">Name</label>
-                                <input class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black" type="text" id="name" placeholder="Your name">
-                            </div>
-                            
-                            <div class="mb-4">
-                                <label class="block text-gray-700 text-sm font-medium mb-2" for="email">Email</label>
-                                <input class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black" type="email" id="email" placeholder="Your email">
-                            </div>
-                            
-                            <div class="mb-4">
-                                <label class="block text-gray-700 text-sm font-medium mb-2" for="message">Message</label>
-                                <textarea class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black" id="message" rows="4" placeholder="Your message"></textarea>
-                            </div>
-                            
-                            <button class="w-full bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-800 transition duration-300">Send Message</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="bg-gray-900 text-white py-12">
-        <div class="container mx-auto px-4">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div>
-                    <h3 class="text-xl font-bold mb-4">Strivio</h3>
-                    <p class="text-gray-400">Premium streaming subscriptions at competitive prices. Get access to the best entertainment platforms all in one place.</p>
-                </div>
-                
-                <div>
-                    <h3 class="text-xl font-bold mb-4">Quick Links</h3>
-                    <ul class="space-y-2">
-                        <li><a href="#home" class="text-gray-400 hover:text-white transition duration-300">Home</a></li>
-                        <li><a href="#subscriptions" class="text-gray-400 hover:text-white transition duration-300">Subscriptions</a></li>
-                        <li><a href="#contact" class="text-gray-400 hover:text-white transition duration-300">Contact</a></li>
+                <nav>
+                    <ul class="nav-menu">
+                        <li><a href="#services" class="scroll-link">Services</a></li>
+                        <li><a href="#why-us" class="scroll-link">Why Choose Us</a></li>
+                        <li><a href="#contact" class="scroll-link">Contact</a></li>
                     </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="fade-in" style="opacity: 1;">Premium Streaming Services</h1>
+                <p class="fade-in delay-100" style="opacity: 1;">Get access to your favorite streaming platforms at the best prices in Algerian Dinar.</p>
+                <div class="fade-in delay-200" style="opacity: 1;">
+                    <a href="#services" class="btn scroll-link">Explore Services</a>
+                    <a href="#contact" class="btn btn-outline scroll-link">Contact Us</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="services" class="services">
+        <div class="container">
+            <div class="section-title fade-in" style="opacity: 1;">
+                <h2>Our Premium Services</h2>
+                <p>Choose from our wide range of streaming services and enjoy your favorite content at affordable prices.</p>
+            </div>
+            
+            <div class="services-grid" id="servicesGrid"><div class="service-card scale-in" data-service="netflix" style="animation-delay: 0s; opacity: 1;"><div class="service-content"><div class="service-icon netflix-color"><svg viewBox="0 0 111 30" fill="white"><path d="M105.062 14.28L111 30c-1.75-.25-3.499-.563-5.28-.845l-3.345-8.686-3.437 7.969c-1.687-.282-3.344-.376-5.031-.595l6.031-13.75L94.468 0h5.063l3.062 7.874L105.875 0h5.124l-5.937 14.28zM90.47 0h-4.594v27.25c1.5.094 3.062.156 4.594.343V0zm-8.563 26.937c-4.187-.281-8.375-.53-12.656-.625V0h4.687v21.875c2.688.062 5.375.28 7.969.405v4.657zM64.25 10.657v4.687h-6.406V26H53.22V0h13.125v4.687h-8.5v5.97h6.406zm-18.906-5.97V26.25c-1.563 0-3.156 0-4.688.062V4.687h-4.844V0h14.406v4.687h-4.874zM30.75 15.593c-2.062 0-4.5 0-6.25.095v6.968c2.75-.188 5.5-.406 8.281-.5v4.5l-12.968 1.032V0H32.78v4.687H24.5V11c1.813 0 4.594-.094 6.25-.094v4.688zM4.78 12.968v16.375C3.094 29.531 1.593 29.75 0 30V0h4.469l6.093 17.032V0h4.688v28.062c-1.656.282-3.344.376-5.125.625L4.78 12.968z"></path></svg></div><h3>Netflix</h3><p>Stream award-winning Netflix originals, TV shows, movies, documentaries, and more.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="netflix">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="netflix">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="netflix">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="netflix">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="netflix">5 Profiles</button></div><div class="pricing-container" id="pricing-netflix"><div class="pricing-options"><div class="pricing-card" style="transition-delay: 0s;">
+                        <h3>1 Month</h3>
+                        <div class="price">900 <span>DZD</span></div>
+                    </div><div class="pricing-card" style="transition-delay: 0.1s;">
+                        <h3>2 Months</h3>
+                        <div class="price">1700 <span>DZD</span></div>
+                    </div><div class="pricing-card" style="transition-delay: 0.2s;">
+                        <h3>3 Months</h3>
+                        <div class="price">2400 <span>DZD</span></div>
+                    </div><div class="pricing-card" style="transition-delay: 0.3s;">
+                        <h3>6 Months</h3>
+                        <div class="price">4500 <span>DZD</span></div>
+                    </div><div class="pricing-card" style="transition-delay: 0.4s;">
+                        <h3>12 Months</h3>
+                        <div class="price">8500 <span>DZD</span></div>
+                    </div></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="spotify" style="animation-delay: 0.1s; opacity: 1;"><div class="service-content"><div class="service-icon spotify-color"><svg viewBox="0 0 168 168" fill="white"><path d="M83.996 0.277C37.747 0.277 0.253 37.77 0.253 84.019C0.253 130.27 37.747 167.76 83.996 167.76C130.25 167.76 167.74 130.27 167.74 84.019C167.74 37.773 130.25 0.281 83.995 0.281L83.996 0.277ZM122.4 121.057C120.9 123.517 117.68 124.297 115.22 122.787C95.558 110.777 70.806 108.057 41.656 114.717C38.847 115.357 36.047 113.597 35.407 110.787C34.764 107.977 36.517 105.177 39.333 104.537C71.233 97.249 98.596 100.387 120.67 113.877C123.13 115.387 123.91 118.597 122.4 121.057ZM132.65 98.255C130.76 101.327 126.74 102.297 123.67 100.407C101.16 86.571 66.847 82.564 40.222 90.646C36.769 91.689 33.122 89.743 32.074 86.296C31.034 82.843 32.981 79.203 36.428 78.153C66.841 68.925 104.65 73.395 130.5 89.28C133.57 91.17 134.54 95.19 132.65 98.26V98.255ZM133.53 74.511C106.54 58.48 62.01 57.006 36.241 64.827C32.103 66.082 27.727 63.746 26.473 59.608C25.219 55.468 27.553 51.095 31.694 49.837C61.275 40.857 110.45 42.592 141.524 61.039C145.254 63.248 146.474 68.055 144.264 71.772C142.064 75.494 137.244 76.721 133.534 74.511H133.53Z"></path></svg></div><h3>Spotify</h3><p>Listen to millions of songs, podcasts, and audiobooks on the world's most popular audio streaming platform.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="spotify">Individual Account</button></div><div class="pricing-container" id="pricing-spotify"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="disneyplus" style="animation-delay: 0.2s; opacity: 1;"><div class="service-content"><div class="service-icon disney-color"><svg viewBox="0 0 24 24" fill="white"><path d="M5.963 7.268C7.466 7.268 8.63 8.305 8.63 9.648C8.63 11.057 7.466 12.094 5.963 12.094C4.46 12.094 3.296 11.057 3.296 9.648C3.296 8.305 4.46 7.268 5.963 7.268ZM18.074 7.268C19.577 7.268 20.741 8.305 20.741 9.648C20.741 11.057 19.577 12.094 18.074 12.094C16.571 12.094 15.407 11.057 15.407 9.648C15.407 8.305 16.571 7.268 18.074 7.268ZM21.111 13.324V16.886H19.577V13.324H15.037V16.886H13.504V7.268H15.037V11.906H19.577V7.268H21.111V13.324ZM10.37 7.268V16.886H8.837V7.268H10.37ZM5.593 13.324V16.886H4.059V13.324H0V7.268H1.533V11.906H4.059V7.268H5.593V13.324Z"></path></svg></div><h3>Disney+</h3><p>Stream Disney, Pixar, Marvel, Star Wars, National Geographic, and more on Disney+.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="disneyplus">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="disneyplus">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="disneyplus">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="disneyplus">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="disneyplus">5 Profiles</button></div><div class="pricing-container" id="pricing-disneyplus"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="primevideo" style="animation-delay: 0.3s; opacity: 1;"><div class="service-content"><div class="service-icon prime-color"><svg viewBox="0 0 24 24" fill="white"><path d="M20.182 6.545h-2.909V4.909c0-.545-.454-1-1-1H7.727c-.545 0-1 .455-1 1v1.636H3.818c-.545 0-1 .455-1 1v10.909c0 .545.455 1 1 1h16.364c.545 0 1-.455 1-1V7.545c0-.545-.455-1-1-1zM8.727 4.909h6.546v1.636H8.727V4.909zm11.455 13.545H3.818V7.545h16.364v10.909zm-5.455-7.272c0 1.273-1.182 2.182-2.727 2.182-1.545 0-2.727-.91-2.727-2.182 0-.09.09-.182.182-.182s.182.091.182.182c0 .909.91 1.818 2.364 1.818 1.454 0 2.363-.91 2.363-1.818 0-.09.09-.182.182-.182s.181.091.181.182z"></path></svg></div><h3>Prime Video</h3><p>Watch movies, TV shows, and Amazon Originals on Prime Video.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="primevideo">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="primevideo">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="primevideo">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="primevideo">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="primevideo">5 Profiles</button></div><div class="pricing-container" id="pricing-primevideo"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="shahidvip" style="animation-delay: 0.4s; opacity: 1;"><div class="service-content"><div class="service-icon shahid-color"><svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-5 9h10v2H7v-2z"></path></svg></div><h3>Shahid VIP</h3><p>Stream Arabic TV shows, movies, and Shahid originals on Shahid VIP.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="shahidvip">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="shahidvip">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="shahidvip">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="shahidvip">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="shahidvip">5 Profiles</button></div><div class="pricing-container" id="pricing-shahidvip"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="chatgptplus" style="animation-delay: 0.5s; opacity: 1;"><div class="service-content"><div class="service-icon chatgpt-color"><svg viewBox="0 0 24 24" fill="white"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.5093-2.6067-1.4998z"></path></svg></div><h3>ChatGPT Plus</h3><p>Access the latest features of ChatGPT with faster response times and priority access.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="chatgptplus">Individual Account</button></div><div class="pricing-container" id="pricing-chatgptplus"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="snapchatplus" style="animation-delay: 0.6s; opacity: 1;"><div class="service-content"><div class="service-icon snapchat-color"><svg viewBox="0 0 24 24" fill="black"><path d="M12.031 2c-5.506 0-9.969 4.463-9.969 9.969 0 5.506 4.463 9.969 9.969 9.969 5.506 0 9.969-4.463 9.969-9.969 0-5.506-4.463-9.969-9.969-9.969zm5.254 13.803c-.2.614-.717 1.066-1.414 1.202-.234.045-.469.07-.703.07-.572 0-1.11-.176-1.566-.507l-.12.507h-1.8l-.12-.507c-.456.331-.994.507-1.566.507-.234 0-.469-.025-.703-.07-.697-.136-1.214-.588-1.414-1.202-.11-.341-.11-.703 0-1.044.176-.547.612-.974 1.159-1.139.547-.166 1.139-.091 1.631.2.166.1.321.226.456.376.135-.15.29-.275.456-.376.492-.291 1.084-.366 1.631-.2.547.166.983.592 1.159 1.139.11.341.11.703 0 1.044zm-1.044-4.328c-.05-.05-.1-.075-.15-.075h-1.139v-1.139c0-.05-.025-.1-.075-.15-.05-.05-.1-.075-.15-.075h-1.414c-.05 0-.1.025-.15.075-.05.05-.075.1-.075.15v1.139h-1.139c-.05 0-.1.025-.15.075-.05.05-.075.1-.075.15v1.414c0 .05.025.1.075.15.05.05.1.075.15.075h1.139v1.139c0 .05.025.1.075.15.05.05.1.075.15.075h1.414c.05 0 .1-.025.15-.075.05-.05.075-.1.075-.15v-1.139h1.139c.05 0 .1-.025.15-.075.05-.05.075-.1.075-.15v-1.414c0-.05-.025-.1-.075-.15z"></path></svg></div><h3>Snapchat+</h3><p>Get exclusive, experimental, and pre-release features on Snapchat.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="snapchatplus">Individual Account</button></div><div class="pricing-container" id="pricing-snapchatplus"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="osnplus" style="animation-delay: 0.7s; opacity: 1;"><div class="service-content"><div class="service-icon osn-color"><svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7v-2z"></path></svg></div><h3>OSN+</h3><p>Watch premium entertainment, movies, and TV shows from the Middle East and beyond.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="osnplus">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="osnplus">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="osnplus">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="osnplus">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="osnplus">5 Profiles</button></div><div class="pricing-container" id="pricing-osnplus"><div class="pricing-options"></div></div><div class="close-btn"></div></div></div>
+        </div>
+    </section>
+
+    <section id="why-us" class="why-us">
+        <div class="container">
+            <div class="section-title fade-in" style="opacity: 1;">
+                <h2>Why Choose Us</h2>
+                <p>We provide the best streaming services with exceptional benefits and customer support.</p>
+            </div>
+            
+            <div class="features">
+                <div class="feature scale-in delay-100" style="opacity: 1;">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
+                        </svg>
+                    </div>
+                    <h3>Reliable Service</h3>
+                    <p>We ensure that your streaming services are always available and working perfectly.</p>
                 </div>
                 
-                <div>
-                    <h3 class="text-xl font-bold mb-4">Follow Us</h3>
-                    <div class="flex space-x-4">
-                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700 transition duration-300">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.477 0 10c0 4.991 3.657 9.128 8.438 9.879V12.89h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.989C16.343 19.129 20 14.99 20 10c0-5.523-4.477-10-10-10z" clip-rule="evenodd"></path>
+                <div class="feature scale-in delay-200" style="opacity: 1;">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"></path>
+                        </svg>
+                    </div>
+                    <h3>Competitive Pricing</h3>
+                    <p>We offer the best prices in Algerian Dinar for all premium streaming services.</p>
+                </div>
+                
+                <div class="feature scale-in delay-300" style="opacity: 1;">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"></path>
+                        </svg>
+                    </div>
+                    <h3>24/7 Support</h3>
+                    <p>Our customer support team is available 24/7 to assist you with any issues or questions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="contact">
+        <div class="container">
+            <div class="section-title fade-in" style="opacity: 1;">
+                <h2>Contact Us</h2>
+                <p>Get in touch with us for any inquiries or assistance.</p>
+            </div>
+            
+            <div class="contact-content">
+                <div class="contact-info slide-in delay-100" style="opacity: 1;">
+                    <h3>Contact Information</h3>
+                    <p>Feel free to reach out to us through any of the following channels:</p>
+                    
+                    <div class="info-item">
+                        <div class="icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"></path>
+                            </svg>
+                        </div>
+                        <span>info@strivio.com</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"></path>
+                            </svg>
+                        </div>
+                        <span>+213 123 456 789</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"></path>
+                            </svg>
+                        </div>
+                        <span>Algiers, Algeria</span>
+                    </div>
+                    
+                    <div class="social-links">
+                        <a href="#">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96C15.9 21.59 18.03 20.4 19.6 18.64C21.17 16.88 22.06 14.64 22.06 12.32C22.06 6.61 17.5 2.04 12 2.04Z"></path>
                             </svg>
                         </a>
-                        
-                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700 transition duration-300">
-                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"></path>
+                        <a href="#">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z"></path>
+                            </svg>
+                        </a>
+                        <a href="#">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"></path>
                             </svg>
                         </a>
                     </div>
                 </div>
+                
+                <div class="contact-form slide-in delay-200" style="opacity: 1;">
+                    <h3>Send us a Message</h3>
+                    <form id="contactForm">
+                        <div class="form-group">
+                            <input type="text" class="form-control" placeholder="Your Name" required="">
+                        </div>
+                        <div class="form-group">
+                            <input type="email" class="form-control" placeholder="Your Email" required="">
+                        </div>
+                        <div class="form-group">
+                            <input type="text" class="form-control" placeholder="Subject">
+                        </div>
+                        <div class="form-group">
+                            <textarea class="form-control" placeholder="Your Message" required=""></textarea>
+                        </div>
+                        <button type="submit" class="btn">Send Message</button>
+                    </form>
+                </div>
             </div>
-            
-            <div class="border-t border-gray-800 mt-8 pt-8 text-center">
-                <p class="text-gray-400">© 2023 Strivio. All rights reserved.</p>
-            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>© 2023 Strivio. All rights reserved.</p>
         </div>
     </footer>
 
+    <div class="scroll-indicator visible" id="scrollToTop">
+        <svg viewBox="0 0 24 24">
+            <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path>
+        </svg>
+    </div>
+
     <script>
-        // Mobile menu toggle
-        document.getElementById('menu-toggle').addEventListener('click', function() {
-            const mobileMenu = document.getElementById('mobile-menu');
-            mobileMenu.classList.toggle('hidden');
-        });
-        
-        // Smooth scrolling for anchor links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
-                
-                // Close mobile menu if open
-                const mobileMenu = document.getElementById('mobile-menu');
-                if (!mobileMenu.classList.contains('hidden')) {
-                    mobileMenu.classList.add('hidden');
+        document.addEventListener('DOMContentLoaded', function() {
+            // Services data
+            const services = [
+                {
+                    id: 'netflix',
+                    name: 'Netflix',
+                    hasProfiles: true,
+                    maxProfiles: 5,
+                    prices: {
+                        1: { 1: 500, 2: 900, 3: 1300, 6: 2400, 12: 4500 },
+                        2: { 1: 900, 2: 1700, 3: 2400, 6: 4500, 12: 8500 },
+                        3: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
+                        4: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 },
+                        5: { 1: 1900, 2: 3600, 3: 5100, 6: 9500, 12: 18000 }
+                    },
+                    color: 'netflix-color',
+                    icon: `<svg viewBox="0 0 111 30" fill="white"><path d="M105.062 14.28L111 30c-1.75-.25-3.499-.563-5.28-.845l-3.345-8.686-3.437 7.969c-1.687-.282-3.344-.376-5.031-.595l6.031-13.75L94.468 0h5.063l3.062 7.874L105.875 0h5.124l-5.937 14.28zM90.47 0h-4.594v27.25c1.5.094 3.062.156 4.594.343V0zm-8.563 26.937c-4.187-.281-8.375-.53-12.656-.625V0h4.687v21.875c2.688.062 5.375.28 7.969.405v4.657zM64.25 10.657v4.687h-6.406V26H53.22V0h13.125v4.687h-8.5v5.97h6.406zm-18.906-5.97V26.25c-1.563 0-3.156 0-4.688.062V4.687h-4.844V0h14.406v4.687h-4.874zM30.75 15.593c-2.062 0-4.5 0-6.25.095v6.968c2.75-.188 5.5-.406 8.281-.5v4.5l-12.968 1.032V0H32.78v4.687H24.5V11c1.813 0 4.594-.094 6.25-.094v4.688zM4.78 12.968v16.375C3.094 29.531 1.593 29.75 0 30V0h4.469l6.093 17.032V0h4.688v28.062c-1.656.282-3.344.376-5.125.625L4.78 12.968z"></path></svg>`,
+                    description: 'Stream award-winning Netflix originals, TV shows, movies, documentaries, and more.'
+                },
+                {
+                    id: 'spotify',
+                    name: 'Spotify',
+                    hasProfiles: false,
+                    prices: {
+                        1: 400, 2: 700, 3: 1000, 6: 1900, 12: 3500
+                    },
+                    color: 'spotify-color',
+                    icon: `<svg viewBox="0 0 168 168" fill="white"><path d="M83.996 0.277C37.747 0.277 0.253 37.77 0.253 84.019C0.253 130.27 37.747 167.76 83.996 167.76C130.25 167.76 167.74 130.27 167.74 84.019C167.74 37.773 130.25 0.281 83.995 0.281L83.996 0.277ZM122.4 121.057C120.9 123.517 117.68 124.297 115.22 122.787C95.558 110.777 70.806 108.057 41.656 114.717C38.847 115.357 36.047 113.597 35.407 110.787C34.764 107.977 36.517 105.177 39.333 104.537C71.233 97.249 98.596 100.387 120.67 113.877C123.13 115.387 123.91 118.597 122.4 121.057ZM132.65 98.255C130.76 101.327 126.74 102.297 123.67 100.407C101.16 86.571 66.847 82.564 40.222 90.646C36.769 91.689 33.122 89.743 32.074 86.296C31.034 82.843 32.981 79.203 36.428 78.153C66.841 68.925 104.65 73.395 130.5 89.28C133.57 91.17 134.54 95.19 132.65 98.26V98.255ZM133.53 74.511C106.54 58.48 62.01 57.006 36.241 64.827C32.103 66.082 27.727 63.746 26.473 59.608C25.219 55.468 27.553 51.095 31.694 49.837C61.275 40.857 110.45 42.592 141.524 61.039C145.254 63.248 146.474 68.055 144.264 71.772C142.064 75.494 137.244 76.721 133.534 74.511H133.53Z"></path></svg>`,
+                    description: 'Listen to millions of songs, podcasts, and audiobooks on the world\'s most popular audio streaming platform.'
+                },
+                {
+                    id: 'disneyplus',
+                    name: 'Disney+',
+                    hasProfiles: true,
+                    maxProfiles: 5,
+                    prices: {
+                        1: { 1: 400, 2: 700, 3: 1000, 6: 1900, 12: 3500 },
+                        2: { 1: 700, 2: 1300, 3: 1900, 6: 3500, 12: 6500 },
+                        3: { 1: 1000, 2: 1900, 3: 2700, 6: 5000, 12: 9500 },
+                        4: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
+                        5: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 }
+                    },
+                    color: 'disney-color',
+                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M5.963 7.268C7.466 7.268 8.63 8.305 8.63 9.648C8.63 11.057 7.466 12.094 5.963 12.094C4.46 12.094 3.296 11.057 3.296 9.648C3.296 8.305 4.46 7.268 5.963 7.268ZM18.074 7.268C19.577 7.268 20.741 8.305 20.741 9.648C20.741 11.057 19.577 12.094 18.074 12.094C16.571 12.094 15.407 11.057 15.407 9.648C15.407 8.305 16.571 7.268 18.074 7.268ZM21.111 13.324V16.886H19.577V13.324H15.037V16.886H13.504V7.268H15.037V11.906H19.577V7.268H21.111V13.324ZM10.37 7.268V16.886H8.837V7.268H10.37ZM5.593 13.324V16.886H4.059V13.324H0V7.268H1.533V11.906H4.059V7.268H5.593V13.324Z"/></svg>`,
+                    description: 'Stream Disney, Pixar, Marvel, Star Wars, National Geographic, and more on Disney+.'
+                },
+                {
+                    id: 'primevideo',
+                    name: 'Prime Video',
+                    hasProfiles: true,
+                    maxProfiles: 5,
+                    prices: {
+                        1: { 1: 400, 2: 700, 3: 1000, 6: 1900, 12: 3500 },
+                        2: { 1: 700, 2: 1300, 3: 1900, 6: 3500, 12: 6500 },
+                        3: { 1: 1000, 2: 1900, 3: 2700, 6: 5000, 12: 9500 },
+                        4: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
+                        5: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 }
+                    },
+                    color: 'prime-color',
+                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M20.182 6.545h-2.909V4.909c0-.545-.454-1-1-1H7.727c-.545 0-1 .455-1 1v1.636H3.818c-.545 0-1 .455-1 1v10.909c0 .545.455 1 1 1h16.364c.545 0 1-.455 1-1V7.545c0-.545-.455-1-1-1zM8.727 4.909h6.546v1.636H8.727V4.909zm11.455 13.545H3.818V7.545h16.364v10.909zm-5.455-7.272c0 1.273-1.182 2.182-2.727 2.182-1.545 0-2.727-.91-2.727-2.182 0-.09.09-.182.182-.182s.182.091.182.182c0 .909.91 1.818 2.364 1.818 1.454 0 2.363-.91 2.363-1.818 0-.09.09-.182.182-.182s.181.091.181.182z"/></svg>`,
+                    description: 'Watch movies, TV shows, and Amazon Originals on Prime Video.'
+                },
+                {
+                    id: 'shahidvip',
+                    name: 'Shahid VIP',
+                    hasProfiles: true,
+                    maxProfiles: 5,
+                    prices: {
+                        1: { 1: 400, 2: 700, 3: 1000, 6: 1900, 12: 3500 },
+                        2: { 1: 700, 2: 1300, 3: 1900, 6: 3500, 12: 6500 },
+                        3: { 1: 1000, 2: 1900, 3: 2700, 6: 5000, 12: 9500 },
+                        4: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
+                        5: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 }
+                    },
+                    color: 'shahid-color',
+                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-5 9h10v2H7v-2z"></path></svg>`,
+                    description: 'Stream Arabic TV shows, movies, and Shahid originals on Shahid VIP.'
+                },
+                {
+                    id: 'chatgptplus',
+                    name: 'ChatGPT Plus',
+                    hasProfiles: false,
+                    prices: {
+                        1: 1000, 2: 1900, 3: 2800, 6: 5500, 12: 10000
+                    },
+                    color: 'chatgpt-color',
+                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.5093-2.6067-1.4998z"></path></svg>`,
+                    description: 'Access the latest features of ChatGPT with faster response times and priority access.'
+                },
+                {
+                    id: 'snapchatplus',
+                    name: 'Snapchat+',
+                    hasProfiles: false,
+                    prices: {
+                        1: 300, 2: 500, 3: 700, 6: 1300, 12: 2500
+                    },
+                    color: 'snapchat-color',
+                    icon: `<svg viewBox="0 0 24 24" fill="black"><path d="M12.031 2c-5.506 0-9.969 4.463-9.969 9.969 0 5.506 4.463 9.969 9.969 9.969 5.506 0 9.969-4.463 9.969-9.969 0-5.506-4.463-9.969-9.969-9.969zm5.254 13.803c-.2.614-.717 1.066-1.414 1.202-.234.045-.469.07-.703.07-.572 0-1.11-.176-1.566-.507l-.12.507h-1.8l-.12-.507c-.456.331-.994.507-1.566.507-.234 0-.469-.025-.703-.07-.697-.136-1.214-.588-1.414-1.202-.11-.341-.11-.703 0-1.044.176-.547.612-.974 1.159-1.139.547-.166 1.139-.091 1.631.2.166.1.321.226.456.376.135-.15.29-.275.456-.376.492-.291 1.084-.366 1.631-.2.547.166.983.592 1.159 1.139.11.341.11.703 0 1.044zm-1.044-4.328c-.05-.05-.1-.075-.15-.075h-1.139v-1.139c0-.05-.025-.1-.075-.15-.05-.05-.1-.075-.15-.075h-1.414c-.05 0-.1.025-.15.075-.05.05-.075.1-.075.15v1.139h-1.139c-.05 0-.1.025-.15.075-.05.05-.075.1-.075.15v1.414c0 .05.025.1.075.15.05.05.1.075.15.075h1.139v1.139c0 .05.025.1.075.15.05.05.1.075.15.075h1.414c.05 0 .1-.025.15-.075.05-.05.075-.1.075-.15v-1.139h1.139c.05 0 .1-.025.15-.075.05-.05.075-.1.075-.15v-1.414c0-.05-.025-.1-.075-.15z"/></svg>`,
+                    description: 'Get exclusive, experimental, and pre-release features on Snapchat.'
+                },
+                {
+                    id: 'osnplus',
+                    name: 'OSN+',
+                    hasProfiles: true,
+                    maxProfiles: 5,
+                    prices: {
+                        1: { 1: 500, 2: 900, 3: 1300, 6: 2400, 12: 4500 },
+                        2: { 1: 900, 2: 1700, 3: 2400, 6: 4500, 12: 8500 },
+                        3: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
+                        4: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 },
+                        5: { 1: 1900, 2: 3600, 3: 5100, 6: 9500, 12: 18000 }
+                    },
+                    color: 'osn-color',
+                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7v-2z"></path></svg>`,
+                    description: 'Watch premium entertainment, movies, and TV shows from the Middle East and beyond.'
                 }
-            });
-        });
-        
-        // Pricing data
-        const pricingData = {
-            netflix: {
-                1: {
-                    1: 1200,
-                    3: 3400,
-                    6: 6500,
-                    12: 12000
-                },
-                2: {
-                    1: 1400,
-                    3: 4000,
-                    6: 7600,
-                    12: 14000
-                },
-                3: {
-                    1: 1600,
-                    3: 4600,
-                    6: 8700,
-                    12: 16000
-                },
-                4: {
-                    1: 1800,
-                    3: 5200,
-                    6: 9800,
-                    12: 18000
-                },
-                5: {
-                    1: 2000,
-                    3: 5800,
-                    6: 10900,
-                    12: 20000
-                }
-            },
-            prime: {
-                1: {
-                    1: 800,
-                    3: 2300,
-                    6: 4400,
-                    12: 8000
-                },
-                2: {
-                    1: 950,
-                    3: 2700,
-                    6: 5200,
-                    12: 9500
-                },
-                3: {
-                    1: 1100,
-                    3: 3100,
-                    6: 6000,
-                    12: 11000
-                },
-                4: {
-                    1: 1250,
-                    3: 3600,
-                    6: 6800,
-                    12: 12500
-                },
-                5: {
-                    1: 1400,
-                    3: 4000,
-                    6: 7600,
-                    12: 14000
-                }
-            },
-            disney: {
-                1: {
-                    1: 900,
-                    3: 2600,
-                    6: 4900,
-                    12: 9000
-                },
-                2: {
-                    1: 1050,
-                    3: 3000,
-                    6: 5700,
-                    12: 10500
-                },
-                3: {
-                    1: 1200,
-                    3: 3400,
-                    6: 6500,
-                    12: 12000
-                },
-                4: {
-                    1: 1350,
-                    3: 3900,
-                    6: 7300,
-                    12: 13500
-                },
-                5: {
-                    1: 1500,
-                    3: 4300,
-                    6: 8100,
-                    12: 15000
-                }
-            },
-            shahid: {
-                1: {
-                    1: 600,
-                    3: 1500,
-                    6: 0,
-                    12: 2300
-                }
-                2: {
-                    1: 850,
-                    3: 2400,
-                    6: 4600,
-                    12: 8500
-                },
-                3: {
-                    1: 1000,
-                    3: 2900,
-                    6: 5400,
-                    12: 10000
-                },
-                4: {
-                    1: 1150,
-                    3: 3300,
-                    6: 6200,
-                    12: 11500
-                },
-                5: {
-                    1: 1300,
-                    3: 3700,
-                    6: 7000,
-                    12: 13000
-                }
-            },
-            spotify: {
-                1: {
-                    1: 500,
-                    3: 1300,
-                    6: 2200,
-                    12: 3900
-                }
-            },
-            snapchat: {
-                1: {
-                    1: 600,
-                    3: 1300,
-                    12: 2500
-                }
-            }
-        };
-        
-        // Profile selection functionality
-        const profileOptions = document.querySelectorAll('.profile-option');
-        
-        // Track current selections
-        const currentSelection = {
-            netflix: { profiles: 1 },
-            prime: { profiles: 1 },
-            disney: { profiles: 1 },
-            shahid: { profiles: 1 }
-        };
-        
-        // Update price based on current selection
-        function updatePrice(service) {
-            const profiles = currentSelection[service].profiles;
-            const pricingDisplay = document.querySelector(`.${service}-pricing`);
-            
-            if (pricingDisplay) {
-                // Clear existing pricing items
-                pricingDisplay.innerHTML = '';
-                
-                // Add pricing items for each duration
-                for (let duration of [1, 3, 6, 12]) {
-                    const price = pricingData[service][profiles][duration];
-                    
-                    const pricingItem = document.createElement('div');
-                    pricingItem.className = 'pricing-item';
-                    
-                    const durationDiv = document.createElement('div');
-                    durationDiv.className = 'pricing-duration';
-                    durationDiv.textContent = `${duration} ${duration === 1 ? 'Month' : 'Months'}`;
-                    
-                    const valueDiv = document.createElement('div');
-                    valueDiv.className = 'pricing-value';
-                    valueDiv.textContent = `${price.toLocaleString()} DZD`;
-                    
-                    pricingItem.appendChild(durationDiv);
-                    pricingItem.appendChild(valueDiv);
-                    
-                    pricingDisplay.appendChild(pricingItem);
-                }
-            }
-        }
-        
-        // Profile option click handler
-        profileOptions.forEach(option => {
-            option.addEventListener('click', function() {
-                // Get service and profiles
-                const service = this.getAttribute('data-service');
-                const profiles = parseInt(this.getAttribute('data-profiles'));
-                
-                // Update current selection
-                currentSelection[service].profiles = profiles;
-                
-                // Remove active class from all options in the same service
-                document.querySelectorAll(`.${service}-profile`).forEach(opt => {
-                    opt.classList.remove('active');
-                });
-                
-                // Add active class to clicked option
-                this.classList.add('active');
-                
-                // Update price
-                updatePrice(service);
-            });
-        });
-        
-        // iPhone notification animation
-        function showNotification() {
-            const screen = document.querySelector('.screen');
-            if (!screen) return;
-            
-            const notification = document.createElement('div');
-            notification.className = 'notification';
-            
-            const services = ['Netflix', 'Prime Video', 'Disney+', 'Shahid VIP', 'Spotify'];
-            const messages = [
-                'Your subscription is active! Enjoy unlimited streaming.',
-                'New content available! Check it out now.',
-                'Your payment was successful. Subscription extended.',
-                'Special offer: Get 20% off on annual plans today!'
             ];
             
-            const randomService = services[Math.floor(Math.random() * services.length)];
-            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            // Render services
+            const servicesGrid = document.getElementById('servicesGrid');
+            const overlay = document.getElementById('overlay');
             
-            notification.innerHTML = `<strong>Strivio:</strong> ${randomService} - ${randomMessage}`;
+            // Track currently expanded card
+            let expandedCard = null;
             
-            // Remove any existing notification
-            const existingNotification = document.querySelector('.notification');
-            if (existingNotification) {
-                existingNotification.remove();
+            // Clear any existing content in the services grid
+            servicesGrid.innerHTML = '';
+            
+            // Render each service
+            services.forEach((service, index) => {
+                const serviceCard = document.createElement('div');
+                serviceCard.className = 'service-card scale-in';
+                serviceCard.dataset.service = service.id;
+                serviceCard.style.animationDelay = `${index * 0.1}s`;
+                
+                // Create the main content
+                const serviceContent = document.createElement('div');
+                serviceContent.className = 'service-content';
+                
+                // Create the service icon
+                const serviceIcon = document.createElement('div');
+                serviceIcon.className = `service-icon ${service.color}`;
+                serviceIcon.innerHTML = service.icon;
+                
+                // Add the service name and description
+                const serviceName = document.createElement('h3');
+                serviceName.textContent = service.name;
+                
+                const serviceDesc = document.createElement('p');
+                serviceDesc.textContent = service.description;
+                
+                // Create profile selector
+                const profileSelector = document.createElement('div');
+                profileSelector.className = 'profile-selector';
+                
+                if (service.hasProfiles) {
+                    for (let i = 1; i <= service.maxProfiles; i++) {
+                        const profileBtn = document.createElement('button');
+                        profileBtn.className = 'profile-btn';
+                        profileBtn.textContent = `${i} Profile${i > 1 ? 's' : ''}`;
+                        profileBtn.dataset.profiles = i;
+                        profileBtn.dataset.service = service.id;
+                        
+                        profileBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            
+                            // Remove active class from all buttons in this card
+                            const buttons = this.closest('.service-card').querySelectorAll('.profile-btn');
+                            buttons.forEach(btn => btn.classList.remove('active'));
+                            
+                            // Add active class to clicked button
+                            this.classList.add('active');
+                            
+                            // Show pricing for selected profile count
+                            updatePricing(this.dataset.service, parseInt(this.dataset.profiles));
+                        });
+                        
+                        profileSelector.appendChild(profileBtn);
+                    }
+                } else {
+                    const profileBtn = document.createElement('button');
+                    profileBtn.className = 'profile-btn';
+                    profileBtn.textContent = 'Individual Account';
+                    profileBtn.dataset.profiles = 1;
+                    profileBtn.dataset.service = service.id;
+                    
+                    profileBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        
+                        // Remove active class from all buttons in this card
+                        const buttons = this.closest('.service-card').querySelectorAll('.profile-btn');
+                        buttons.forEach(btn => btn.classList.remove('active'));
+                        
+                        // Add active class to clicked button
+                        this.classList.add('active');
+                        
+                        // Show pricing for selected profile count
+                        updatePricing(this.dataset.service, 1);
+                    });
+                    
+                    profileSelector.appendChild(profileBtn);
+                }
+                
+                // Create pricing container
+                const pricingContainer = document.createElement('div');
+                pricingContainer.className = 'pricing-container';
+                pricingContainer.id = `pricing-${service.id}`;
+                
+                // Create pricing options
+                const pricingOptions = document.createElement('div');
+                pricingOptions.className = 'pricing-options';
+                
+                pricingContainer.appendChild(pricingOptions);
+                
+                // Create close button
+                const closeBtn = document.createElement('div');
+                closeBtn.className = 'close-btn';
+                closeBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const card = this.closest('.service-card');
+                    collapseCard(card);
+                });
+                
+                // Append all elements to service content
+                serviceContent.appendChild(serviceIcon);
+                serviceContent.appendChild(serviceName);
+                serviceContent.appendChild(serviceDesc);
+                
+                // Append elements to service card
+                serviceCard.appendChild(serviceContent);
+                serviceCard.appendChild(profileSelector);
+                serviceCard.appendChild(pricingContainer);
+                serviceCard.appendChild(closeBtn);
+                
+                // Add click event to expand card
+                serviceCard.addEventListener('click', function() {
+                    // If already expanded, collapse
+                    if (this.classList.contains('expanded')) {
+                        collapseCard(this);
+                        return;
+                    }
+                    
+                    // Collapse any previously expanded card
+                    if (expandedCard) {
+                        collapseCard(expandedCard);
+                    }
+                    
+                    // Expand this card
+                    expandCard(this);
+                });
+                
+                servicesGrid.appendChild(serviceCard);
+            });
+            
+            // Function to expand a card
+            function expandCard(card) {
+                // Set as current expanded card
+                expandedCard = card;
+                
+                // Show overlay
+                overlay.classList.add('active');
+                
+                // Dim other cards
+                document.querySelectorAll('.service-card').forEach(otherCard => {
+                    if (otherCard !== card) {
+                        otherCard.classList.add('dimmed');
+                    }
+                });
+                
+                // Expand this card
+                card.classList.add('expanded');
+                
+                // For services without profiles, automatically show pricing
+                const serviceId = card.dataset.service;
+                const service = services.find(s => s.id === serviceId);
+                
+                setTimeout(() => {
+                    if (!service.hasProfiles) {
+                        // For services without profiles, automatically select the button and show pricing
+                        const profileBtn = card.querySelector('.profile-btn');
+                        profileBtn.classList.add('active');
+                        updatePricing(serviceId, 1);
+                    }
+                    
+                    // Scroll to this card with smooth animation
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
             }
             
-            screen.appendChild(notification);
+            // Function to collapse a card
+            function collapseCard(card) {
+                // Hide overlay
+                overlay.classList.remove('active');
+                
+                // Remove dimming from other cards
+                document.querySelectorAll('.service-card').forEach(otherCard => {
+                    otherCard.classList.remove('dimmed');
+                });
+                
+                // Collapse this card
+                card.classList.remove('expanded');
+                
+                // Reset pricing container
+                const pricingContainer = card.querySelector('.pricing-container');
+                pricingContainer.classList.remove('active');
+                
+                // Remove active class from all profile buttons
+                const profileBtns = card.querySelectorAll('.profile-btn');
+                profileBtns.forEach(btn => btn.classList.remove('active'));
+                
+                // Clear expanded card reference
+                expandedCard = null;
+            }
             
-            // Remove notification after animation completes
-            setTimeout(() => {
-                if (notification.parentNode === screen) {
-                    notification.remove();
+            // Close expanded card when clicking overlay
+            overlay.addEventListener('click', function() {
+                if (expandedCard) {
+                    collapseCard(expandedCard);
                 }
-            }, 5000);
-        }
-        
-        // Show notifications periodically
-        setInterval(showNotification, 6000);
-        
-        // Show initial notification after page load
-        setTimeout(showNotification, 1500);
+            });
+            
+            // Function to update pricing based on service and profile count
+            function updatePricing(serviceId, profileCount) {
+                // Find the service by ID
+                const service = services.find(s => s.id === serviceId);
+                if (!service) return;
+                
+                const pricingContainer = document.getElementById(`pricing-${serviceId}`);
+                const pricingOptions = pricingContainer.querySelector('.pricing-options');
+                
+                // Clear existing pricing options
+                pricingOptions.innerHTML = '';
+                
+                // Get prices for selected service and profile count
+                const prices = service.hasProfiles ? service.prices[profileCount] : service.prices;
+                
+                // Define durations and their display names
+                const durations = [1, 2, 3, 6, 12];
+                const durationNames = {
+                    1: '1 Month',
+                    2: '2 Months',
+                    3: '3 Months',
+                    6: '6 Months',
+                    12: '12 Months'
+                };
+                
+                // Create pricing cards for each duration with staggered animation
+                durations.forEach((duration, index) => {
+                    const price = prices[duration];
+                    
+                    const pricingCard = document.createElement('div');
+                    pricingCard.className = 'pricing-card';
+                    pricingCard.style.transitionDelay = `${index * 0.1}s`;
+                    
+                    pricingCard.innerHTML = `
+                        <h3>${durationNames[duration]}</h3>
+                        <div class="price">${price} <span>DZD</span></div>
+                    `;
+                    
+                    pricingOptions.appendChild(pricingCard);
+                });
+                
+                // Show pricing container with animation
+                pricingContainer.classList.add('active');
+            }
+            
+            // Form submission
+            document.getElementById('contactForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                alert('Thank you for your message! We will get back to you soon.');
+                this.reset();
+            });
+            
+            // Smooth scrolling for navigation links
+            document.querySelectorAll('.scroll-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const targetId = this.getAttribute('href');
+                    const targetElement = document.querySelector(targetId);
+                    
+                    if (targetElement) {
+                        // Close mobile menu if open
+                        const navMenu = document.querySelector('.nav-menu');
+                        if (navMenu && navMenu.classList.contains('active')) {
+                            navMenu.classList.remove('active');
+                        }
+                        
+                        // Smooth scroll to target
+                        window.scrollTo({
+                            top: targetElement.offsetTop - 80,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+            
+            // Scroll to top button
+            const scrollToTopBtn = document.getElementById('scrollToTop');
+            
+            window.addEventListener('scroll', function() {
+                if (window.pageYOffset > 300) {
+                    scrollToTopBtn.classList.add('visible');
+                } else {
+                    scrollToTopBtn.classList.remove('visible');
+                }
+            });
+            
+            scrollToTopBtn.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // Add scroll animation for elements
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+            
+            document.querySelectorAll('.fade-in, .scale-in, .slide-in').forEach(el => {
+                observer.observe(el);
+            });
+        });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'949f2ab035d4a85e',t:'MTc0ODk1MzQ1OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;"></iframe><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;"></iframe>
-
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'951bdd03b42b2833',t:'MTc1MDI2MDk5Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;"></iframe>
 
 </body></html>
