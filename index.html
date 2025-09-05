@@ -330,6 +330,35 @@
         </div>
     </div>
 
+    <!-- Contact Options Modal -->
+    <div id="contactModal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6 rounded-t-xl">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">Choose Contact Method</h2>
+                    <button onclick="closeContactModal()" class="text-white hover:text-gray-300 text-3xl smooth-transition">&times;</button>
+                </div>
+                <p class="mt-2 text-gray-300">Select how you'd like to place your order:</p>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <button id="whatsappBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-4 px-6 rounded-lg smooth-transition flex items-center justify-center text-lg font-semibold">
+                        <i class="fab fa-whatsapp text-2xl mr-3"></i>
+                        Order via WhatsApp
+                    </button>
+                    <button id="messengerBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-lg smooth-transition flex items-center justify-center text-lg font-semibold">
+                        <i class="fab fa-facebook-messenger text-2xl mr-3"></i>
+                        Order via Messenger
+                    </button>
+                    <button id="instagramBtn" class="w-full bg-pink-500 hover:bg-pink-600 text-white py-4 px-6 rounded-lg smooth-transition flex items-center justify-center text-lg font-semibold">
+                        <i class="fab fa-instagram text-2xl mr-3"></i>
+                        Order via Instagram
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Features Section -->
     <section id="features" class="py-16">
         <div class="container mx-auto px-4">
@@ -374,7 +403,7 @@
                         </div>
                         <div class="flex items-center justify-center smooth-transition hover:text-blue-400">
                             <i class="fab fa-facebook-messenger text-2xl mr-3"></i>
-                            <span class="text-lg">Messenger: @Strivio.store</span>
+                            <span class="text-lg">Messenger: @Strivio</span>
                         </div>
                         <div class="flex items-center justify-center smooth-transition hover:text-pink-400">
                             <i class="fab fa-instagram text-2xl mr-3"></i>
@@ -430,100 +459,100 @@
                 description: 'Premium streaming service with 4K quality content and unlimited downloads',
                 color: 'red',
                 prices: {
-                    monthly: { price: 950, available: true },
-                    quarterly: { price: 2430, available: true },
-                    biannual: { price: 4725, available: true },
-                    yearly: { price: 8775, available: true }
+                    monthly: { price: 800, available: true },
+                    quarterly: { price: 2000, available: true },
+                    biannual: { price: 3500, available: false },
+                    yearly: { price: 6500, available: false }
                 }
             },
             'Spotify': {
                 description: 'Premium music streaming with offline downloads and no ads',
                 color: 'green',
                 prices: {
-                    monthly: { price: 540, available: true },
-                    quarterly: { price: 1350, available: true },
-                    biannual: { price: 2700, available: true },
-                    yearly: { price: 4725, available: true }
+                    monthly: { price: 690, available: true },
+                    quarterly: { price: 1450, available: true },
+                    biannual: { price: 2200, available: true },
+                    yearly: { price: 3500, available: true }
                 }
             },
             'ChatGPT': {
                 description: 'Advanced AI assistant with GPT-4 access and priority support',
                 color: 'gray',
                 prices: {
-                    monthly: { price: 1215, available: true },
-                    quarterly: { price: 3375, available: false }, // Easy to change: set to false for out of stock
-                    biannual: { price: 6480, available: true },
-                    yearly: { price: 12150, available: true }
+                    monthly: { price: 1000, available: true },
+                    quarterly: { price: 3300, available: true }, // Easy to change: set to false for out of stock
+                    biannual: { price: 5500, available: false },
+                    yearly: { price: 10000, available: false }
                 }
             },
             'Crunchyroll': {
                 description: 'Premium anime streaming platform with simulcast episodes',
                 color: 'orange',
                 prices: {
-                    monthly: { price: 675, available: true },
-                    quarterly: { price: 1890, available: true },
-                    biannual: { price: 3510, available: true },
-                    yearly: { price: 6480, available: true }
+                    monthly: { price: 600, available: true },
+                    quarterly: { price: 1500, available: true },
+                    biannual: { price: 2500, available: true },
+                    yearly: { price: 3000, available: true }
                 }
             },
             'PrimeVideo': {
                 description: 'Amazon\'s premium streaming service with exclusive content',
                 color: 'blue',
                 prices: {
-                    monthly: { price: 675, available: true },
-                    quarterly: { price: 1755, available: true },
-                    biannual: { price: 3375, available: true },
-                    yearly: { price: 6075, available: true }
+                    monthly: { price: 500, available: true },
+                    quarterly: { price: 900, available: true },
+                    biannual: { price: 1500, available: true },
+                    yearly: { price: 2000, available: true }
                 }
             },
             'DisneyPlus': {
                 description: 'Family entertainment with Disney, Marvel, Star Wars content',
                 color: 'blue',
                 prices: {
-                    monthly: { price: 810, available: true },
-                    quarterly: { price: 2160, available: true },
-                    biannual: { price: 4050, available: false }, // Easy to change: set to false for out of stock
-                    yearly: { price: 7425, available: true }
+                    monthly: { price: 600, available: true },
+                    quarterly: { price: 1500, available: true },
+                    biannual: { price: 2500, available: true }, // Easy to change: set to false for out of stock
+                    yearly: { price: 3000, available: true }
                 }
             },
             'ShahidVIP': {
-                description: 'Arabic premium streaming content and exclusive shows',
+                description: 'FULL ACCOUNT WITH YOUR EMAIL AND PASSWORD !',
                 color: 'yellow',
                 prices: {
-                    monthly: { price: 540, available: true },
-                    quarterly: { price: 1485, available: true },
-                    biannual: { price: 2700, available: true },
-                    yearly: { price: 5130, available: true }
+                    monthly: { price: 1200, available: true },
+                    quarterly: { price: 3000, available: true },
+                    biannual: { price: 5000, available: true },
+                    yearly: { price: 6800, available: true }
                 }
             },
             'OSNPlus': {
-                description: 'Middle East premium entertainment and sports content',
+                description: 'FULL ACCOUNT WITH YOUR EMAIL AND PASSWORD !',
                 color: 'purple',
                 prices: {
-                    monthly: { price: 810, available: true },
-                    quarterly: { price: 2295, available: true },
-                    biannual: { price: 4320, available: true },
-                    yearly: { price: 8100, available: true }
+                    monthly: { price: 1200, available: true },
+                    quarterly: { price: 3000, available: true },
+                    biannual: { price: 5000, available: true },
+                    yearly: { price: 6800, available: true }
                 }
             },
             'YouTubePremium': {
                 description: 'Ad-free YouTube with background play and YouTube Music',
                 color: 'red',
                 prices: {
-                    monthly: { price: 675, available: true },
-                    quarterly: { price: 1755, available: true },
-                    biannual: { price: 3375, available: true },
-                    yearly: { price: 6075, available: true }
+                    monthly: { price: 700, available: true },
+                    quarterly: { price: 1500, available: true },
+                    biannual: { price: 2700, available: true },
+                    yearly: { price: 5000, available: true }
                 }
             },
             'CapCut': {
                 description: 'Professional video editing with premium features and effects',
                 color: 'pink',
                 prices: {
-                    monthly: { price: 810, available: true },
-                    quarterly: { price: 2160, available: true },
-                    biannual: { price: 4050, available: true },
-                    yearly: { price: 7425, available: true }
+                    monthly: { price: 800, available: true },
+                    quarterly: { price: 2000, available: false },
+                    biannual: { price: 3700, available: false },
+                    yearly: { price: 5000, available: true }
                 }
             }
             // Easy to add new services: just copy the structure above
@@ -562,7 +591,7 @@
                     optionDiv.innerHTML = `
                         <h4 class="text-lg font-semibold text-white mb-2">${periodNames[period]}</h4>
                         <p class="text-2xl font-bold text-${serviceData.color}-400 mb-3">${data.price.toLocaleString()} DZD</p>
-                        <button onclick="contactUs('${service}', '${period}', ${data.price})" 
+                        <button onclick="showContactOptions('${service}', '${period}', ${data.price})" 
                                 class="w-full bg-${serviceData.color}-600 hover:bg-${serviceData.color}-700 text-white py-2 px-4 rounded-lg smooth-transition">
                             Order Now
                         </button>
@@ -592,10 +621,45 @@
             setTimeout(() => modal.style.display = 'none', 300);
         }
 
-        function contactUs(service, period, price) {
-            const message = `Hello! I'm interested in ${service} - ${periodNames[period]} subscription (${price.toLocaleString()} DZD). Can you provide more details?`;
-            const whatsappUrl = `https://wa.me/213551234567?text=${encodeURIComponent(message)}`;
+        let currentOrder = {};
+
+        function showContactOptions(service, period, price) {
+            currentOrder = { service, period, price };
+            const contactModal = document.getElementById('contactModal');
+            
+            // Setup button click handlers
+            document.getElementById('whatsappBtn').onclick = () => contactViaWhatsApp();
+            document.getElementById('messengerBtn').onclick = () => contactViaMessenger();
+            document.getElementById('instagramBtn').onclick = () => contactViaInstagram();
+            
+            // Show contact modal
+            contactModal.style.display = 'block';
+            setTimeout(() => contactModal.classList.add('show'), 10);
+        }
+
+        function contactViaWhatsApp() {
+            const message = `Hello! I'm interested in ${currentOrder.service} - ${periodNames[currentOrder.period]} subscription (${currentOrder.price.toLocaleString()} DZD). Can you provide more details?`;
+            const whatsappUrl = `https://wa.me/213562961410?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
+            closeContactModal();
+        }
+
+        function contactViaMessenger() {
+            const messengerUrl = `https://m.me/61579884567383`;
+            window.open(messengerUrl, '_blank');
+            closeContactModal();
+        }
+
+        function contactViaInstagram() {
+            const instagramUrl = `https://instagram.com/strivio.store`;
+            window.open(instagramUrl, '_blank');
+            closeContactModal();
+        }
+
+        function closeContactModal() {
+            const contactModal = document.getElementById('contactModal');
+            contactModal.classList.remove('show');
+            setTimeout(() => contactModal.style.display = 'none', 300);
         }
 
         // Mobile menu toggle
@@ -623,9 +687,14 @@
 
         // Close modal when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('pricingModal');
-            if (event.target === modal) {
+            const pricingModal = document.getElementById('pricingModal');
+            const contactModal = document.getElementById('contactModal');
+            
+            if (event.target === pricingModal) {
                 closeModal();
+            }
+            if (event.target === contactModal) {
+                closeContactModal();
             }
         }
 
@@ -666,5 +735,5 @@
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a5af454462024b',t:'MTc1NzA3NDg2OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a5fc1785cbbaa1',t:'MTc1NzA3ODAxNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
