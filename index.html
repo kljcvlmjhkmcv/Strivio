@@ -1,1443 +1,670 @@
-<html lang="en"><head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strivio - Premium Streaming Services</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+    <title>Strivio - Premium Digital Subscriptions Algeria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root {
-            --primary-color: #ffffff;
-            --secondary-color: #000000;
-            --accent-color: #333333;
-            --text-color: #000000;
-            --background-color: #ffffff;
-            --card-color: #f5f5f5;
-            --hover-color: #e9e9e9;
-            --border-color: #dddddd;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #000;
+            color: #fff;
+            overflow-x: hidden;
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Montserrat', sans-serif;
+        .smooth-transition { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-hover { 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateZ(0);
+        }
+        .card-hover:hover { 
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 25px 50px rgba(255,255,255,0.1);
         }
         
-        body {
-            background-color: var(--background-color);
-            color: var(--text-color);
-            line-height: 1.6;
-            scroll-behavior: smooth;
+        .pulse-glow {
+            animation: pulseGlow 2s ease-in-out infinite alternate;
+        }
+        @keyframes pulseGlow {
+            from { box-shadow: 0 0 20px rgba(255,255,255,0.3); }
+            to { box-shadow: 0 0 30px rgba(255,255,255,0.5); }
         }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        header {
-            background-color: rgba(255, 255, 255, 0.95);
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
             backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .modal.show {
+            opacity: 1;
+        }
+        
+        .modal-content {
+            background: #111;
+            margin: 2% auto;
+            border-radius: 20px;
+            width: 95%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid #333;
+            transform: scale(0.8) translateY(50px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .modal.show .modal-content {
+            transform: scale(1) translateY(0);
+        }
+        
+        .service-card { 
+            cursor: pointer;
+            background: #111;
+            border: 1px solid #333;
+        }
+        .service-card:hover {
+            border-color: #555;
+        }
+        
+        .nav-bar {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            z-index: 1000;
-            padding: 15px 0;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 999;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid #333;
+            transform: translateY(-100%);
+            animation: slideDown 0.6s ease forwards;
         }
         
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        @keyframes slideDown {
+            to { transform: translateY(0); }
         }
         
-        .logo {
-            display: flex;
-            align-items: center;
-            font-weight: bold;
-            font-size: 26px;
-            color: var(--secondary-color);
-            letter-spacing: -0.5px;
-        }
-        
-        .logo svg {
-            margin-right: 10px;
-        }
-        
-        nav ul {
-            display: flex;
-            list-style: none;
-        }
-        
-        nav ul li {
-            margin-left: 25px;
-        }
-        
-        nav ul li a {
-            color: var(--secondary-color);
-            text-decoration: none;
-            font-size: 17px;
-            font-weight: 600;
-            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        .nav-link {
             position: relative;
-            padding: 5px 0;
+            overflow: hidden;
         }
-        
-        nav ul li a::after {
+        .nav-link::before {
             content: '';
             position: absolute;
             bottom: 0;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background-color: var(--secondary-color);
-            transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-        
-        nav ul li a:hover::after {
+            left: -100%;
             width: 100%;
+            height: 2px;
+            background: #fff;
+            transition: left 0.3s ease;
+        }
+        .nav-link:hover::before {
+            left: 0;
         }
         
-        nav ul li a:hover {
-            color: var(--accent-color);
-        }
-        
-        .hero {
-            padding: 140px 0 80px;
-            text-align: center;
-            background: linear-gradient(to bottom, #f9f9f9, #ffffff);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .hero-content {
-            position: relative;
-            z-index: 1;
-        }
-        
-        .hero h1 {
-            font-size: 52px;
-            margin-bottom: 20px;
-            font-weight: 800;
-            color: var(--secondary-color);
-            letter-spacing: -1px;
-        }
-        
-        .hero p {
-            font-size: 20px;
-            max-width: 600px;
-            margin: 0 auto 30px;
-            color: var(--accent-color);
-        }
-        
-        .btn {
+        .service-name-box {
             display: inline-block;
-            background-color: var(--secondary-color);
-            color: var(--primary-color);
-            padding: 14px 28px;
-            border-radius: 30px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            border: none;
-            cursor: pointer;
-            font-size: 17px;
-            letter-spacing: 0.3px;
-        }
-        
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-        
-        .btn-outline {
-            background-color: transparent;
-            border: 2px solid var(--secondary-color);
-            color: var(--secondary-color);
-        }
-        
-        .btn-outline:hover {
-            background-color: var(--secondary-color);
-            color: var(--primary-color);
-        }
-        
-        .section-title {
-            text-align: center;
-            margin-bottom: 50px;
-        }
-        
-        .section-title h2 {
-            font-size: 40px;
-            margin-bottom: 15px;
-            color: var(--secondary-color);
-            letter-spacing: -0.5px;
-        }
-        
-        .section-title p {
-            font-size: 19px;
-            color: var(--accent-color);
-            max-width: 700px;
-            margin: 0 auto;
-        }
-        
-        .services {
-            padding: 100px 0;
-            background-color: var(--primary-color);
-        }
-        
-        .services-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 35px;
-        }
-        
-        .service-card {
-            background-color: var(--card-color);
-            border-radius: 18px;
-            overflow: hidden;
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-            border: 1px solid var(--border-color);
-            cursor: pointer;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            min-height: 300px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            aspect-ratio: 1/1;
-        }
-        
-        .service-card:hover {
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-        }
-        
-        .service-card.expanded {
-            transform: scale(1.08);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-            border: 2px solid var(--secondary-color);
-            z-index: 10;
-            aspect-ratio: auto;
-            min-height: 450px;
-        }
-        
-        .service-card.dimmed {
-            transform: scale(0.98);
-            opacity: 0.7;
-            filter: blur(1px);
-        }
-        
-        .service-icon {
-            width: 90px;
-            height: 90px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            border-radius: 50%;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-        
-        .service-content {
-            padding: 25px;
-            text-align: center;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .service-card.expanded .service-content {
-            padding-bottom: 15px;
-        }
-        
-        .service-content h3 {
-            font-size: 24px;
-            margin-bottom: 12px;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            color: var(--secondary-color);
+            padding: 16px 32px;
+            border-radius: 12px;
             font-weight: 700;
+            font-size: 18px;
+            color: white;
+            margin-bottom: 16px;
+            min-width: 200px;
         }
         
-        .service-card.expanded .service-content h3 {
-            font-size: 28px;
-            margin-bottom: 8px;
+        .btn-primary {
+            background: #fff;
+            color: #000;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
-        
-        .service-content p {
-            font-size: 16px;
-            color: var(--accent-color);
-            margin-bottom: 15px;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
         }
-        
-        .profile-selector {
-            display: none;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 12px;
-            padding: 0 20px 20px;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            opacity: 0;
-            transform: translateY(20px);
+        .btn-primary:hover::before {
+            left: 100%;
         }
-        
-        .service-card.expanded .profile-selector {
-            display: flex;
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        .profile-btn {
-            min-width: 110px;
-            height: 45px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #e0e0e0;
-            color: var(--accent-color);
-            cursor: pointer;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            border: 1px solid var(--border-color);
-            font-weight: 600;
-            margin: 5px;
-            font-size: 15px;
-        }
-        
-        .profile-btn:hover {
-            background-color: #d0d0d0;
+        .btn-primary:hover {
+            background: #f0f0f0;
             transform: translateY(-2px);
         }
         
-        .profile-btn.active {
-            background-color: var(--secondary-color);
-            color: var(--primary-color);
-            transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        .pricing-container {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.8s cubic-bezier(0.25, 1, 0.5, 1);
-            background-color: rgba(0, 0, 0, 0.03);
-            width: 100%;
-            border-radius: 0 0 15px 15px;
-        }
-        
-        .pricing-container.active {
-            max-height: 1000px;
-        }
-        
-        .pricing-options {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 15px;
-            padding: 25px;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
-            transition-delay: 0.1s;
-        }
-        
-        .pricing-container.active .pricing-options {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        .pricing-card {
-            background-color: var(--primary-color);
-            border-radius: 14px;
-            padding: 18px;
-            width: calc(33.333% - 10px);
-            min-width: 110px;
-            text-align: center;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            border: 1px solid var(--border-color);
-            transform: scale(0.95);
-        }
-        
-        .pricing-card:hover {
-            transform: translateY(-10px) scale(1.05);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-            border-color: var(--secondary-color);
-        }
-        
-        .pricing-card h3 {
-            font-size: 17px;
-            margin-bottom: 12px;
-            color: var(--secondary-color);
-            font-weight: 600;
-        }
-        
-        .pricing-card .price {
-            font-size: 26px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: var(--secondary-color);
-        }
-        
-        .pricing-card .price span {
-            font-size: 16px;
-            font-weight: normal;
-        }
-        
-        .why-us {
-            padding: 100px 0;
-            background-color: #f9f9f9;
-        }
-        
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 35px;
-        }
-        
-        .feature {
-            background-color: var(--primary-color);
-            border-radius: 18px;
-            padding: 35px;
-            text-align: center;
-            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            border: 1px solid var(--border-color);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-        }
-        
-        .feature:hover {
-            transform: translateY(-10px);
-            border-color: var(--secondary-color);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-        }
-        
-        .feature-icon {
-            width: 70px;
-            height: 70px;
-            background-color: rgba(0, 0, 0, 0.05);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 25px;
-        }
-        
-        .feature-icon svg {
-            fill: var(--secondary-color);
-            width: 35px;
-            height: 35px;
-        }
-        
-        .feature h3 {
-            font-size: 24px;
-            margin-bottom: 15px;
-            color: var(--secondary-color);
-            font-weight: 700;
-        }
-        
-        .feature p {
-            font-size: 17px;
-            color: var(--accent-color);
-        }
-        
-        .contact {
-            padding: 100px 0;
-            background-color: var(--primary-color);
-        }
-        
-        .contact-content {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 50px;
-        }
-        
-        .contact-info {
-            flex: 1;
-            min-width: 300px;
-        }
-        
-        .contact-info h3 {
-            font-size: 28px;
-            margin-bottom: 25px;
-            color: var(--secondary-color);
-            font-weight: 700;
-        }
-        
-        .contact-info p {
-            margin-bottom: 25px;
-            color: var(--accent-color);
-            font-size: 17px;
-        }
-        
-        .contact-info .info-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .contact-info .info-item .icon {
-            width: 50px;
-            height: 50px;
-            background-color: rgba(0, 0, 0, 0.05);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 20px;
-        }
-        
-        .contact-info .info-item .icon svg {
-            fill: var(--secondary-color);
-            width: 24px;
-            height: 24px;
-        }
-        
-        .contact-info .info-item span {
-            font-size: 17px;
-            color: var(--accent-color);
-        }
-        
-        .contact-form {
-            flex: 1;
-            min-width: 300px;
-        }
-        
-        .contact-form h3 {
-            font-size: 28px;
-            margin-bottom: 25px;
-            color: var(--secondary-color);
-            font-weight: 700;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 15px 18px;
-            background-color: #f5f5f5;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--secondary-color);
-            font-size: 16px;
+        .pricing-option {
             transition: all 0.3s ease;
-            font-family: 'Montserrat', sans-serif;
+            border: 2px solid transparent;
+        }
+        .pricing-option:hover {
+            border-color: #333;
+            transform: scale(1.02);
         }
         
-        .form-control:focus {
-            outline: none;
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
-        }
-        
-        textarea.form-control {
-            min-height: 140px;
-            resize: vertical;
-        }
-        
-        footer {
-            background-color: var(--secondary-color);
-            padding: 35px 0;
-            text-align: center;
-            color: var(--primary-color);
-        }
-        
-        footer p {
-            color: #cccccc;
-            font-size: 16px;
-        }
-        
-        .social-links {
-            display: flex;
-            justify-content: center;
-            margin-top: 25px;
-        }
-        
-        .social-links a {
-            width: 45px;
-            height: 45px;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 12px;
-            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-        
-        .social-links a:hover {
-            background-color: var(--primary-color);
-            transform: translateY(-5px);
-        }
-        
-        .social-links a svg {
-            width: 22px;
-            height: 22px;
-            fill: white;
-            transition: fill 0.3s ease;
-        }
-        
-        .social-links a:hover svg {
-            fill: var(--secondary-color);
-        }
-        
-        /* Mobile Responsive */
         @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 40px;
+            .modal-content {
+                margin: 5% auto;
+                width: 98%;
             }
-            
-            .hero p {
-                font-size: 18px;
+            .nav-bar {
+                padding: 8px 0;
             }
-            
-            .section-title h2 {
-                font-size: 32px;
-            }
-            
-            .section-title p {
-                font-size: 17px;
-            }
-            
-            .nav-menu {
-                display: none;
-                position: absolute;
-                top: 70px;
-                left: 0;
-                right: 0;
-                background-color: rgba(255, 255, 255, 0.95);
-                padding: 20px;
-                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            }
-            
-            .nav-menu.active {
-                display: block;
-            }
-            
-            nav ul {
-                flex-direction: column;
-            }
-            
-            nav ul li {
-                margin: 12px 0;
-            }
-            
-            .menu-toggle {
-                display: block;
-            }
-            
-            .pricing-card {
-                width: calc(50% - 10px);
-            }
-            
-            .services-grid {
-                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .pricing-card {
-                width: 100%;
-            }
-            
-            .services-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .service-card.expanded {
-                transform: scale(1.04);
-            }
-        }
-        
-        /* Animation */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        @keyframes scaleIn {
-            from { transform: scale(0.9); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        .fade-in {
-            opacity: 0;
-            animation: fadeIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        
-        .scale-in {
-            opacity: 0;
-            animation: scaleIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        
-        .slide-in {
-            opacity: 0;
-            animation: slideIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        
-        .delay-100 { animation-delay: 0.1s; }
-        .delay-200 { animation-delay: 0.2s; }
-        .delay-300 { animation-delay: 0.3s; }
-        .delay-400 { animation-delay: 0.4s; }
-        .delay-500 { animation-delay: 0.5s; }
-        
-        /* Service specific colors */
-        .netflix-color { background-color: #E50914; }
-        .spotify-color { background-color: #1DB954; }
-        .disney-color { background-color: #0063e5; }
-        .prime-color { background-color: #00A8E1; }
-        .shahid-color { background-color: #770088; }
-        .chatgpt-color { background-color: #10a37f; }
-        .snapchat-color { background-color: #FFFC00; }
-        .osn-color { background-color: #E6007E; }
-        
-        /* Close button for expanded cards */
-        .close-btn {
-            position: absolute;
-            top: 18px;
-            right: 18px;
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            background-color: rgba(0, 0, 0, 0.05);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            opacity: 0;
-            transform: scale(0.8) rotate(-90deg);
-            pointer-events: none;
-            z-index: 5;
-        }
-        
-        .service-card.expanded .close-btn {
-            opacity: 1;
-            transform: scale(1) rotate(0deg);
-            pointer-events: auto;
-        }
-        
-        .close-btn:hover {
-            background-color: rgba(0, 0, 0, 0.1);
-            transform: scale(1.1) rotate(90deg);
-        }
-        
-        .close-btn::before,
-        .close-btn::after {
-            content: '';
-            position: absolute;
-            width: 18px;
-            height: 2px;
-            background-color: var(--secondary-color);
-            transition: background-color 0.3s ease;
-        }
-        
-        .close-btn:hover::before,
-        .close-btn:hover::after {
-            background-color: var(--secondary-color);
-        }
-        
-        .close-btn::before {
-            transform: rotate(45deg);
-        }
-        
-        .close-btn::after {
-            transform: rotate(-45deg);
-        }
-        
-        /* Overlay for expanded card */
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(255, 255, 255, 0.8);
-            z-index: 5;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            backdrop-filter: blur(3px);
-        }
-        
-        .overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        
-        /* Scroll indicator */
-        .scroll-indicator {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 55px;
-            height: 55px;
-            background-color: var(--secondary-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 100;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        
-        .scroll-indicator.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        .scroll-indicator svg {
-            fill: var(--primary-color);
-            width: 28px;
-            height: 28px;
         }
     </style>
 </head>
-<body>
-    <div class="overlay" id="overlay"></div>
-    
-    <header>
-        <div class="container">
-            <div class="header-content">
-                <div class="logo">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="black">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"></path>
-                    </svg>
-                    Strivio
+<body class="bg-black">
+    <!-- Navigation Bar -->
+    <nav class="nav-bar">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="text-xl font-bold">Strivio</div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#home" class="nav-link px-3 py-2 hover:text-gray-300 smooth-transition">Home</a>
+                    <a href="#services" class="nav-link px-3 py-2 hover:text-gray-300 smooth-transition">Services</a>
+                    <a href="#features" class="nav-link px-3 py-2 hover:text-gray-300 smooth-transition">Features</a>
+                    <a href="#contact" class="nav-link px-3 py-2 hover:text-gray-300 smooth-transition">Contact</a>
                 </div>
-                <nav>
-                    <ul class="nav-menu">
-                        <li><a href="#services" class="scroll-link">Services</a></li>
-                        <li><a href="#why-us" class="scroll-link">Why Choose Us</a></li>
-                        <li><a href="#contact" class="scroll-link">Contact</a></li>
-                    </ul>
-                </nav>
+                <button id="mobileMenuBtn" class="md:hidden">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
             </div>
+            <div id="mobileMenu" class="md:hidden mt-4 hidden">
+                <a href="#home" class="block py-2 hover:text-gray-300 smooth-transition">Home</a>
+                <a href="#services" class="block py-2 hover:text-gray-300 smooth-transition">Services</a>
+                <a href="#features" class="block py-2 hover:text-gray-300 smooth-transition">Features</a>
+                <a href="#contact" class="block py-2 hover:text-gray-300 smooth-transition">Contact</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header id="home" class="pt-24 pb-16 text-center">
+        <div class="container mx-auto px-4">
+            <h1 class="text-5xl md:text-6xl font-bold mb-4 smooth-transition">Strivio Algeria</h1>
+            <p class="text-xl md:text-2xl text-gray-300 mb-8">Premium Digital Subscriptions at Best Prices</p>
+            <div class="w-20 h-1 bg-white mx-auto"></div>
         </div>
     </header>
 
-    <section class="hero">
-        <div class="container">
-            <div class="hero-content">
-                <h1 class="fade-in" style="opacity: 1;">Premium Streaming Services</h1>
-                <p class="fade-in delay-100" style="opacity: 1;">Get access to your favorite streaming platforms at the best prices in Algerian Dinar.</p>
-                <div class="fade-in delay-200" style="opacity: 1;">
-                    <a href="#services" class="btn scroll-link">Explore Services</a>
-                    <a href="#contact" class="btn btn-outline scroll-link">Contact Us</a>
-                </div>
-            </div>
+    <!-- Hero Section -->
+    <section class="py-16 text-center">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4">Get Your Favorite Subscriptions at Amazing Prices</h2>
+            <p class="text-lg text-gray-400 mb-8 max-w-2xl mx-auto">We provide all popular digital platform subscriptions with guarantee and high quality</p>
+            <a href="#services" class="btn-primary px-8 py-4 rounded-full text-lg font-semibold pulse-glow inline-block">
+                Explore Our Services
+            </a>
         </div>
     </section>
 
-    <section id="services" class="services">
-        <div class="container">
-            <div class="section-title fade-in" style="opacity: 1;">
-                <h2>Our Premium Services</h2>
-                <p>Choose from our wide range of streaming services and enjoy your favorite content at affordable prices.</p>
-            </div>
-            
-            <div class="services-grid" id="servicesGrid"><div class="service-card scale-in" data-service="netflix" style="animation-delay: 0s; opacity: 1;"><div class="service-content"><div class="service-icon netflix-color"><svg viewBox="0 0 111 30" fill="white"><path d="M105.062 14.28L111 30c-1.75-.25-3.499-.563-5.28-.845l-3.345-8.686-3.437 7.969c-1.687-.282-3.344-.376-5.031-.595l6.031-13.75L94.468 0h5.063l3.062 7.874L105.875 0h5.124l-5.937 14.28zM90.47 0h-4.594v27.25c1.5.094 3.062.156 4.594.343V0zm-8.563 26.937c-4.187-.281-8.375-.53-12.656-.625V0h4.687v21.875c2.688.062 5.375.28 7.969.405v4.657zM64.25 10.657v4.687h-6.406V26H53.22V0h13.125v4.687h-8.5v5.97h6.406zm-18.906-5.97V26.25c-1.563 0-3.156 0-4.688.062V4.687h-4.844V0h14.406v4.687h-4.874zM30.75 15.593c-2.062 0-4.5 0-6.25.095v6.968c2.75-.188 5.5-.406 8.281-.5v4.5l-12.968 1.032V0H32.78v4.687H24.5V11c1.813 0 4.594-.094 6.25-.094v4.688zM4.78 12.968v16.375C3.094 29.531 1.593 29.75 0 30V0h4.469l6.093 17.032V0h4.688v28.062c-1.656.282-3.344.376-5.125.625L4.78 12.968z"></path></svg></div><h3>Netflix</h3><p>Stream award-winning Netflix originals, TV shows, movies, documentaries, and more.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="netflix">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="netflix">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="netflix">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="netflix">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="netflix">5 Profiles</button></div><div class="pricing-container" id="pricing-netflix"><div class="pricing-options"><div class="pricing-card" style="transition-delay: 0s;">
-                        <h3>1 Month</h3>
-                        <div class="price">900 <span>DZD</span></div>
-                    </div><div class="pricing-card" style="transition-delay: 0.1s;">
-                        <h3>2 Months</h3>
-                        <div class="price">1700 <span>DZD</span></div>
-                    </div><div class="pricing-card" style="transition-delay: 0.2s;">
-                        <h3>3 Months</h3>
-                        <div class="price">2400 <span>DZD</span></div>
-                    </div><div class="pricing-card" style="transition-delay: 0.3s;">
-                        <h3>6 Months</h3>
-                        <div class="price">4500 <span>DZD</span></div>
-                    </div><div class="pricing-card" style="transition-delay: 0.4s;">
-                        <h3>12 Months</h3>
-                        <div class="price">8500 <span>DZD</span></div>
-                    </div></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="spotify" style="animation-delay: 0.1s; opacity: 1;"><div class="service-content"><div class="service-icon spotify-color"><svg viewBox="0 0 168 168" fill="white"><path d="M83.996 0.277C37.747 0.277 0.253 37.77 0.253 84.019C0.253 130.27 37.747 167.76 83.996 167.76C130.25 167.76 167.74 130.27 167.74 84.019C167.74 37.773 130.25 0.281 83.995 0.281L83.996 0.277ZM122.4 121.057C120.9 123.517 117.68 124.297 115.22 122.787C95.558 110.777 70.806 108.057 41.656 114.717C38.847 115.357 36.047 113.597 35.407 110.787C34.764 107.977 36.517 105.177 39.333 104.537C71.233 97.249 98.596 100.387 120.67 113.877C123.13 115.387 123.91 118.597 122.4 121.057ZM132.65 98.255C130.76 101.327 126.74 102.297 123.67 100.407C101.16 86.571 66.847 82.564 40.222 90.646C36.769 91.689 33.122 89.743 32.074 86.296C31.034 82.843 32.981 79.203 36.428 78.153C66.841 68.925 104.65 73.395 130.5 89.28C133.57 91.17 134.54 95.19 132.65 98.26V98.255ZM133.53 74.511C106.54 58.48 62.01 57.006 36.241 64.827C32.103 66.082 27.727 63.746 26.473 59.608C25.219 55.468 27.553 51.095 31.694 49.837C61.275 40.857 110.45 42.592 141.524 61.039C145.254 63.248 146.474 68.055 144.264 71.772C142.064 75.494 137.244 76.721 133.534 74.511H133.53Z"></path></svg></div><h3>Spotify</h3><p>Listen to millions of songs, podcasts, and audiobooks on the world's most popular audio streaming platform.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="spotify">Individual Account</button></div><div class="pricing-container" id="pricing-spotify"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="disneyplus" style="animation-delay: 0.2s; opacity: 1;"><div class="service-content"><div class="service-icon disney-color"><svg viewBox="0 0 24 24" fill="white"><path d="M5.963 7.268C7.466 7.268 8.63 8.305 8.63 9.648C8.63 11.057 7.466 12.094 5.963 12.094C4.46 12.094 3.296 11.057 3.296 9.648C3.296 8.305 4.46 7.268 5.963 7.268ZM18.074 7.268C19.577 7.268 20.741 8.305 20.741 9.648C20.741 11.057 19.577 12.094 18.074 12.094C16.571 12.094 15.407 11.057 15.407 9.648C15.407 8.305 16.571 7.268 18.074 7.268ZM21.111 13.324V16.886H19.577V13.324H15.037V16.886H13.504V7.268H15.037V11.906H19.577V7.268H21.111V13.324ZM10.37 7.268V16.886H8.837V7.268H10.37ZM5.593 13.324V16.886H4.059V13.324H0V7.268H1.533V11.906H4.059V7.268H5.593V13.324Z"></path></svg></div><h3>Disney+</h3><p>Stream Disney, Pixar, Marvel, Star Wars, National Geographic, and more on Disney+.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="disneyplus">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="disneyplus">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="disneyplus">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="disneyplus">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="disneyplus">5 Profiles</button></div><div class="pricing-container" id="pricing-disneyplus"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="primevideo" style="animation-delay: 0.3s; opacity: 1;"><div class="service-content"><div class="service-icon prime-color"><svg viewBox="0 0 24 24" fill="white"><path d="M20.182 6.545h-2.909V4.909c0-.545-.454-1-1-1H7.727c-.545 0-1 .455-1 1v1.636H3.818c-.545 0-1 .455-1 1v10.909c0 .545.455 1 1 1h16.364c.545 0 1-.455 1-1V7.545c0-.545-.455-1-1-1zM8.727 4.909h6.546v1.636H8.727V4.909zm11.455 13.545H3.818V7.545h16.364v10.909zm-5.455-7.272c0 1.273-1.182 2.182-2.727 2.182-1.545 0-2.727-.91-2.727-2.182 0-.09.09-.182.182-.182s.182.091.182.182c0 .909.91 1.818 2.364 1.818 1.454 0 2.363-.91 2.363-1.818 0-.09.09-.182.182-.182s.181.091.181.182z"></path></svg></div><h3>Prime Video</h3><p>Watch movies, TV shows, and Amazon Originals on Prime Video.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="primevideo">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="primevideo">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="primevideo">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="primevideo">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="primevideo">5 Profiles</button></div><div class="pricing-container" id="pricing-primevideo"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="shahidvip" style="animation-delay: 0.4s; opacity: 1;"><div class="service-content"><div class="service-icon shahid-color"><svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-5 9h10v2H7v-2z"></path></svg></div><h3>Shahid VIP</h3><p>Stream Arabic TV shows, movies, and Shahid originals on Shahid VIP.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="shahidvip">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="shahidvip">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="shahidvip">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="shahidvip">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="shahidvip">5 Profiles</button></div><div class="pricing-container" id="pricing-shahidvip"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="chatgptplus" style="animation-delay: 0.5s; opacity: 1;"><div class="service-content"><div class="service-icon chatgpt-color"><svg viewBox="0 0 24 24" fill="white"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.5093-2.6067-1.4998z"></path></svg></div><h3>ChatGPT Plus</h3><p>Access the latest features of ChatGPT with faster response times and priority access.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="chatgptplus">Individual Account</button></div><div class="pricing-container" id="pricing-chatgptplus"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="snapchatplus" style="animation-delay: 0.6s; opacity: 1;"><div class="service-content"><div class="service-icon snapchat-color"><svg viewBox="0 0 24 24" fill="black"><path d="M12.031 2c-5.506 0-9.969 4.463-9.969 9.969 0 5.506 4.463 9.969 9.969 9.969 5.506 0 9.969-4.463 9.969-9.969 0-5.506-4.463-9.969-9.969-9.969zm5.254 13.803c-.2.614-.717 1.066-1.414 1.202-.234.045-.469.07-.703.07-.572 0-1.11-.176-1.566-.507l-.12.507h-1.8l-.12-.507c-.456.331-.994.507-1.566.507-.234 0-.469-.025-.703-.07-.697-.136-1.214-.588-1.414-1.202-.11-.341-.11-.703 0-1.044.176-.547.612-.974 1.159-1.139.547-.166 1.139-.091 1.631.2.166.1.321.226.456.376.135-.15.29-.275.456-.376.492-.291 1.084-.366 1.631-.2.547.166.983.592 1.159 1.139.11.341.11.703 0 1.044zm-1.044-4.328c-.05-.05-.1-.075-.15-.075h-1.139v-1.139c0-.05-.025-.1-.075-.15-.05-.05-.1-.075-.15-.075h-1.414c-.05 0-.1.025-.15.075-.05.05-.075.1-.075.15v1.139h-1.139c-.05 0-.1.025-.15.075-.05.05-.075.1-.075.15v1.414c0 .05.025.1.075.15.05.05.1.075.15.075h1.139v1.139c0 .05.025.1.075.15.05.05.1.075.15.075h1.414c.05 0 .1-.025.15-.075.05-.05.075-.1.075-.15v-1.139h1.139c.05 0 .1-.025.15-.075.05-.05.075-.1.075-.15v-1.414c0-.05-.025-.1-.075-.15z"></path></svg></div><h3>Snapchat+</h3><p>Get exclusive, experimental, and pre-release features on Snapchat.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="snapchatplus">Individual Account</button></div><div class="pricing-container" id="pricing-snapchatplus"><div class="pricing-options"></div></div><div class="close-btn"></div></div><div class="service-card scale-in" data-service="osnplus" style="animation-delay: 0.7s; opacity: 1;"><div class="service-content"><div class="service-icon osn-color"><svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7v-2z"></path></svg></div><h3>OSN+</h3><p>Watch premium entertainment, movies, and TV shows from the Middle East and beyond.</p></div><div class="profile-selector"><button class="profile-btn" data-profiles="1" data-service="osnplus">1 Profile</button><button class="profile-btn" data-profiles="2" data-service="osnplus">2 Profiles</button><button class="profile-btn" data-profiles="3" data-service="osnplus">3 Profiles</button><button class="profile-btn" data-profiles="4" data-service="osnplus">4 Profiles</button><button class="profile-btn" data-profiles="5" data-service="osnplus">5 Profiles</button></div><div class="pricing-container" id="pricing-osnplus"><div class="pricing-options"></div></div><div class="close-btn"></div></div></div>
-        </div>
-    </section>
-
-    <section id="why-us" class="why-us">
-        <div class="container">
-            <div class="section-title fade-in" style="opacity: 1;">
-                <h2>Why Choose Us</h2>
-                <p>We provide the best streaming services with exceptional benefits and customer support.</p>
-            </div>
-            
-            <div class="features">
-                <div class="feature scale-in delay-100" style="opacity: 1;">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
-                        </svg>
-                    </div>
-                    <h3>Reliable Service</h3>
-                    <p>We ensure that your streaming services are always available and working perfectly.</p>
-                </div>
+    <!-- Services Section -->
+    <section id="services" class="py-16">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Our Services</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                 
-                <div class="feature scale-in delay-200" style="opacity: 1;">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"></path>
-                        </svg>
+                <!-- Netflix -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('Netflix')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-red-600 text-center">Netflix</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Premium streaming service with 4K quality content</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
                     </div>
-                    <h3>Competitive Pricing</h3>
-                    <p>We offer the best prices in Algerian Dinar for all premium streaming services.</p>
                 </div>
-                
-                <div class="feature scale-in delay-300" style="opacity: 1;">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"></path>
-                        </svg>
+
+                <!-- Spotify -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('Spotify')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-green-500 text-center">Spotify</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Premium music streaming with offline downloads</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
                     </div>
-                    <h3>24/7 Support</h3>
-                    <p>Our customer support team is available 24/7 to assist you with any issues or questions.</p>
+                </div>
+
+                <!-- ChatGPT -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('ChatGPT')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-gray-700 text-center">ChatGPT Plus</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Advanced AI assistant with GPT-4 access</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
+                    </div>
+                </div>
+
+                <!-- Crunchyroll -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('Crunchyroll')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-orange-500 text-center">Crunchyroll</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Premium anime streaming platform</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
+                    </div>
+                </div>
+
+                <!-- Prime Video -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('PrimeVideo')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-blue-600 text-center">Prime Video</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Amazon's premium streaming service</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
+                    </div>
+                </div>
+
+                <!-- Disney Plus -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('DisneyPlus')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-blue-800 text-center">Disney Plus</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Family entertainment with 4K content</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
+                    </div>
+                </div>
+
+                <!-- Shahid VIP -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('ShahidVIP')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-yellow-600 text-center">Shahid VIP</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Arabic premium streaming content</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
+                    </div>
+                </div>
+
+                <!-- OSN Plus -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('OSNPlus')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-purple-600 text-center">OSN Plus</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Middle East premium entertainment</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
+                    </div>
+                </div>
+
+                <!-- YouTube Premium -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('YouTubePremium')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-red-500 text-center">YouTube Premium</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Ad-free YouTube with background play</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
+                    </div>
+                </div>
+
+                <!-- CapCut -->
+                <div class="rounded-xl p-6 card-hover service-card" onclick="openModal('CapCut')">
+                    <div class="text-center">
+                        <div class="service-name-box bg-pink-600 text-center">CapCut Pro</div>
+                        <p class="text-gray-300 mb-6 text-sm leading-relaxed">Professional video editing with premium features</p>
+                        <p class="text-xs text-gray-500 mt-4">Click to view all plans</p>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="contact" class="contact">
-        <div class="container">
-            <div class="section-title fade-in" style="opacity: 1;">
-                <h2>Contact Us</h2>
-                <p>Get in touch with us for any inquiries or assistance.</p>
-            </div>
-            
-            <div class="contact-content">
-                <div class="contact-info slide-in delay-100" style="opacity: 1;">
-                    <h3>Contact Information</h3>
-                    <p>Feel free to reach out to us through any of the following channels:</p>
-                    
-                    <div class="info-item">
-                        <div class="icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"></path>
-                            </svg>
-                        </div>
-                        <span>info@strivio.com</span>
-                    </div>
-                    
-                    <div class="info-item">
-                        <div class="icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"></path>
-                            </svg>
-                        </div>
-                        <span>+213 562 961 410</span>
-                    </div>
-                    
-                    <div class="info-item">
-                        <div class="icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"></path>
-                            </svg>
-                        </div>
-                        <span>Algiers, Algeria</span>
-                    </div>
-                    
-                    <div class="social-links">
-                        <a href="#">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96C15.9 21.59 18.03 20.4 19.6 18.64C21.17 16.88 22.06 14.64 22.06 12.32C22.06 6.61 17.5 2.04 12 2.04Z"></path>
-                            </svg>
-                        </a>
-                        <a href="#">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z"></path>
-                            </svg>
-                        </a>
-                        <a href="#">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"></path>
-                            </svg>
-                        </a>
-                    </div>
+    <!-- Pricing Modal -->
+    <div id="pricingModal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6 rounded-t-xl">
+                <div class="flex justify-between items-center">
+                    <h2 id="modalTitle" class="text-2xl font-bold"></h2>
+                    <button onclick="closeModal()" class="text-white hover:text-gray-300 text-3xl smooth-transition">&times;</button>
                 </div>
-                
-                <div class="contact-form slide-in delay-200" style="opacity: 1;">
-                    <h3>Send us a Message</h3>
-                    <form id="contactForm">
-                        <div class="form-group">
-                            <input type="text" class="form-control" placeholder="Your Name" required="">
-                        </div>
-                        <div class="form-group">
-                            <input type="email" class="form-control" placeholder="Your Email" required="">
-                        </div>
-                        <div class="form-group">
-                            <input type="text" class="form-control" placeholder="Subject">
-                        </div>
-                        <div class="form-group">
-                            <textarea class="form-control" placeholder="Your Message" required=""></textarea>
-                        </div>
-                        <button type="submit" class="btn">Send Message</button>
-                    </form>
+                <p id="modalDescription" class="mt-2 text-gray-300"></p>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="pricingOptions">
+                    <!-- Pricing options will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <section id="features" class="py-16">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Why Choose Strivio?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="text-center card-hover p-6 rounded-xl border border-gray-800">
+                    <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 smooth-transition">
+                        <i class="fas fa-shield-alt text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Reliable Guarantee</h3>
+                    <p class="text-gray-400">All our subscriptions are guaranteed and work with high efficiency</p>
+                </div>
+                <div class="text-center card-hover p-6 rounded-xl border border-gray-800">
+                    <div class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 smooth-transition">
+                        <i class="fas fa-clock text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Instant Delivery</h3>
+                    <p class="text-gray-400">Get your subscription within minutes of ordering</p>
+                </div>
+                <div class="text-center card-hover p-6 rounded-xl border border-gray-800">
+                    <div class="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 smooth-transition">
+                        <i class="fas fa-headset text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">24/7 Support</h3>
+                    <p class="text-gray-400">Support team available around the clock to help you</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <footer>
-        <div class="container">
-            <p>© 2023 Strivio. All rights reserved.</p>
+    <!-- Contact Section -->
+    <section id="contact" class="py-16 border-t border-gray-800">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Contact Us</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="text-center">
+                    <h3 class="text-2xl font-bold mb-6">Get in Touch</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-center smooth-transition hover:text-green-400">
+                            <i class="fab fa-whatsapp text-2xl mr-3"></i>
+                            <span class="text-lg">WhatsApp: +213 55 123 4567</span>
+                        </div>
+                        <div class="flex items-center justify-center smooth-transition hover:text-blue-400">
+                            <i class="fab fa-facebook-messenger text-2xl mr-3"></i>
+                            <span class="text-lg">Messenger: @Strivio</span>
+                        </div>
+                        <div class="flex items-center justify-center smooth-transition hover:text-pink-400">
+                            <i class="fab fa-instagram text-2xl mr-3"></i>
+                            <span class="text-lg">Instagram: @strivio_algeria</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-2xl font-bold mb-6">Quick Links</h3>
+                    <div class="space-y-4">
+                        <a href="https://wa.me/213551234567" target="_blank" class="block bg-green-500 hover:bg-green-600 text-white py-3 px-6 rounded-lg smooth-transition card-hover">
+                            <i class="fab fa-whatsapp mr-2"></i>
+                            Contact via WhatsApp
+                        </a>
+                        <a href="https://m.me/strivio" target="_blank" class="block bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg smooth-transition card-hover">
+                            <i class="fab fa-facebook-messenger mr-2"></i>
+                            Message on Messenger
+                        </a>
+                        <a href="https://instagram.com/strivio_algeria" target="_blank" class="block bg-pink-500 hover:bg-pink-600 text-white py-3 px-6 rounded-lg smooth-transition card-hover">
+                            <i class="fab fa-instagram mr-2"></i>
+                            Follow on Instagram
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800 py-8">
+        <div class="container mx-auto px-4 text-center">
+            <h3 class="text-2xl font-bold mb-4">Strivio Algeria</h3>
+            <p class="text-gray-400 mb-4">Premium Digital Subscriptions at Best Prices</p>
+            <div class="flex justify-center space-x-6">
+                <a href="#" class="text-gray-400 hover:text-white smooth-transition">
+                    <i class="fab fa-whatsapp text-2xl"></i>
+                </a>
+                <a href="#" class="text-gray-400 hover:text-white smooth-transition">
+                    <i class="fab fa-facebook-messenger text-2xl"></i>
+                </a>
+                <a href="#" class="text-gray-400 hover:text-white smooth-transition">
+                    <i class="fab fa-instagram text-2xl"></i>
+                </a>
+            </div>
+            <p class="text-gray-500 mt-6">&copy; 2024 Strivio Algeria. All rights reserved.</p>
         </div>
     </footer>
 
-    <div class="scroll-indicator visible" id="scrollToTop">
-        <svg viewBox="0 0 24 24">
-            <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path>
-        </svg>
-    </div>
-
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Services data
-            const services = [
-                {
-                    id: 'netflix',
-                    name: 'Netflix',
-                    hasProfiles: true,
-                    maxProfiles: 5,
-                    prices: {
-                        1: { 1: 800, 2: 1500, 3: 2000 },
-                        2: { 1: 900, 2: 1700, 3: 2400, 6: 4500, 12: 8500 },
-                        3: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
-                        4: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 },
-                        5: { 1: 1900, 2: 3600, 3: 5100, 6: 9500, 12: 18000 }
-                    },
-                    color: 'netflix-color',
-                    icon: `<svg viewBox="0 0 111 30" fill="white"><path d="M105.062 14.28L111 30c-1.75-.25-3.499-.563-5.28-.845l-3.345-8.686-3.437 7.969c-1.687-.282-3.344-.376-5.031-.595l6.031-13.75L94.468 0h5.063l3.062 7.874L105.875 0h5.124l-5.937 14.28zM90.47 0h-4.594v27.25c1.5.094 3.062.156 4.594.343V0zm-8.563 26.937c-4.187-.281-8.375-.53-12.656-.625V0h4.687v21.875c2.688.062 5.375.28 7.969.405v4.657zM64.25 10.657v4.687h-6.406V26H53.22V0h13.125v4.687h-8.5v5.97h6.406zm-18.906-5.97V26.25c-1.563 0-3.156 0-4.688.062V4.687h-4.844V0h14.406v4.687h-4.874zM30.75 15.593c-2.062 0-4.5 0-6.25.095v6.968c2.75-.188 5.5-.406 8.281-.5v4.5l-12.968 1.032V0H32.78v4.687H24.5V11c1.813 0 4.594-.094 6.25-.094v4.688zM4.78 12.968v16.375C3.094 29.531 1.593 29.75 0 30V0h4.469l6.093 17.032V0h4.688v28.062c-1.656.282-3.344.376-5.125.625L4.78 12.968z"></path></svg>`,
-                    description: 'Stream award-winning Netflix originals, TV shows, movies, documentaries, and more.'
-                },
-                {
-                    id: 'spotify',
-                    name: 'Spotify',
-                    hasProfiles: false,
-                    prices: {
-                        1: 400, 2: 700, 3: 1000, 6: 1900, 12: 3500
-                    },
-                    color: 'spotify-color',
-                    icon: `<svg viewBox="0 0 168 168" fill="white"><path d="M83.996 0.277C37.747 0.277 0.253 37.77 0.253 84.019C0.253 130.27 37.747 167.76 83.996 167.76C130.25 167.76 167.74 130.27 167.74 84.019C167.74 37.773 130.25 0.281 83.995 0.281L83.996 0.277ZM122.4 121.057C120.9 123.517 117.68 124.297 115.22 122.787C95.558 110.777 70.806 108.057 41.656 114.717C38.847 115.357 36.047 113.597 35.407 110.787C34.764 107.977 36.517 105.177 39.333 104.537C71.233 97.249 98.596 100.387 120.67 113.877C123.13 115.387 123.91 118.597 122.4 121.057ZM132.65 98.255C130.76 101.327 126.74 102.297 123.67 100.407C101.16 86.571 66.847 82.564 40.222 90.646C36.769 91.689 33.122 89.743 32.074 86.296C31.034 82.843 32.981 79.203 36.428 78.153C66.841 68.925 104.65 73.395 130.5 89.28C133.57 91.17 134.54 95.19 132.65 98.26V98.255ZM133.53 74.511C106.54 58.48 62.01 57.006 36.241 64.827C32.103 66.082 27.727 63.746 26.473 59.608C25.219 55.468 27.553 51.095 31.694 49.837C61.275 40.857 110.45 42.592 141.524 61.039C145.254 63.248 146.474 68.055 144.264 71.772C142.064 75.494 137.244 76.721 133.534 74.511H133.53Z"></path></svg>`,
-                    description: 'Listen to millions of songs, podcasts, and audiobooks on the world\'s most popular audio streaming platform.'
-                },
-                {
-                    id: 'disneyplus',
-                    name: 'Disney+',
-                    hasProfiles: true,
-                    maxProfiles: 5,
-                    prices: {
-                        1: { 1: 400, 2: 700, 3: 1000, 6: 1900, 12: 3500 },
-                        2: { 1: 700, 2: 1300, 3: 1900, 6: 3500, 12: 6500 },
-                        3: { 1: 1000, 2: 1900, 3: 2700, 6: 5000, 12: 9500 },
-                        4: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
-                        5: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 }
-                    },
-                    color: 'disney-color',
-                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M5.963 7.268C7.466 7.268 8.63 8.305 8.63 9.648C8.63 11.057 7.466 12.094 5.963 12.094C4.46 12.094 3.296 11.057 3.296 9.648C3.296 8.305 4.46 7.268 5.963 7.268ZM18.074 7.268C19.577 7.268 20.741 8.305 20.741 9.648C20.741 11.057 19.577 12.094 18.074 12.094C16.571 12.094 15.407 11.057 15.407 9.648C15.407 8.305 16.571 7.268 18.074 7.268ZM21.111 13.324V16.886H19.577V13.324H15.037V16.886H13.504V7.268H15.037V11.906H19.577V7.268H21.111V13.324ZM10.37 7.268V16.886H8.837V7.268H10.37ZM5.593 13.324V16.886H4.059V13.324H0V7.268H1.533V11.906H4.059V7.268H5.593V13.324Z"/></svg>`,
-                    description: 'Stream Disney, Pixar, Marvel, Star Wars, National Geographic, and more on Disney+.'
-                },
-                {
-                    id: 'primevideo',
-                    name: 'Prime Video',
-                    hasProfiles: true,
-                    maxProfiles: 5,
-                    prices: {
-                        1: { 1: 400, 2: 700, 3: 1000, 6: 1900, 12: 3500 },
-                        2: { 1: 700, 2: 1300, 3: 1900, 6: 3500, 12: 6500 },
-                        3: { 1: 1000, 2: 1900, 3: 2700, 6: 5000, 12: 9500 },
-                        4: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
-                        5: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 }
-                    },
-                    color: 'prime-color',
-                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M20.182 6.545h-2.909V4.909c0-.545-.454-1-1-1H7.727c-.545 0-1 .455-1 1v1.636H3.818c-.545 0-1 .455-1 1v10.909c0 .545.455 1 1 1h16.364c.545 0 1-.455 1-1V7.545c0-.545-.455-1-1-1zM8.727 4.909h6.546v1.636H8.727V4.909zm11.455 13.545H3.818V7.545h16.364v10.909zm-5.455-7.272c0 1.273-1.182 2.182-2.727 2.182-1.545 0-2.727-.91-2.727-2.182 0-.09.09-.182.182-.182s.182.091.182.182c0 .909.91 1.818 2.364 1.818 1.454 0 2.363-.91 2.363-1.818 0-.09.09-.182.182-.182s.181.091.181.182z"/></svg>`,
-                    description: 'Watch movies, TV shows, and Amazon Originals on Prime Video.'
-                },
-                {
-                    id: 'shahidvip',
-                    name: 'Shahid VIP',
-                    hasProfiles: true,
-                    maxProfiles: 5,
-                    prices: {
-                        1: { 1: 400, 2: 700, 3: 1000, 6: 1900, 12: 3500 },
-                        2: { 1: 700, 2: 1300, 3: 1900, 6: 3500, 12: 6500 },
-                        3: { 1: 1000, 2: 1900, 3: 2700, 6: 5000, 12: 9500 },
-                        4: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
-                        5: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 }
-                    },
-                    color: 'shahid-color',
-                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-5 9h10v2H7v-2z"></path></svg>`,
-                    description: 'Stream Arabic TV shows, movies, and Shahid originals on Shahid VIP.'
-                },
-                {
-                    id: 'chatgptplus',
-                    name: 'ChatGPT Plus',
-                    hasProfiles: false,
-                    prices: {
-                        1: 1000, 2: 1900, 3: 2800, 6: 5500, 12: 10000
-                    },
-                    color: 'chatgpt-color',
-                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.5093-2.6067-1.4998z"></path></svg>`,
-                    description: 'Access the latest features of ChatGPT with faster response times and priority access.'
-                },
-                {
-                    id: 'snapchatplus',
-                    name: 'Snapchat+',
-                    hasProfiles: false,
-                    prices: {
-                        1: 300, 2: 500, 3: 700, 6: 1300, 12: 2500
-                    },
-                    color: 'snapchat-color',
-                    icon: `<svg viewBox="0 0 24 24" fill="black"><path d="M12.031 2c-5.506 0-9.969 4.463-9.969 9.969 0 5.506 4.463 9.969 9.969 9.969 5.506 0 9.969-4.463 9.969-9.969 0-5.506-4.463-9.969-9.969-9.969zm5.254 13.803c-.2.614-.717 1.066-1.414 1.202-.234.045-.469.07-.703.07-.572 0-1.11-.176-1.566-.507l-.12.507h-1.8l-.12-.507c-.456.331-.994.507-1.566.507-.234 0-.469-.025-.703-.07-.697-.136-1.214-.588-1.414-1.202-.11-.341-.11-.703 0-1.044.176-.547.612-.974 1.159-1.139.547-.166 1.139-.091 1.631.2.166.1.321.226.456.376.135-.15.29-.275.456-.376.492-.291 1.084-.366 1.631-.2.547.166.983.592 1.159 1.139.11.341.11.703 0 1.044zm-1.044-4.328c-.05-.05-.1-.075-.15-.075h-1.139v-1.139c0-.05-.025-.1-.075-.15-.05-.05-.1-.075-.15-.075h-1.414c-.05 0-.1.025-.15.075-.05.05-.075.1-.075.15v1.139h-1.139c-.05 0-.1.025-.15.075-.05.05-.075.1-.075.15v1.414c0 .05.025.1.075.15.05.05.1.075.15.075h1.139v1.139c0 .05.025.1.075.15.05.05.1.075.15.075h1.414c.05 0 .1-.025.15-.075.05-.05.075-.1.075-.15v-1.139h1.139c.05 0 .1-.025.15-.075.05-.05.075-.1.075-.15v-1.414c0-.05-.025-.1-.075-.15z"/></svg>`,
-                    description: 'Get exclusive, experimental, and pre-release features on Snapchat.'
-                },
-                {
-                    id: 'osnplus',
-                    name: 'OSN+',
-                    hasProfiles: true,
-                    maxProfiles: 5,
-                    prices: {
-                        1: { 1: 500, 2: 900, 3: 1300, 6: 2400, 12: 4500 },
-                        2: { 1: 900, 2: 1700, 3: 2400, 6: 4500, 12: 8500 },
-                        3: { 1: 1300, 2: 2400, 3: 3500, 6: 6500, 12: 12000 },
-                        4: { 1: 1600, 2: 3000, 3: 4300, 6: 8000, 12: 15000 },
-                        5: { 1: 1900, 2: 3600, 3: 5100, 6: 9500, 12: 18000 }
-                    },
-                    color: 'osn-color',
-                    icon: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7v-2z"></path></svg>`,
-                    description: 'Watch premium entertainment, movies, and TV shows from the Middle East and beyond.'
+        // Enhanced pricing data with easier management (in Algerian Dinar)
+        const pricingData = {
+            'Netflix': {
+                description: 'Premium streaming service with 4K quality content and unlimited downloads',
+                color: 'red',
+                prices: {
+                    monthly: { price: 950, available: true },
+                    quarterly: { price: 2430, available: true },
+                    biannual: { price: 4725, available: true },
+                    yearly: { price: 8775, available: true }
                 }
-            ];
-            
-            // Render services
-            const servicesGrid = document.getElementById('servicesGrid');
-            const overlay = document.getElementById('overlay');
-            
-            // Track currently expanded card
-            let expandedCard = null;
-            
-            // Clear any existing content in the services grid
-            servicesGrid.innerHTML = '';
-            
-            // Render each service
-            services.forEach((service, index) => {
-                const serviceCard = document.createElement('div');
-                serviceCard.className = 'service-card scale-in';
-                serviceCard.dataset.service = service.id;
-                serviceCard.style.animationDelay = `${index * 0.1}s`;
-                
-                // Create the main content
-                const serviceContent = document.createElement('div');
-                serviceContent.className = 'service-content';
-                
-                // Create the service icon
-                const serviceIcon = document.createElement('div');
-                serviceIcon.className = `service-icon ${service.color}`;
-                serviceIcon.innerHTML = service.icon;
-                
-                // Add the service name and description
-                const serviceName = document.createElement('h3');
-                serviceName.textContent = service.name;
-                
-                const serviceDesc = document.createElement('p');
-                serviceDesc.textContent = service.description;
-                
-                // Create profile selector
-                const profileSelector = document.createElement('div');
-                profileSelector.className = 'profile-selector';
-                
-                if (service.hasProfiles) {
-                    for (let i = 1; i <= service.maxProfiles; i++) {
-                        const profileBtn = document.createElement('button');
-                        profileBtn.className = 'profile-btn';
-                        profileBtn.textContent = `${i} Profile${i > 1 ? 's' : ''}`;
-                        profileBtn.dataset.profiles = i;
-                        profileBtn.dataset.service = service.id;
-                        
-                        profileBtn.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            
-                            // Remove active class from all buttons in this card
-                            const buttons = this.closest('.service-card').querySelectorAll('.profile-btn');
-                            buttons.forEach(btn => btn.classList.remove('active'));
-                            
-                            // Add active class to clicked button
-                            this.classList.add('active');
-                            
-                            // Show pricing for selected profile count
-                            updatePricing(this.dataset.service, parseInt(this.dataset.profiles));
-                        });
-                        
-                        profileSelector.appendChild(profileBtn);
-                    }
-                } else {
-                    const profileBtn = document.createElement('button');
-                    profileBtn.className = 'profile-btn';
-                    profileBtn.textContent = 'Individual Account';
-                    profileBtn.dataset.profiles = 1;
-                    profileBtn.dataset.service = service.id;
-                    
-                    profileBtn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        
-                        // Remove active class from all buttons in this card
-                        const buttons = this.closest('.service-card').querySelectorAll('.profile-btn');
-                        buttons.forEach(btn => btn.classList.remove('active'));
-                        
-                        // Add active class to clicked button
-                        this.classList.add('active');
-                        
-                        // Show pricing for selected profile count
-                        updatePricing(this.dataset.service, 1);
-                    });
-                    
-                    profileSelector.appendChild(profileBtn);
+            },
+            'Spotify': {
+                description: 'Premium music streaming with offline downloads and no ads',
+                color: 'green',
+                prices: {
+                    monthly: { price: 540, available: true },
+                    quarterly: { price: 1350, available: true },
+                    biannual: { price: 2700, available: true },
+                    yearly: { price: 4725, available: true }
                 }
-                
-                // Create pricing container
-                const pricingContainer = document.createElement('div');
-                pricingContainer.className = 'pricing-container';
-                pricingContainer.id = `pricing-${service.id}`;
-                
-                // Create pricing options
-                const pricingOptions = document.createElement('div');
-                pricingOptions.className = 'pricing-options';
-                
-                pricingContainer.appendChild(pricingOptions);
-                
-                // Create close button
-                const closeBtn = document.createElement('div');
-                closeBtn.className = 'close-btn';
-                closeBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const card = this.closest('.service-card');
-                    collapseCard(card);
-                });
-                
-                // Append all elements to service content
-                serviceContent.appendChild(serviceIcon);
-                serviceContent.appendChild(serviceName);
-                serviceContent.appendChild(serviceDesc);
-                
-                // Append elements to service card
-                serviceCard.appendChild(serviceContent);
-                serviceCard.appendChild(profileSelector);
-                serviceCard.appendChild(pricingContainer);
-                serviceCard.appendChild(closeBtn);
-                
-                // Add click event to expand card
-                serviceCard.addEventListener('click', function() {
-                    // If already expanded, collapse
-                    if (this.classList.contains('expanded')) {
-                        collapseCard(this);
-                        return;
-                    }
-                    
-                    // Collapse any previously expanded card
-                    if (expandedCard) {
-                        collapseCard(expandedCard);
-                    }
-                    
-                    // Expand this card
-                    expandCard(this);
-                });
-                
-                servicesGrid.appendChild(serviceCard);
-            });
-            
-            // Function to expand a card
-            function expandCard(card) {
-                // Set as current expanded card
-                expandedCard = card;
-                
-                // Show overlay
-                overlay.classList.add('active');
-                
-                // Dim other cards
-                document.querySelectorAll('.service-card').forEach(otherCard => {
-                    if (otherCard !== card) {
-                        otherCard.classList.add('dimmed');
-                    }
-                });
-                
-                // Expand this card
-                card.classList.add('expanded');
-                
-                // For services without profiles, automatically show pricing
-                const serviceId = card.dataset.service;
-                const service = services.find(s => s.id === serviceId);
-                
-                setTimeout(() => {
-                    if (!service.hasProfiles) {
-                        // For services without profiles, automatically select the button and show pricing
-                        const profileBtn = card.querySelector('.profile-btn');
-                        profileBtn.classList.add('active');
-                        updatePricing(serviceId, 1);
-                    }
-                    
-                    // Scroll to this card with smooth animation
-                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 300);
+            },
+            'ChatGPT': {
+                description: 'Advanced AI assistant with GPT-4 access and priority support',
+                color: 'gray',
+                prices: {
+                    monthly: { price: 1215, available: true },
+                    quarterly: { price: 3375, available: false }, // Easy to change: set to false for out of stock
+                    biannual: { price: 6480, available: true },
+                    yearly: { price: 12150, available: true }
+                }
+            },
+            'Crunchyroll': {
+                description: 'Premium anime streaming platform with simulcast episodes',
+                color: 'orange',
+                prices: {
+                    monthly: { price: 675, available: true },
+                    quarterly: { price: 1890, available: true },
+                    biannual: { price: 3510, available: true },
+                    yearly: { price: 6480, available: true }
+                }
+            },
+            'PrimeVideo': {
+                description: 'Amazon\'s premium streaming service with exclusive content',
+                color: 'blue',
+                prices: {
+                    monthly: { price: 675, available: true },
+                    quarterly: { price: 1755, available: true },
+                    biannual: { price: 3375, available: true },
+                    yearly: { price: 6075, available: true }
+                }
+            },
+            'DisneyPlus': {
+                description: 'Family entertainment with Disney, Marvel, Star Wars content',
+                color: 'blue',
+                prices: {
+                    monthly: { price: 810, available: true },
+                    quarterly: { price: 2160, available: true },
+                    biannual: { price: 4050, available: false }, // Easy to change: set to false for out of stock
+                    yearly: { price: 7425, available: true }
+                }
+            },
+            'ShahidVIP': {
+                description: 'Arabic premium streaming content and exclusive shows',
+                color: 'yellow',
+                prices: {
+                    monthly: { price: 540, available: true },
+                    quarterly: { price: 1485, available: true },
+                    biannual: { price: 2700, available: true },
+                    yearly: { price: 5130, available: true }
+                }
+            },
+            'OSNPlus': {
+                description: 'Middle East premium entertainment and sports content',
+                color: 'purple',
+                prices: {
+                    monthly: { price: 810, available: true },
+                    quarterly: { price: 2295, available: true },
+                    biannual: { price: 4320, available: true },
+                    yearly: { price: 8100, available: true }
+                }
+            },
+            'YouTubePremium': {
+                description: 'Ad-free YouTube with background play and YouTube Music',
+                color: 'red',
+                prices: {
+                    monthly: { price: 675, available: true },
+                    quarterly: { price: 1755, available: true },
+                    biannual: { price: 3375, available: true },
+                    yearly: { price: 6075, available: true }
+                }
+            },
+            'CapCut': {
+                description: 'Professional video editing with premium features and effects',
+                color: 'pink',
+                prices: {
+                    monthly: { price: 810, available: true },
+                    quarterly: { price: 2160, available: true },
+                    biannual: { price: 4050, available: true },
+                    yearly: { price: 7425, available: true }
+                }
             }
+            // Easy to add new services: just copy the structure above
+        };
+
+        const periodNames = {
+            monthly: 'Monthly',
+            quarterly: '3 Months',
+            biannual: '6 Months',
+            yearly: 'Yearly'
+        };
+
+        // Enhanced modal with smooth animations
+        function openModal(service) {
+            const modal = document.getElementById('pricingModal');
+            const title = document.getElementById('modalTitle');
+            const description = document.getElementById('modalDescription');
+            const options = document.getElementById('pricingOptions');
             
-            // Function to collapse a card
-            function collapseCard(card) {
-                // Hide overlay
-                overlay.classList.remove('active');
-                
-                // Remove dimming from other cards
-                document.querySelectorAll('.service-card').forEach(otherCard => {
-                    otherCard.classList.remove('dimmed');
-                });
-                
-                // Collapse this card
-                card.classList.remove('expanded');
-                
-                // Reset pricing container
-                const pricingContainer = card.querySelector('.pricing-container');
-                pricingContainer.classList.remove('active');
-                
-                // Remove active class from all profile buttons
-                const profileBtns = card.querySelectorAll('.profile-btn');
-                profileBtns.forEach(btn => btn.classList.remove('active'));
-                
-                // Clear expanded card reference
-                expandedCard = null;
-            }
+            const serviceData = pricingData[service];
             
-            // Close expanded card when clicking overlay
-            overlay.addEventListener('click', function() {
-                if (expandedCard) {
-                    collapseCard(expandedCard);
-                }
-            });
+            title.textContent = service;
+            description.textContent = serviceData.description;
             
-            // Function to update pricing based on service and profile count
-            function updatePricing(serviceId, profileCount) {
-                // Find the service by ID
-                const service = services.find(s => s.id === serviceId);
-                if (!service) return;
+            // Clear previous options with animation
+            options.innerHTML = '';
+            
+            // Create pricing options with staggered animation
+            Object.entries(serviceData.prices).forEach(([period, data], index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'pricing-option rounded-xl p-4 text-center';
+                optionDiv.style.animationDelay = `${index * 0.1}s`;
                 
-                const pricingContainer = document.getElementById(`pricing-${serviceId}`);
-                const pricingOptions = pricingContainer.querySelector('.pricing-options');
-                
-                // Clear existing pricing options
-                pricingOptions.innerHTML = '';
-                
-                // Get prices for selected service and profile count
-                const prices = service.hasProfiles ? service.prices[profileCount] : service.prices;
-                
-                // Define durations and their display names
-                const durations = [1, 2, 3, 6, 12];
-                const durationNames = {
-                    1: '1 Month',
-                    2: '2 Months',
-                    3: '3 Months',
-                    6: '6 Months',
-                    12: '12 Months'
-                };
-                
-                // Create pricing cards for each duration with staggered animation
-                durations.forEach((duration, index) => {
-                    const price = prices[duration];
-                    
-                    const pricingCard = document.createElement('div');
-                    pricingCard.className = 'pricing-card';
-                    pricingCard.style.transitionDelay = `${index * 0.1}s`;
-                    
-                    pricingCard.innerHTML = `
-                        <h3>${durationNames[duration]}</h3>
-                        <div class="price">${price} <span>DZD</span></div>
+                if (data.available) {
+                    optionDiv.className += ' bg-gray-800';
+                    optionDiv.innerHTML = `
+                        <h4 class="text-lg font-semibold text-white mb-2">${periodNames[period]}</h4>
+                        <p class="text-2xl font-bold text-${serviceData.color}-400 mb-3">${data.price.toLocaleString()} DZD</p>
+                        <button onclick="contactUs('${service}', '${period}', ${data.price})" 
+                                class="w-full bg-${serviceData.color}-600 hover:bg-${serviceData.color}-700 text-white py-2 px-4 rounded-lg smooth-transition">
+                            Order Now
+                        </button>
                     `;
-                    
-                    pricingOptions.appendChild(pricingCard);
-                });
-                
-                // Show pricing container with animation
-                pricingContainer.classList.add('active');
-            }
-            
-            // Form submission
-            document.getElementById('contactForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                alert('Thank you for your message! We will get back to you soon.');
-                this.reset();
-            });
-            
-            // Smooth scrolling for navigation links
-            document.querySelectorAll('.scroll-link').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    const targetId = this.getAttribute('href');
-                    const targetElement = document.querySelector(targetId);
-                    
-                    if (targetElement) {
-                        // Close mobile menu if open
-                        const navMenu = document.querySelector('.nav-menu');
-                        if (navMenu && navMenu.classList.contains('active')) {
-                            navMenu.classList.remove('active');
-                        }
-                        
-                        // Smooth scroll to target
-                        window.scrollTo({
-                            top: targetElement.offsetTop - 80,
-                            behavior: 'smooth'
-                        });
-                    }
-                });
-            });
-            
-            // Scroll to top button
-            const scrollToTopBtn = document.getElementById('scrollToTop');
-            
-            window.addEventListener('scroll', function() {
-                if (window.pageYOffset > 300) {
-                    scrollToTopBtn.classList.add('visible');
                 } else {
-                    scrollToTopBtn.classList.remove('visible');
+                    optionDiv.className += ' bg-gray-900 opacity-60';
+                    optionDiv.innerHTML = `
+                        <h4 class="text-lg font-semibold text-gray-400 mb-2">${periodNames[period]}</h4>
+                        <p class="text-lg font-semibold text-gray-500 mb-3">Out of Stock</p>
+                        <button disabled class="w-full bg-gray-600 text-gray-400 py-2 px-4 rounded-lg cursor-not-allowed">
+                            Unavailable
+                        </button>
+                    `;
                 }
+                
+                options.appendChild(optionDiv);
             });
             
-            scrollToTopBtn.addEventListener('click', function() {
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            });
-            
-            // Add scroll animation for elements
-            const observerOptions = {
-                threshold: 0.1,
-                rootMargin: '0px 0px -50px 0px'
-            };
-            
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.style.opacity = '1';
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, observerOptions);
-            
-            document.querySelectorAll('.fade-in, .scale-in, .slide-in').forEach(el => {
-                observer.observe(el);
+            // Show modal with animation
+            modal.style.display = 'block';
+            setTimeout(() => modal.classList.add('show'), 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('pricingModal');
+            modal.classList.remove('show');
+            setTimeout(() => modal.style.display = 'none', 300);
+        }
+
+        function contactUs(service, period, price) {
+            const message = `Hello! I'm interested in ${service} - ${periodNames[period]} subscription (${price.toLocaleString()} DZD). Can you provide more details?`;
+            const whatsappUrl = `https://wa.me/213551234567?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        // Mobile menu toggle
+        document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobileMenu');
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Enhanced smooth scrolling with offset for fixed nav
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    const offsetTop = target.offsetTop - 80; // Account for fixed nav
+                    window.scrollTo({
+                        top: offsetTop,
+                        behavior: 'smooth'
+                    });
+                }
+                // Close mobile menu if open
+                document.getElementById('mobileMenu').classList.add('hidden');
             });
         });
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'951bdd03b42b2833',t:'MTc1MDI2MDk5Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;"></iframe>
 
-</body></html>
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('pricingModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Enhanced scroll animations with intersection observer
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                } else {
+                    entry.target.style.opacity = '0.7';
+                    entry.target.style.transform = 'translateY(20px)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe all cards for scroll animation
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.card-hover').forEach(card => {
+                card.style.opacity = '0.7';
+                card.style.transform = 'translateY(20px)';
+                observer.observe(card);
+            });
+        });
+
+        // Add loading animation to buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.tagName === 'BUTTON' && !e.target.disabled) {
+                e.target.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    e.target.style.transform = '';
+                }, 150);
+            }
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a5af454462024b',t:'MTc1NzA3NDg2OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
