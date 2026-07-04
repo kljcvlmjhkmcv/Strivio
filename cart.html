@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" id="HR" class="scroll-smooth">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Strivio — Cart & Checkout</title>
+<meta name="description" content="Review your cart and complete your order on Strivio."/>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"/>
+<script>tailwind.config={theme:{extend:{colors:{brand:{black:'#121212',neon:'#39ff14',card:'#181818',border:'#2A2A2A'}},fontFamily:{sans:['Inter','sans-serif'],display:['Space Grotesk','sans-serif']}}}}</script>
+<style>
+:root{--n:#39ff14;--nr:57,255,20}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#121212}::-webkit-scrollbar-thumb{background:var(--n);border-radius:99px}
+.NT{color:var(--n);text-shadow:0 0 18px rgba(var(--nr),.5)}
+.GN{background:rgba(18,18,18,.82);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid rgba(var(--nr),.08)}
+.BO{border:1.5px solid var(--n);color:var(--n);font-weight:600;font-family:'Space Grotesk',sans-serif;border-radius:9999px;padding:.48rem 1.3rem;transition:all .2s;background:transparent;cursor:pointer;font-size:.875rem;text-decoration:none;display:inline-block}
+.BO:hover{background:var(--n);color:#121212;box-shadow:0 0 20px rgba(var(--nr),.4)}
+.BN{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;background:var(--n);color:#121212;font-weight:700;font-family:'Space Grotesk',sans-serif;border-radius:9999px;padding:.9rem 2.4rem;transition:all .25s ease;border:none;cursor:pointer;text-decoration:none;font-size:1rem;white-space:nowrap;width:100%}
+.BN:hover{transform:scale(1.02);filter:brightness(1.08)}
+.BN:disabled{opacity:.5;cursor:not-allowed;transform:none;filter:none}
+.BDG{display:inline-flex;align-items:center;gap:.3rem;background:rgba(var(--nr),.1);border:1px solid rgba(var(--nr),.25);color:var(--n);font-size:.7rem;font-weight:700;border-radius:999px;padding:.22rem .75rem;letter-spacing:.07em;text-transform:uppercase}
+.LO{display:flex;align-items:center;gap:.65rem;width:100%;padding:.6rem 1rem;font-size:.875rem;color:#E0E0E0;background:transparent;border:none;cursor:pointer;transition:all .15s;text-align:left;white-space:nowrap}
+.LO:hover{background:rgba(var(--nr),.1);color:var(--n)}
+.LO.AC{color:var(--n)}
+#MM{display:none;flex-direction:column;gap:.75rem;padding:1.25rem 1.5rem;background:rgba(18,18,18,.97);border-top:1px solid rgba(var(--nr),.1)}
+#MM.O{display:flex}
+.HMB span{display:block;width:22px;height:2px;background:#E0E0E0;border-radius:2px;transition:all .3s}
+.HMB.O span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.HMB.O span:nth-child(2){opacity:0}
+.HMB.O span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+/* Cart Item */
+.CI{background:#181818;border:1px solid #2A2A2A;border-radius:16px;padding:1rem 1.2rem;display:flex;align-items:center;gap:1rem;transition:all .3s;animation:FI .35s ease forwards}
+.CI:hover{border-color:rgba(var(--nr),.22)}
+/* Payment Options */
+.PM{background:#181818;border:1.5px solid #2A2A2A;border-radius:14px;padding:1rem 1.2rem;cursor:pointer;transition:all .22s;display:flex;align-items:center;gap:.85rem}
+.PM:hover:not(.DIS){border-color:rgba(var(--nr),.4);background:rgba(var(--nr),.04)}
+.PM.SEL{border-color:var(--n);background:rgba(var(--nr),.1);box-shadow:0 0 18px rgba(var(--nr),.12)}
+.PM.DIS{opacity:.45;cursor:not-allowed}
+.RB{width:18px;height:18px;border-radius:50%;border:2px solid #2A2A2A;flex-shrink:0;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.PM.SEL .RB{border-color:var(--n);background:var(--n)}
+.PM.SEL .RB::after{content:'';width:6px;height:6px;background:#121212;border-radius:50%}
+/* Summary box */
+.SUM{background:#181818;border:1px solid #2A2A2A;border-radius:18px;padding:1.5rem}
+/* Toast */
+#TOAST{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(100px);background:#1A1A1A;border:1px solid rgba(var(--nr),.3);border-radius:14px;padding:1rem 1.5rem;max-width:360px;width:calc(100% - 2rem);z-index:9999;transition:transform .4s cubic-bezier(.23,1,.32,1),opacity .4s;opacity:0;display:flex;align-items:flex-start;gap:.75rem;box-shadow:0 8px 40px rgba(0,0,0,.7)}
+#TOAST.SH{transform:translateX(-50%) translateY(0);opacity:1}
+/* empty state */
+.EMPT{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:1.2rem;text-align:center;padding:2rem}
+@keyframes FI{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes P2{0%,100%{box-shadow:0 0 10px 2px rgba(var(--nr),.4)}50%{box-shadow:0 0 24px 6px rgba(var(--nr),.65)}}
+@keyframes SI{from{transform:translateX(-50%) translateY(100px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+[dir=rtl] .LO{text-align:right;flex-direction:row-reverse}
+#LDPD.O,#LDPM.O{display:block}
+#LDPD,#LDPM{box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.GBGR{background-image:linear-gradient(rgba(var(--nr),.03) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--nr),.03) 1px,transparent 1px);background-size:48px 48px}
+</style>
+</head>
+<body class="overflow-x-hidden" style="background:#121212">
+
+<!-- NAV -->
+<header id="NAV" class="GN fixed top-0 left-0 right-0 z-50 transition-shadow duration-300">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+    <a href="strivio.html" class="NT font-display font-bold text-2xl select-none" style="text-decoration:none">Strivio</a>
+    <nav class="hidden lg:flex items-center gap-7">
+      <a href="strivio.html" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLH"></a>
+      <a href="strivio.html#subs" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLS"></a>
+    </nav>
+    <div class="hidden lg:flex items-center gap-3">
+      <div class="relative">
+        <button id="LTD" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all" style="border-color:#2A2A2A;background:#1A1A1A">
+          <span id="FLD"></span><span id="LCD" class="font-bold text-white text-xs"></span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(224,224,224,.5)" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div id="LDPD" class="absolute right-0 top-full mt-2 hidden rounded-xl overflow-hidden z-50" style="background:#1A1A1A;border:1px solid #2A2A2A;min-width:140px">
+          <button class="LO" data-l="en"><span class="FEN"></span><span>English</span></button>
+          <button class="LO" data-l="fr"><span class="FFR"></span><span>Français</span></button>
+          <button class="LO" data-l="ar"><span class="FAR"></span><span>العربية</span></button>
+        </div>
+      </div>
+      <!-- Cart badge -->
+      <a href="cart.html" class="relative flex items-center gap-2 px-3 py-2 rounded-xl" style="border:1.5px solid rgba(var(--nr),.4);background:rgba(var(--nr),.08);text-decoration:none;color:var(--n)">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <span id="CNBD" class="text-xs font-bold" style="font-family:'Space Grotesk',sans-serif">0</span>
+      </a>
+      <a href="strivio.html" class="BO" id="NTB"></a>
+    </div>
+    <div class="flex lg:hidden items-center gap-2">
+      <div class="relative">
+        <button id="LTM" class="flex items-center gap-1 px-2 py-1.5 rounded-lg border" style="border-color:#2A2A2A;background:#1A1A1A">
+          <span id="FLDM"></span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(224,224,224,.5)" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div id="LDPM" class="absolute right-0 top-full mt-2 hidden rounded-xl overflow-hidden z-50" style="background:#1A1A1A;border:1px solid #2A2A2A;min-width:140px">
+          <button class="LO" data-l="en"><span class="FEN"></span><span>English</span></button>
+          <button class="LO" data-l="fr"><span class="FFR"></span><span>Français</span></button>
+          <button class="LO" data-l="ar"><span class="FAR"></span><span>العربية</span></button>
+        </div>
+      </div>
+      <button id="HB" class="HMB flex flex-col gap-[5px] cursor-pointer p-1"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+  <div id="MM">
+    <a href="strivio.html" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLH"></a>
+    <a href="strivio.html#subs" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLS"></a>
+    <a href="strivio.html" class="BO self-start" id="MTB"></a>
+  </div>
+</header>
+
+<!-- TOAST -->
+<div id="TOAST">
+  <div style="color:var(--n);flex-shrink:0;margin-top:2px">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+  </div>
+  <div>
+    <div class="font-display font-bold text-white text-sm mb-1" id="TTTL"></div>
+    <div class="text-xs leading-relaxed" style="color:rgba(224,224,224,.65)" id="TTXT"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main class="pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+
+  <!-- Breadcrumb -->
+  <div class="flex items-center gap-2 text-sm mb-8" style="color:rgba(224,224,224,.45)">
+    <a href="strivio.html" style="text-decoration:none;color:rgba(224,224,224,.45)" onmouseover="this.style.color='#39ff14'" onmouseout="this.style.color='rgba(224,224,224,.45)'" id="BCH"></a>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <span style="color:#E0E0E0" id="BCCR"></span>
+  </div>
+
+  <!-- Page Header -->
+  <div class="mb-10">
+    <h1 class="font-display text-3xl sm:text-4xl font-black text-white mb-2" id="PGTL"></h1>
+    <div style="width:48px;height:3px;background:var(--n);border-radius:99px;box-shadow:0 0 10px rgba(var(--nr),.4)"></div>
+  </div>
+
+  <!-- Empty State (hidden by default) -->
+  <div id="EMST" class="EMPT" style="display:none">
+    <div style="width:80px;height:80px;border-radius:50%;background:rgba(var(--nr),.08);border:1px solid rgba(var(--nr),.15);display:flex;align-items:center;justify-content:center">
+      <svg width="36" height="36" fill="none" viewBox="0 0 24 24" stroke="#39ff14" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+    </div>
+    <div class="font-display font-bold text-white text-xl" id="EMTL"></div>
+    <p style="color:rgba(224,224,224,.5);max-width:300px" id="EMST2"></p>
+    <a href="strivio.html#subs" class="BN" style="max-width:220px;animation:P2 3s ease-in-out infinite" id="EMBTN"></a>
+  </div>
+
+  <!-- Cart Content (shown when items exist) -->
+  <div id="CRT" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Items List -->
+    <div class="lg:col-span-2">
+      <div id="CITEMS" class="flex flex-col gap-4"></div>
+
+      <!-- WhatsApp tip banner -->
+      <div class="mt-6 flex items-start gap-3 p-4 rounded-2xl" style="background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.2)">
+        <div style="flex-shrink:0;margin-top:2px;color:#25D366">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        </div>
+        <div>
+          <div class="font-display font-semibold text-sm mb-0.5" style="color:#25D366" id="WATIP_T"></div>
+          <div class="text-xs leading-relaxed" style="color:rgba(224,224,224,.6)" id="WATIP_D"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="lg:col-span-1">
+      <div class="SUM sticky top-24">
+        <h2 class="font-display font-bold text-white text-lg mb-5" id="SMTL"></h2>
+
+        <!-- Subtotal rows -->
+        <div id="SMROWS" class="flex flex-col gap-2 mb-4"></div>
+        <div style="height:1px;background:linear-gradient(90deg,transparent,#2A2A2A,transparent);margin-bottom:1rem"></div>
+
+        <!-- Flexy fee row -->
+        <div id="FLXROW" style="display:none" class="flex items-center justify-between mb-2 text-sm">
+          <span style="color:#ffa94d" id="FLXLBL"></span>
+          <span style="color:#ffa94d;font-weight:700" id="FLXAMT"></span>
+        </div>
+
+        <!-- Total -->
+        <div class="flex items-center justify-between mb-6">
+          <span class="font-display font-bold text-white" id="TTTLBL"></span>
+          <span class="font-display font-black text-2xl NT" id="TTAMT"></span>
+        </div>
+
+        <!-- Payment Methods -->
+        <h3 class="font-display font-semibold text-white text-sm mb-3" id="PMTL"></h3>
+        <div class="flex flex-col gap-2.5 mb-6" id="PMLIST"></div>
+
+        <!-- Confirm button -->
+        <button class="BN" id="CFRMBTN" disabled style="animation:P2 3s ease-in-out infinite"></button>
+
+        <!-- Terms note -->
+        <p class="text-xs text-center mt-3" style="color:rgba(224,224,224,.35)" id="TERMS"></p>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   CONFIG — same WhatsApp number as strivio.html
+════════════════════════════════════════════════════════ */
+var WA_NUMBER = '213XXXXXXXXX'; // e.g. '213555123456'
+
+/* ══════════════════════════════════════════════════════
+   FLAGS
+════════════════════════════════════════════════════════ */
+var FL={
+  en:'<svg width="22" height="15" viewBox="0 0 22 15" style="border-radius:2px;display:block"><rect width="22" height="15" fill="#B22234"/><rect y="1.15" width="22" height="1.15" fill="#fff"/><rect y="3.46" width="22" height="1.15" fill="#fff"/><rect y="5.77" width="22" height="1.15" fill="#fff"/><rect y="8.08" width="22" height="1.15" fill="#fff"/><rect y="10.38" width="22" height="1.15" fill="#fff"/><rect y="12.69" width="22" height="1.15" fill="#fff"/><rect width="9" height="8.08" fill="#3C3B6E"/></svg>',
+  fr:'<svg width="22" height="15" viewBox="0 0 22 15" style="border-radius:2px;display:block"><rect width="7.33" height="15" fill="#002395"/><rect x="7.33" width="7.34" height="15" fill="#fff"/><rect x="14.67" width="7.33" height="15" fill="#ED2939"/></svg>',
+  ar:'<svg width="22" height="15" viewBox="0 0 22 15" style="border-radius:2px;display:block"><rect width="11" height="15" fill="#006233"/><rect x="11" width="11" height="15" fill="#fff"/><circle cx="12.5" cy="7.5" r="4.5" fill="#D21034"/><circle cx="13.8" cy="7.5" r="3.2" fill="#fff"/><polygon points="11.2,4.8 11.7,6.4 13.3,6.4 12.0,7.4 12.5,9.0 11.2,8.0 9.9,9.0 10.4,7.4 9.1,6.4 10.7,6.4" fill="#D21034"/></svg>'
+};
+
+/* ══════════════════════════════════════════════════════
+   TRANSLATIONS
+════════════════════════════════════════════════════════ */
+var TX={
+  en:{
+    home:'Home', subs:'Subscriptions', trackOrder:'Track Order',
+    breadHome:'Home', breadCart:'Cart',
+    pageTitle:'Your Cart',
+    emptyTitle:'Your cart is empty',
+    emptyDesc:'Browse our catalog and add the subscriptions you love.',
+    emptyBtn:'Browse Offers',
+    waTitle:'💬 WhatsApp is the fastest way',
+    waDesc:'Send your order directly via WhatsApp for instant confirmation and delivery.',
+    summaryTitle:'Order Summary',
+    total:'Total',
+    payTitle:'Payment Method',
+    confirmBtn:'Confirm Order via WhatsApp',
+    selectPayFirst:'Select a payment method',
+    terms:'By confirming, your order details will be sent via WhatsApp.',
+    flexyFee:'Flexy service fee (19%)',
+    payMethods:[
+      {id:'cib',     label:'Golden Card / CIB', desc:'Coming Soon', icon:'💳', disabled:true},
+      {id:'baridimob',label:'BaridiMob',          desc:'Instant transfer',  icon:'📱', disabled:false},
+      {id:'ccp',     label:'CCP',                desc:'Post office transfer',icon:'🏦',disabled:false},
+      {id:'wise',    label:'Wise',               desc:'International transfer',icon:'💸',disabled:false},
+      {id:'flexy',   label:'Flexy',              desc:'+19% service fee',  icon:'⚡', disabled:false}
+    ],
+    toastTitle:'✅ Order Sent!',
+    toastDesc:'WhatsApp opened with your order. Details also copied to clipboard — paste anywhere (Facebook, Instagram, etc.).',
+    dl:['1 Month','2 Months','3 Months','6 Months','1 Year'],
+    remove:'Remove',
+    month:'mo'
+  },
+  fr:{
+    home:'Accueil', subs:'Abonnements', trackOrder:'Suivi Commande',
+    breadHome:'Accueil', breadCart:'Panier',
+    pageTitle:'Votre Panier',
+    emptyTitle:'Votre panier est vide',
+    emptyDesc:'Parcourez notre catalogue et ajoutez vos abonnements préférés.',
+    emptyBtn:'Voir les Offres',
+    waTitle:'💬 WhatsApp est le plus rapide',
+    waDesc:'Envoyez votre commande directement via WhatsApp pour une confirmation instantanée.',
+    summaryTitle:'Récapitulatif',
+    total:'Total',
+    payTitle:'Mode de Paiement',
+    confirmBtn:'Confirmer via WhatsApp',
+    selectPayFirst:'Choisissez un mode de paiement',
+    terms:'En confirmant, vos détails seront envoyés via WhatsApp.',
+    flexyFee:'Frais Flexy (19%)',
+    payMethods:[
+      {id:'cib',     label:'Carte Dorée / CIB', desc:'Bientôt disponible', icon:'💳', disabled:true},
+      {id:'baridimob',label:'BaridiMob',          desc:'Virement instantané', icon:'📱', disabled:false},
+      {id:'ccp',     label:'CCP',                desc:'Virement postal',    icon:'🏦', disabled:false},
+      {id:'wise',    label:'Wise',               desc:'Virement international',icon:'💸',disabled:false},
+      {id:'flexy',   label:'Flexy',              desc:'+19% frais de service',icon:'⚡',disabled:false}
+    ],
+    toastTitle:'✅ Commande Envoyée !',
+    toastDesc:'WhatsApp ouvert avec votre commande. Détails copiés dans le presse-papier — collez sur Facebook, Instagram, etc.',
+    dl:['1 Mois','2 Mois','3 Mois','6 Mois','1 An'],
+    remove:'Supprimer',
+    month:'mois'
+  },
+  ar:{
+    home:'الرئيسية', subs:'الاشتراكات', trackOrder:'تتبع الطلب',
+    breadHome:'الرئيسية', breadCart:'السلة',
+    pageTitle:'سلة مشترياتك',
+    emptyTitle:'سلتك فارغة',
+    emptyDesc:'تصفح كتالوجنا وأضف الاشتراكات التي تحبها.',
+    emptyBtn:'تصفح العروض',
+    waTitle:'💬 واتساب هو الأسرع',
+    waDesc:'أرسل طلبك مباشرة عبر واتساب للحصول على تأكيد وتسليم فوري.',
+    summaryTitle:'ملخص الطلب',
+    total:'المجموع',
+    payTitle:'طريقة الدفع',
+    confirmBtn:'تأكيد الطلب عبر واتساب',
+    selectPayFirst:'اختر طريقة الدفع',
+    terms:'بالتأكيد، سيتم إرسال تفاصيل طلبك عبر واتساب.',
+    flexyFee:'رسوم Flexy (19%)',
+    payMethods:[
+      {id:'cib',     label:'البطاقة الذهبية / CIB', desc:'قريباً', icon:'💳', disabled:true},
+      {id:'baridimob',label:'باريدي موب',              desc:'تحويل فوري',  icon:'📱', disabled:false},
+      {id:'ccp',     label:'CCP',                    desc:'تحويل بريدي', icon:'🏦', disabled:false},
+      {id:'wise',    label:'Wise',                   desc:'تحويل دولي',  icon:'💸', disabled:false},
+      {id:'flexy',   label:'فليكسي',                  desc:'+19% رسوم الخدمة',icon:'⚡',disabled:false}
+    ],
+    toastTitle:'✅ تم إرسال الطلب!',
+    toastDesc:'تم فتح واتساب بتفاصيل طلبك. تم نسخ التفاصيل أيضاً — يمكنك لصقها في فيسبوك أو إنستغرام.',
+    dl:['شهر واحد','شهرين','3 أشهر','6 أشهر','سنة كاملة'],
+    remove:'حذف',
+    month:'شهر'
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════ */
+var L = localStorage.getItem('strivio_lang') || 'en';
+var selPay = null;
+var cart = [];
+var fmtP = function(n){ return n.toLocaleString('ar-DZ') + ' دج'; };
+var t = function(){ return TX[L]; };
+var $ = function(id){ return document.getElementById(id); };
+var setT = function(id, txt){ var e=$(id); if(e) e.textContent = txt; };
+
+/* ══════════════════════════════════════════════════════
+   ICON RENDERER (same as strivio.html)
+════════════════════════════════════════════════════════ */
+function makeIcon(item, sz){
+  sz = (sz || 48) + 'px';
+  if(item.iconType === 'img'){
+    return '<img src="'+item.iconSrc+'" style="width:'+sz+';height:'+sz+';object-fit:contain" alt=""/>';
+  }
+  if(item.iconType === 'text'){
+    return '<div style="width:'+sz+';height:'+sz+';display:flex;align-items:center;justify-content:center;font-family:Space Grotesk,sans-serif;font-weight:900;font-size:'+Math.round(parseInt(sz)*0.55)+'px;color:'+(item.iconColor||'#fff')+'">'+item.iconSrc+'</div>';
+  }
+  return '<div style="width:'+sz+';height:'+sz+'">'+item.iconSrc+'</div>';
+}
+
+/* ══════════════════════════════════════════════════════
+   CART TOTALS
+════════════════════════════════════════════════════════ */
+function getSubtotal(){
+  return cart.reduce(function(s,i){ return s + i.price; }, 0);
+}
+function getFlexyFee(sub){
+  return Math.round(sub * 0.19);
+}
+function getFinalTotal(){
+  var sub = getSubtotal();
+  if(selPay === 'flexy') return sub + getFlexyFee(sub);
+  return sub;
+}
+
+/* ══════════════════════════════════════════════════════
+   RENDER CART ITEMS
+════════════════════════════════════════════════════════ */
+function renderItems(){
+  var tx = t();
+  var el = $('CITEMS');
+  if(!el) return;
+  if(cart.length === 0){
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = cart.map(function(item, idx){
+    var durLabel = item.durLabelData ? (item.durLabelData[L] || item.durLabel) : item.durLabel;
+    var itemName = item.nameData ? (item.nameData[L] || item.name) : item.name;
+    return [
+      '<div class="CI" id="CI'+idx+'">',
+        '<div style="width:52px;height:52px;border-radius:13px;overflow:hidden;flex-shrink:0;background:'+item.bg+'">',
+          makeIcon(item, 48),
+        '</div>',
+        '<div style="flex:1;min-width:0">',
+          '<div class="font-display font-bold text-white text-sm leading-tight">'+itemName+'</div>',
+          '<div class="text-xs mt-0.5" style="color:rgba(224,224,224,.45)">'+durLabel+'</div>',
+          '<div class="font-display font-bold mt-1" style="color:var(--n)">'+fmtP(item.price)+'</div>',
+        '</div>',
+        '<button onclick="removeItem('+idx+')" class="flex items-center justify-center w-8 h-8 rounded-lg transition-all flex-shrink-0" style="background:#2A2A2A;border:none;cursor:pointer;color:rgba(224,224,224,.5)" onmouseover="this.style.background=\'rgba(255,50,50,.2)\';this.style.color=\'#ff5555\'" onmouseout="this.style.background=\'#2A2A2A\';this.style.color=\'rgba(224,224,224,.5)\'" title="'+tx.remove+'">',
+          '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+        '</button>',
+      '</div>'
+    ].join('');
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════
+   RENDER SUMMARY
+════════════════════════════════════════════════════════ */
+function renderSummary(){
+  var tx = t();
+  var sub = getSubtotal();
+  var flexyFee = getFlexyFee(sub);
+  var total = getFinalTotal();
+
+  // Item rows
+  var rowsEl = $('SMROWS');
+  if(rowsEl){
+    rowsEl.innerHTML = cart.map(function(item){
+      var itemName = item.nameData ? (item.nameData[L] || item.name) : item.name;
+      var durLabel = item.durLabelData ? (item.durLabelData[L] || item.durLabel) : item.durLabel;
+      return '<div class="flex items-center justify-between text-sm"><span style="color:rgba(224,224,224,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">'+itemName+' ('+durLabel+')</span><span class="font-medium text-white ml-2 flex-shrink-0">'+fmtP(item.price)+'</span></div>';
+    }).join('');
+  }
+
+  // Flexy row
+  var flxRow = $('FLXROW');
+  if(flxRow){
+    if(selPay === 'flexy'){
+      flxRow.style.display = 'flex';
+      setT('FLXLBL', tx.flexyFee);
+      setT('FLXAMT', '+'+fmtP(flexyFee));
+    } else {
+      flxRow.style.display = 'none';
+    }
+  }
+
+  setT('TTTLBL', tx.total);
+  setT('TTAMT', fmtP(total));
+}
+
+/* ══════════════════════════════════════════════════════
+   RENDER PAYMENT METHODS
+════════════════════════════════════════════════════════ */
+function renderPayMethods(){
+  var tx = t();
+  var el = $('PMLIST');
+  if(!el) return;
+  el.innerHTML = tx.payMethods.map(function(pm){
+    var isSel = selPay === pm.id && !pm.disabled;
+    return [
+      '<div class="PM'+(pm.disabled?' DIS':'')+(isSel?' SEL':'')+'"',
+        pm.disabled ? '' : ' onclick="selectPay(\''+pm.id+'\')"',
+        '>',
+        '<div class="RB"></div>',
+        '<span style="font-size:1.25rem;flex-shrink:0">'+pm.icon+'</span>',
+        '<div style="flex:1;min-width:0">',
+          '<div class="font-display font-semibold text-sm" style="color:'+(pm.disabled?'rgba(224,224,224,.4)':'#fff')+'">'+pm.label+'</div>',
+          pm.disabled
+            ? '<span style="font-size:.6rem;font-weight:700;background:#2A2A2A;color:rgba(224,224,224,.5);padding:.1rem .5rem;border-radius:999px">'+pm.desc+'</span>'
+            : '<div class="text-xs" style="color:rgba(224,224,224,.4)">'+pm.desc+'</div>',
+        '</div>',
+      '</div>'
+    ].join('');
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════
+   REMOVE ITEM
+════════════════════════════════════════════════════════ */
+function removeItem(idx){
+  cart.splice(idx, 1);
+  localStorage.setItem('strivio_cart', JSON.stringify(cart));
+  render();
+}
+
+/* ══════════════════════════════════════════════════════
+   SELECT PAYMENT
+════════════════════════════════════════════════════════ */
+function selectPay(id){
+  selPay = id;
+  renderPayMethods();
+  renderSummary();
+  updateConfirmBtn();
+}
+
+/* ══════════════════════════════════════════════════════
+   UPDATE CONFIRM BUTTON
+════════════════════════════════════════════════════════ */
+function updateConfirmBtn(){
+  var tx = t();
+  var btn = $('CFRMBTN');
+  if(!btn) return;
+  if(selPay && cart.length > 0){
+    btn.disabled = false;
+    btn.textContent = tx.confirmBtn;
+  } else if(cart.length === 0){
+    btn.disabled = true;
+    btn.textContent = tx.confirmBtn;
+  } else {
+    btn.disabled = true;
+    btn.textContent = tx.selectPayFirst;
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   BUILD WHATSAPP MESSAGE
+════════════════════════════════════════════════════════ */
+function buildMessage(){
+  var tx = t();
+  var payLabel = '';
+  tx.payMethods.forEach(function(p){ if(p.id===selPay) payLabel = p.label; });
+  var lines = ['🛒 *New Order — Strivio*', ''];
+  cart.forEach(function(item, i){
+    var itemName = item.nameData ? (item.nameData['en'] || item.name) : item.name;
+    var dur = item.durLabelData ? (item.durLabelData['en'] || item.durLabel) : item.durLabel;
+    lines.push((i+1)+'. '+itemName+' — '+dur+' → '+item.price.toLocaleString()+' DZD');
+  });
+  var sub = getSubtotal();
+  var total = getFinalTotal();
+  lines.push('');
+  if(selPay === 'flexy'){
+    lines.push('Subtotal: '+sub.toLocaleString()+' DZD');
+    lines.push('Flexy fee (19%): +'+getFlexyFee(sub).toLocaleString()+' DZD');
+  }
+  lines.push('💰 *Total: '+total.toLocaleString()+' DZD*');
+  lines.push('💳 Payment: '+payLabel);
+  lines.push('');
+  lines.push('Please confirm my order. Thank you! 🙏');
+  return lines.join('\n');
+}
+
+/* ══════════════════════════════════════════════════════
+   CONFIRM ORDER
+════════════════════════════════════════════════════════ */
+function confirmOrder(){
+  if(!selPay || cart.length === 0) return;
+  var tx = t();
+  var msg = buildMessage();
+  var waUrl = 'https://wa.me/'+WA_NUMBER+'?text='+encodeURIComponent(msg);
+  // Open WhatsApp
+  window.open(waUrl, '_blank');
+  // Copy to clipboard
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(msg).catch(function(){});
+  }
+  // Show toast
+  setT('TTTL', tx.toastTitle);
+  setT('TTXT', tx.toastDesc);
+  var toast = $('TOAST');
+  toast.classList.add('SH');
+  setTimeout(function(){ toast.classList.remove('SH'); }, 5500);
+}
+
+/* ══════════════════════════════════════════════════════
+   MASTER RENDER
+════════════════════════════════════════════════════════ */
+function render(){
+  var tx = t();
+  var hasItems = cart.length > 0;
+  var crtEl = $('CRT'), emEl = $('EMST');
+  if(crtEl) crtEl.style.display = hasItems ? '' : 'none';
+  if(emEl) emEl.style.display = hasItems ? 'none' : 'flex';
+
+  if(hasItems){
+    renderItems();
+    renderSummary();
+    renderPayMethods();
+    updateConfirmBtn();
+    setT('SMTL', tx.summaryTitle);
+    setT('PMTL', tx.payTitle);
+    setT('TERMS', tx.terms);
+    setT('WATIP_T', tx.waTitle);
+    setT('WATIP_D', tx.waDesc);
+  } else {
+    setT('EMTL', tx.emptyTitle);
+    setT('EMST2', tx.emptyDesc);
+    setT('EMBTN', tx.emptyBtn);
+  }
+
+  // Cart badge
+  var badge = $('CNBD');
+  if(badge) badge.textContent = cart.length;
+  // Breadcrumb
+  setT('BCH', tx.breadHome);
+  setT('BCCR', tx.breadCart);
+  setT('PGTL', tx.pageTitle);
+  // Nav
+  setT('NLH', tx.home); setT('NLS', tx.subs);
+  setT('MLH', tx.home); setT('MLS', tx.subs);
+  setT('NTB', tx.trackOrder); setT('MTB', tx.trackOrder);
+}
+
+/* ══════════════════════════════════════════════════════
+   APPLY LANGUAGE
+════════════════════════════════════════════════════════ */
+function applyLang(l){
+  L = l;
+  localStorage.setItem('strivio_lang', l);
+  var hr = $('HR');
+  hr.setAttribute('lang', l);
+  hr.setAttribute('dir', l === 'ar' ? 'rtl' : 'ltr');
+  $('FLD').innerHTML = FL[l];
+  setT('LCD', l.toUpperCase());
+  $('FLDM').innerHTML = FL[l];
+  document.querySelectorAll('.LO').forEach(function(b){ b.classList.toggle('AC', b.dataset.l === l); });
+  render();
+}
+
+/* ══════════════════════════════════════════════════════
+   EVENTS
+════════════════════════════════════════════════════════ */
+document.addEventListener('click', function(e){
+  var lo = e.target.closest('.LO[data-l]');
+  if(lo){ applyLang(lo.dataset.l); $('LDPD').classList.remove('O'); $('LDPM').classList.remove('O'); return; }
+  if(e.target.closest('#LTD')){ $('LDPD').classList.toggle('O'); return; }
+  if(e.target.closest('#LTM')){ $('LDPM').classList.toggle('O'); return; }
+  if(!e.target.closest('#LDPD') && !e.target.closest('#LTD')) $('LDPD').classList.remove('O');
+  if(!e.target.closest('#LDPM') && !e.target.closest('#LTM')) $('LDPM').classList.remove('O');
+});
+
+var hb = $('HB'), mm = $('MM');
+hb.addEventListener('click', function(){ hb.classList.toggle('O'); mm.classList.toggle('O'); });
+
+$('CFRMBTN').addEventListener('click', confirmOrder);
+
+window.addEventListener('scroll', function(){ $('NAV').style.boxShadow = window.scrollY > 40 ? '0 2px 30px rgba(0,0,0,.7)' : 'none'; });
+
+/* ══════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════ */
+document.querySelectorAll('.FEN').forEach(function(el){ el.innerHTML = FL.en; });
+document.querySelectorAll('.FFR').forEach(function(el){ el.innerHTML = FL.fr; });
+document.querySelectorAll('.FAR').forEach(function(el){ el.innerHTML = FL.ar; });
+
+// Load cart from localStorage
+cart = JSON.parse(localStorage.getItem('strivio_cart') || '[]');
+
+applyLang(L);
+</script>
+</body>
+</html>
