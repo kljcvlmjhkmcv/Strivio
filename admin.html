@@ -12,15 +12,42 @@
   body{background:#121212;color:#E0E0E0;font-family:'Inter',sans-serif;}
   .tab-btn{padding:0.75rem 1.5rem;border-radius:12px;font-weight:700;cursor:pointer;transition:all 0.2s;border:1px solid #2A2A2A;background:#181818;color:rgba(224,224,224,0.6);}
   .tab-btn.active{background:rgba(57,255,20,0.12);color:#39ff14;border-color:#39ff14;box-shadow:0 0 15px rgba(57,255,20,0.2);}
-  .input-box{background:#1E1E1E;border:1px solid #2A2A2A;border-radius:8px;padding:0.5rem 0.75rem;color:#fff;width:100%;font-family:'Space Grotesk',sans-serif;font-weight:700;text-align:center;}
+  .input-box{background:#1E1E1E;border:1px solid #2A2A2A;border-radius:8px;padding:0.6rem 0.85rem;color:#fff;width:100%;font-family:'Space Grotesk',sans-serif;font-weight:700;}
   .input-box:focus{outline:none;border-color:#39ff14;box-shadow:0 0 10px rgba(57,255,20,0.3);}
   .save-btn{background:#39ff14;color:#121212;font-weight:800;font-family:'Space Grotesk',sans-serif;padding:0.6rem 1.25rem;border-radius:10px;cursor:pointer;transition:all 0.2s;}
   .save-btn:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 0 15px rgba(57,255,20,0.4);}
 </style>
 </head>
-<body class="min-h-screen p-4 sm:p-8">
+<body class="min-h-screen p-4 sm:p-8 flex flex-col justify-center">
 
-<div class="max-w-7xl mx-auto">
+<!-- LOGIN SCREEN (GATEWAY) -->
+<div id="login-screen" class="max-w-md w-full mx-auto bg-brand-card border border-brand-border p-8 rounded-3xl shadow-2xl relative my-auto">
+  <div class="text-center mb-8">
+    <div class="w-14 h-14 rounded-2xl bg-brand-neon/10 border border-brand-neon/30 flex items-center justify-center text-brand-neon font-display font-black text-2xl mx-auto mb-4 shadow-[0_0_25px_rgba(57,255,20,0.2)]">S</div>
+    <h2 class="font-display font-black text-2xl text-white">تسجيل دخول المدير</h2>
+    <p class="text-xs text-gray-400 mt-1">بوابة الدخول المحمية لإدارة أسعار وكوبونات وطلبات Strivio</p>
+  </div>
+  
+  <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+    <div>
+      <label class="block text-xs font-bold text-gray-400 mb-1.5">البريد الإلكتروني (الخاص بالمدير)</label>
+      <input type="email" id="admin-email" class="input-box text-right" placeholder="admin@striviodz.store" required dir="ltr"/>
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-gray-400 mb-1.5">كلمة المرور</label>
+      <input type="password" id="admin-pass" class="input-box text-right" placeholder="••••••••" required dir="ltr"/>
+    </div>
+    <div id="login-err" class="text-xs text-red-400 font-bold hidden text-center pt-1"></div>
+    <button type="submit" id="login-btn" class="save-btn w-full py-3.5 mt-2 text-base shadow-[0_0_20px_rgba(57,255,20,0.25)]">🔐 دخول آمن للوحة التحكم</button>
+  </form>
+  
+  <div class="mt-6 pt-6 border-t border-brand-border text-center">
+    <a href="index.html" class="text-xs text-gray-500 hover:text-brand-neon transition-colors">← العودة لمتجر Strivio الرئيسي</a>
+  </div>
+</div>
+
+<!-- ADMIN DASHBOARD CONTENT (HIDDEN UNTIL LOGGED IN) -->
+<div id="admin-content" class="max-w-7xl mx-auto w-full hidden">
   <!-- HEADER -->
   <header class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 pb-6 border-b border-brand-border">
     <div class="flex items-center gap-3">
@@ -30,8 +57,10 @@
         <p class="text-xs text-gray-400 mt-0.5">لوحة التحكم المنظمة لإدارة الأسعار الديناميكية، الكوبونات، وسجل الطلبات</p>
       </div>
     </div>
-    <div class="flex gap-2">
-      <a href="index.html" class="px-4 py-2 rounded-xl border border-brand-border bg-brand-card hover:border-brand-neon hover:text-brand-neon text-sm font-medium transition-all">← العودة للمتجر</a>
+    <div class="flex items-center gap-3">
+      <span id="user-display" class="text-xs text-gray-400 bg-brand-black px-3 py-1.5 rounded-xl border border-brand-border"></span>
+      <button onclick="handleLogout()" class="px-4 py-2 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 text-sm font-bold transition-all">🚪 خروج</button>
+      <a href="index.html" class="px-4 py-2 rounded-xl border border-brand-border bg-brand-card hover:border-brand-neon hover:text-brand-neon text-sm font-medium transition-all">← المتجر</a>
     </div>
   </header>
 
@@ -61,18 +90,18 @@
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
         <div>
           <label class="block text-xs text-gray-400 mb-1">كود الخصم (مثال: STRIVIO20)</label>
-          <input type="text" id="new-coupon-code" class="input-box uppercase" placeholder="CODE"/>
+          <input type="text" id="new-coupon-code" class="input-box uppercase text-center" placeholder="CODE"/>
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">نوع الخصم</label>
-          <select id="new-coupon-type" class="input-box">
+          <select id="new-coupon-type" class="input-box text-center">
             <option value="percent">نسبة مئوية (%)</option>
             <option value="fixed">مبلغ ثابت (دج)</option>
           </select>
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">قيمة الخصم</label>
-          <input type="number" id="new-coupon-val" class="input-box" placeholder="20"/>
+          <input type="number" id="new-coupon-val" class="input-box text-center" placeholder="20"/>
         </div>
         <div>
           <button onclick="addCoupon()" class="save-btn w-full py-2.5">➕ إضافة الكوبون</button>
@@ -115,6 +144,72 @@ function showToast(msg) {
   setTimeout(function(){ t.classList.add('opacity-0', 'pointer-events-none'); }, 3500);
 }
 
+/* ─── AUTHENTICATION LOGIC ─── */
+async function checkAuth() {
+  if (!window.supabaseClient) {
+    // If running locally without supabase client, show error
+    document.getElementById('login-err').textContent = 'خطأ في الاتصال بـ Supabase';
+    document.getElementById('login-err').classList.remove('hidden');
+    return;
+  }
+  var { data: { session } } = await window.supabaseClient.auth.getSession();
+  if (session && session.user) {
+    unlockDashboard(session.user.email);
+  } else {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('admin-content').classList.add('hidden');
+  }
+}
+
+function unlockDashboard(email) {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('admin-content').classList.remove('hidden');
+  document.getElementById('user-display').textContent = '👤 ' + email;
+  initAdmin();
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  var email = document.getElementById('admin-email').value.trim();
+  var pass = document.getElementById('admin-pass').value.trim();
+  var errEl = document.getElementById('login-err');
+  var btn = document.getElementById('login-btn');
+  
+  errEl.classList.add('hidden');
+  btn.textContent = '⏳ جاري التحقق من الصلاحيات...';
+  btn.disabled = true;
+
+  if (!window.supabaseClient) {
+    errEl.textContent = 'خطأ: لم يتم الاتصال بقاعدة بيانات Supabase.';
+    errEl.classList.remove('hidden');
+    btn.textContent = '🔐 دخول آمن للوحة التحكم';
+    btn.disabled = false;
+    return;
+  }
+
+  var { data, error } = await window.supabaseClient.auth.signInWithPassword({
+    email: email,
+    password: pass
+  });
+
+  if (error || !data.session) {
+    errEl.textContent = '❌ بيانات الدخول غير صحيحة! تأكد من البريد وكلمة المرور.';
+    errEl.classList.remove('hidden');
+    btn.textContent = '🔐 دخول آمن للوحة التحكم';
+    btn.disabled = false;
+  } else {
+    showToast('مرحباً بك في لوحة التحكم!');
+    unlockDashboard(data.session.user.email);
+  }
+}
+
+async function handleLogout() {
+  if (window.supabaseClient) {
+    await window.supabaseClient.auth.signOut();
+  }
+  window.location.reload();
+}
+
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(function(btn, i){
     btn.classList.toggle('active', (tab === 'prices' && i===0) || (tab === 'coupons' && i===1) || (tab === 'orders' && i===2));
@@ -153,7 +248,7 @@ function renderServicesEditor() {
       s.p.map(function(price, dIdx){
         return '<div class="bg-brand-black p-2.5 rounded-xl border border-brand-border">' +
           '<div class="text-xs text-gray-400 mb-1.5 text-center">' + (DUR_LABELS[dIdx] || ('مدة ' + (dIdx+1))) + '</div>' +
-          '<input type="number" id="p-' + s.id + '-' + dIdx + '" value="' + price + '" class="input-box"/>' +
+          '<input type="number" id="p-' + s.id + '-' + dIdx + '" value="' + price + '" class="input-box text-center"/>' +
         '</div>';
       }).join('') + 
     '</div>';
@@ -169,7 +264,7 @@ function renderServicesEditor() {
           '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2">' +
             tPrices.map(function(tp, dIdx) {
               return '<div><div class="text-[10px] text-gray-500 mb-0.5 text-center">' + DUR_LABELS[dIdx] + '</div>' +
-                '<input type="number" id="tp-' + s.id + '-' + tIdx + '-' + dIdx + '" value="' + tp + '" class="input-box text-sm"/></div>';
+                '<input type="number" id="tp-' + s.id + '-' + tIdx + '-' + dIdx + '" value="' + tp + '" class="input-box text-center text-sm"/></div>';
             }).join('') +
           '</div>' +
         '</div>';
@@ -195,7 +290,6 @@ function renderServicesEditor() {
 async function saveServicePricing(serviceId, idx) {
   var s = ADMIN_SERVICES[idx];
   
-  // Collect base prices
   var newP = [];
   s.p.forEach(function(_, dIdx){
     var val = parseInt(document.getElementById('p-' + s.id + '-' + dIdx).value) || 0;
@@ -203,7 +297,6 @@ async function saveServicePricing(serviceId, idx) {
   });
   s.p = newP;
 
-  // Collect dynamic prices
   if (s.types && s.types.ar) {
     var newTypePrices = [];
     s.types.ar.forEach(function(_, tIdx){
@@ -218,7 +311,6 @@ async function saveServicePricing(serviceId, idx) {
     s.typePrices = newTypePrices;
   }
 
-  // Save to Supabase
   if (window.supabaseClient) {
     var { error } = await window.supabaseClient
       .from('services')
@@ -229,12 +321,12 @@ async function saveServicePricing(serviceId, idx) {
       .eq('id', serviceId);
 
     if (error) {
-      alert('خطأ أثناء حفظ التعديلات في Supabase: ' + error.message);
+      alert('خطأ أثناء حفظ التعديلات في Supabase (تأكد أنك مسجل دخول كمدير وأن سياسات RLS تسمح للمدير): ' + error.message);
     } else {
       showToast('تم تحديث أسعار ' + s.n.ar + ' بنجاح في قاعدة البيانات!');
     }
   } else {
-    showToast('تم حفظ الأسعار محلياً! (يرجى إعداد Supabase Client)');
+    showToast('تم حفظ الأسعار محلياً!');
   }
 }
 
@@ -268,7 +360,7 @@ async function addCoupon() {
     var { error } = await window.supabaseClient.from('coupons').insert([{
       code: code, type: type, val: val, is_active: true
     }]);
-    if (error) alert('خطأ: ' + error.message);
+    if (error) alert('خطأ أثناء إضافة الكوبون (تأكد من الصلاحيات): ' + error.message);
     else {
       showToast('تمت إضافة الكوبون ' + code + ' بنجاح!');
       document.getElementById('new-coupon-code').value = '';
@@ -315,7 +407,7 @@ async function loadOrders() {
   }).join('');
 }
 
-window.addEventListener('DOMContentLoaded', initAdmin);
+window.addEventListener('DOMContentLoaded', checkAuth);
 </script>
 </body>
 </html>
