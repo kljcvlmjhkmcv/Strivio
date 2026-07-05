@@ -276,6 +276,18 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   </div>
 </main>
 
+<!-- Social Copy Modal -->
+<div id="SOC_MODAL" style="display:none" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[2000] items-center justify-center p-4">
+  <div class="bg-[#181818] border border-[#39ff14]/35 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl relative">
+    <div class="w-16 h-16 rounded-2xl bg-[#39ff14]/10 border border-[#39ff14]/30 text-[#39ff14] flex items-center justify-center mx-auto mb-5 text-3xl">📋</div>
+    <h3 id="SM_TITLE" class="font-display font-bold text-white text-xl sm:text-2xl mb-3"></h3>
+    <p id="SM_DESC" class="text-sm sm:text-base leading-relaxed text-gray-300 mb-5"></p>
+    <div class="bg-[#121212] border border-[#2A2A2A] rounded-xl p-3 mb-6 text-xs text-left text-gray-400 font-mono overflow-y-auto max-h-32 select-all whitespace-pre-wrap" id="SM_PREVIEW" dir="ltr"></div>
+    <button id="SM_GO_BTN" class="w-full bg-[#39ff14] text-[#121212] font-bold font-display py-3.5 px-6 rounded-xl hover:brightness-110 transition-all text-base mb-3 shadow-[0_0_20px_rgba(57,255,20,0.3)]"></button>
+    <button onclick="closeSocModal()" class="w-full bg-transparent text-gray-400 font-medium py-2 px-4 rounded-xl hover:text-white text-sm transition-colors" id="SM_CLOSE_BTN">إغلاق</button>
+  </div>
+</div>
+
 <script src="supabase-client.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════
@@ -372,7 +384,11 @@ var TX={
     dl:['1 Mois','2 Mois','3 Mois','6 Mois','1 An'],
     remove:'Supprimer',
     month:'mois',
-    qty:'Qté :'
+    qty:'Qté :',
+    socModalTitle:'📋 Commande copiée avec succès !',
+    socModalDesc:'Dernière étape : Vous allez être redirigé vers notre page. Veuillez <span style="color:#39ff14;font-weight:bold">coller (Paste)</span> le message copié dans la discussion pour valider votre commande !',
+    socModalBtn:'🚀 Ouvrir & Coller dans ',
+    socModalClose:'Fermer'
   },
   ar:{
     home:'الرئيسية', subs:'الاشتراكات', trackOrder:'تتبع الطلب',
@@ -409,7 +425,11 @@ var TX={
     dl:['شهر واحد','شهرين','3 أشهر','6 أشهر','سنة كاملة'],
     remove:'حذف',
     month:'شهر',
-    qty:'الكمية:'
+    qty:'الكمية:',
+    socModalTitle:'📋 تم نسخ معلومات طلبك بنجاح!',
+    socModalDesc:'الخطوة الأخيرة: سيتم تحويلك الآن إلى صفحتنا. يرجى <span style="color:#39ff14;font-weight:bold">لصق (Paste)</span> الرسالة التي تم نسخها تلقائياً داخل المحادثة لنبدأ في تنفيذ طلبك فوراً!',
+    socModalBtn:'🚀 الانتقال ولصق الطلب في ',
+    socModalClose:'إغلاق'
   }
 };
 
@@ -794,10 +814,26 @@ async function confirmOrderSocial(platform){
   var msg = buildMessage(rpcData);
   copyToClipboard(msg);
   
-  if(platform === 'ig') window.open(CONFIG.instagram, '_blank');
-  if(platform === 'fb') window.open(CONFIG.facebook, '_blank');
+  // Show Social Copy Modal
+  $('SM_TITLE').textContent = tx.socModalTitle;
+  $('SM_DESC').innerHTML = tx.socModalDesc;
+  $('SM_PREVIEW').textContent = msg;
+  $('SM_CLOSE_BTN').textContent = tx.socModalClose;
   
+  var platName = platform === 'ig' ? 'Instagram' : 'Facebook';
+  var targetUrl = platform === 'ig' ? CONFIG.instagram : CONFIG.facebook;
+  $('SM_GO_BTN').textContent = tx.socModalBtn + platName;
+  $('SM_GO_BTN').onclick = function(){
+    window.open(targetUrl, '_blank');
+    closeSocModal();
+  };
+  
+  $('SOC_MODAL').style.display = 'flex';
   showToast(tx.toastTitle, tx.toastDesc);
+}
+
+function closeSocModal(){
+  $('SOC_MODAL').style.display = 'none';
 }
 
 function copyToClipboard(text){
