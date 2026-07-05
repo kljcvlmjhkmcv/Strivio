@@ -95,7 +95,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
     <nav class="hidden lg:flex items-center gap-7">
       <a href="./" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLH"></a>
       <a href="./#subs" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLS"></a>
-      <a href="faq" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLF">FAQ</a>
+      <a href="faq.html" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLF">FAQ</a>
     </nav>
     <div class="hidden lg:flex items-center gap-3">
       <div class="relative">
@@ -134,6 +134,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   <div id="MM">
     <a href="./" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLH"></a>
     <a href="./#subs" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLS"></a>
+    <a href="faq.html" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLF">FAQ</a>
     <a href="./" class="BO self-start" id="MTB"></a>
   </div>
 </header>
@@ -305,7 +306,7 @@ var CONFIG = {
 var FL={
   en:'<svg width="22" height="15" viewBox="0 0 22 15" style="border-radius:2px;display:block"><rect width="22" height="15" fill="#B22234"/><rect y="1.15" width="22" height="1.15" fill="#fff"/><rect y="3.46" width="22" height="1.15" fill="#fff"/><rect y="5.77" width="22" height="1.15" fill="#fff"/><rect y="8.08" width="22" height="1.15" fill="#fff"/><rect y="10.38" width="22" height="1.15" fill="#fff"/><rect y="12.69" width="22" height="1.15" fill="#fff"/><rect width="9" height="8.08" fill="#3C3B6E"/></svg>',
   fr:'<svg width="22" height="15" viewBox="0 0 22 15" style="border-radius:2px;display:block"><rect width="7.33" height="15" fill="#002395"/><rect x="7.33" width="7.34" height="15" fill="#fff"/><rect x="14.67" width="7.33" height="15" fill="#ED2939"/></svg>',
-  ar:'<svg width="22" height="15" viewBox="0 0 22 15" style="border-radius:2px;display:block"><rect width="11" height="15" fill="#006233"/><rect x="11" width="11" height="15" fill="#fff"/><circle cx="12.5" cy="7.5" r="4.5" fill="#D21034"/><circle cx="13.8" cy="7.5" r="3.2" fill="#fff"/><polygon points="11.2,4.8 11.7,6.4 13.3,6.4 12.0,7.4 12.5,9.0 11.2,8.0 9.9,9.0 10.4,7.4 9.1,6.4 10.7,6.4" fill="#D21034"/></svg>'
+  ar:'<svg width="22" height="15" viewBox="0 0 640 480" style="border-radius:2px;display:block"><path fill="#fff" d="M0 0h640v480H0z"/><path fill="#006633" d="M0 0h320v480H0z"/><path fill="#d21034" d="M417.3 240a120 120 0 1 1-153.6-114.9 96 96 0 1 0 0 229.8A120 120 0 0 1 417.3 240z"/><polygon fill="#d21034" points="364.8,240 307.2,281.8 329.2,214.1 271.6,255.9 342.8,255.9"/></svg>'
 };
 
 /* ══════════════════════════════════════════════════════
@@ -347,7 +348,8 @@ var TX={
     dl:['1 Month','2 Months','3 Months','6 Months','1 Year'],
     remove:'Remove',
     month:'mo',
-    qty:'Qty:'
+    qty:'Qty:',
+    cpnHolder:'Enter coupon code'
   },
   fr:{
     home:'Accueil', subs:'Abonnements', trackOrder:'Suivi Commande',
@@ -388,7 +390,8 @@ var TX={
     socModalTitle:'📋 Commande copiée avec succès !',
     socModalDesc:'Dernière étape : Vous allez être redirigé vers notre page. Veuillez <span style="color:#39ff14;font-weight:bold">coller (Paste)</span> le message copié dans la discussion pour valider votre commande !',
     socModalBtn:'🚀 Ouvrir & Coller dans ',
-    socModalClose:'Fermer'
+    socModalClose:'Fermer',
+    cpnHolder:'Entrez le code promo'
   },
   ar:{
     home:'الرئيسية', subs:'الاشتراكات', trackOrder:'تتبع الطلب',
@@ -429,7 +432,8 @@ var TX={
     socModalTitle:'📋 تم نسخ معلومات طلبك بنجاح!',
     socModalDesc:'الخطوة الأخيرة: سيتم تحويلك الآن إلى صفحتنا. يرجى <span style="color:#39ff14;font-weight:bold">لصق (Paste)</span> الرسالة التي تم نسخها تلقائياً داخل المحادثة لنبدأ في تنفيذ طلبك فوراً!',
     socModalBtn:'🚀 الانتقال ولصق الطلب في ',
-    socModalClose:'إغلاق'
+    socModalClose:'إغلاق',
+    cpnHolder:'أدخل كود الخصم'
   }
 };
 
@@ -912,6 +916,7 @@ function applyLang(l){
   setT('LCD', l.toUpperCase());
   $('FLDM').innerHTML = FL[l];
   document.querySelectorAll('.LO').forEach(function(b){ b.classList.toggle('AC', b.dataset.l === l); });
+  if($('CPN_INP')) $('CPN_INP').placeholder = TX[l].cpnHolder || '';
   render();
 }
 

@@ -20,8 +20,16 @@ CREATE TABLE IF NOT EXISTS public.services (
   types JSONB,
   p JSONB NOT NULL,
   type_prices JSONB,
+  promo JSONB,
+  out_of_stock JSONB,
+  best_value INTEGER DEFAULT 2,
   sort_order INTEGER DEFAULT 0
 );
+
+-- التحديث التلقائي للجداول الموجودة مسبقاً (Migration)
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS promo JSONB;
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS out_of_stock JSONB;
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS best_value INTEGER DEFAULT 2;
 
 -- 2. إنشاء جدول أكواد الخصم (coupons)
 CREATE TABLE IF NOT EXISTS public.coupons (

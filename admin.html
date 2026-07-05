@@ -449,9 +449,9 @@ function renderServicesEditor() {
       }).join('') + 
     '</div>';
 
-    // Dynamic types
+    // Dynamic types (فقط إذا كان الخيار مفعلاً من قبل المدير)
     var dynamicHtml = '';
-    if (isDynamic && s.types && s.types.ar) {
+    if (s.showTypes && isDynamic && s.types && s.types.ar) {
       dynamicHtml += '<div class="mt-5 pt-5 border-t border-brand-border/60"><div class="text-sm font-bold text-brand-neon mb-3 flex items-center gap-2"><span>⚡</span> <span>جدول الأسعار الديناميكية على حسب الباقة / عدد الشاشات:</span></div><div class="space-y-4">';
       
       s.types.ar.forEach(function(typeName, tIdx) {
@@ -483,22 +483,34 @@ function renderServicesEditor() {
       dynamicHtml += '</div></div>';
     }
 
-    // Toggles for Out of Stock, Promo, Show Types
-    var optionsBar = '<div class="grid grid-cols-1 md:grid-cols-3 gap-3 my-4 bg-[#101010] p-3.5 rounded-2xl border border-brand-border">' +
+    // Toggles for Out of Stock, Promo, Show Types, Best Value
+    var optionsBar = '<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 my-4 bg-[#101010] p-3.5 rounded-2xl border border-brand-border">' +
       // Show Types Toggle
       '<div class="flex items-center gap-2.5 p-2 rounded-xl bg-[#141414] border border-white/5">' +
-        '<input type="checkbox" id="st-' + s.id + '" ' + (s.showTypes ? 'checked' : '') + ' class="w-5 h-5 accent-brand-neon cursor-pointer rounded" onchange="toggleShowTypes(\'' + s.id + '\', ' + idx + ', this.checked)"/>' +
-        '<label for="st-' + s.id + '" class="text-xs font-bold text-white cursor-pointer select-none">⚡ اختيار الباقات (show_types)</label>' +
+        '<input type="checkbox" id="st-' + s.id + '" ' + (s.showTypes ? 'checked' : '') + ' class="w-5 h-5 accent-brand-neon cursor-pointer rounded" onchange="toggleShowTypes(\'' + s.id + '\', ' + idx + ', this.checked); renderServicesEditor();"/>' +
+        '<label for="st-' + s.id + '" class="text-xs font-bold text-white cursor-pointer select-none">⚡ باقات متعددة</label>' +
       '</div>' +
       // Out of Stock Toggle
       '<div class="flex items-center gap-2.5 p-2 rounded-xl bg-[#141414] border border-white/5">' +
         '<input type="checkbox" id="oos-' + s.id + '" ' + (isOutOfStock ? 'checked' : '') + ' class="w-5 h-5 accent-red-500 cursor-pointer rounded" onchange="toggleOutOfStock(\'' + s.id + '\', ' + idx + ', this.checked)"/>' +
-        '<label for="oos-' + s.id + '" class="text-xs font-bold text-red-400 cursor-pointer select-none">🚫 إيقاف المنتوج بالكامل (Out of Stock)</label>' +
+        '<label for="oos-' + s.id + '" class="text-xs font-bold text-red-400 cursor-pointer select-none">🚫 إيقاف (Out of Stock)</label>' +
+      '</div>' +
+      // Best Value Dropdown
+      '<div class="flex items-center gap-2 p-2 rounded-xl bg-[#141414] border border-white/5">' +
+        '<span class="text-xs font-bold text-green-400 whitespace-nowrap">🌟 الأكثر شراءً:</span>' +
+        '<select id="bv-' + s.id + '" class="input-box text-xs py-1 px-2 text-center text-green-300 border-green-500/30 bg-[#181818]" onchange="ADMIN_SERVICES[' + idx + '].best_value = parseInt(this.value)">' +
+          '<option value="-1" ' + ((s.best_value === -1) ? 'selected' : '') + '>بدون شارة</option>' +
+          '<option value="0" ' + ((s.best_value === 0) ? 'selected' : '') + '>شهر واحد</option>' +
+          '<option value="1" ' + ((s.best_value === 1) ? 'selected' : '') + '>شهران</option>' +
+          '<option value="2" ' + ((s.best_value === 2 || typeof s.best_value === 'undefined' || s.best_value === null) ? 'selected' : '') + '>3 أشهر</option>' +
+          '<option value="3" ' + ((s.best_value === 3) ? 'selected' : '') + '>6 أشهر</option>' +
+          '<option value="4" ' + ((s.best_value === 4) ? 'selected' : '') + '>سنة كاملة</option>' +
+        '</select>' +
       '</div>' +
       // Promo Badge Input
       '<div class="flex items-center gap-2 p-2 rounded-xl bg-[#141414] border border-white/5">' +
-        '<span class="text-xs font-bold text-yellow-400 whitespace-nowrap">🏷️ شارة عرض الخصم:</span>' +
-        '<input type="text" id="pbadge-' + s.id + '" value="' + (promo.badge||'') + '" placeholder="مثال: -20% أو PROMO" class="input-box text-xs py-1 px-2 text-center text-yellow-300 border-yellow-500/30"/>' +
+        '<span class="text-xs font-bold text-yellow-400 whitespace-nowrap">🏷️ شارة العرض:</span>' +
+        '<input type="text" id="pbadge-' + s.id + '" value="' + (promo.badge||'') + '" placeholder="مثال: -20%" class="input-box text-xs py-1 px-2 text-center text-yellow-300 border-yellow-500/30"/>' +
       '</div>' +
     '</div>';
 
@@ -548,6 +560,8 @@ async function saveServicePricing(serviceId, idx) {
     origP.push(oldVal);
   });
   s.p = newP;
+  var bvInp = document.getElementById('bv-' + s.id);
+  s.best_value = bvInp ? parseInt(bvInp.value) : (typeof s.best_value !== 'undefined' ? s.best_value : 2);
 
   var badgeVal = document.getElementById('pbadge-' + s.id) ? document.getElementById('pbadge-' + s.id).value.trim() : '';
   s.promo = {
@@ -592,13 +606,14 @@ async function saveServicePricing(serviceId, idx) {
         type_prices: s.typePrices || null,
         show_types: s.showTypes,
         promo: s.promo || null,
-        out_of_stock: s.out_of_stock || false
+        out_of_stock: s.out_of_stock || false,
+        best_value: s.best_value
       })
       .eq('id', serviceId);
 
     if (error) {
       if (error.message && error.message.indexOf('does not exist') !== -1) {
-        alert('تنبيه: لتفعيل حفظ الخصومات ونفاد المخزون، يجب تشغيل أمر SQL البسيط التالي مرة واحدة في حسابك على Supabase (SQL Editor):\n\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS promo JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS out_of_stock JSONB;\n\nتم حفظ باقي الأسعار الأساسية بنجاح!');
+        alert('تنبيه: لتفعيل حفظ الخصومات والمدة الأكثر شراءً، يجب تشغيل أمر SQL البسيط التالي مرة واحدة في حسابك على Supabase (SQL Editor):\n\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS promo JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS out_of_stock JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS best_value INTEGER DEFAULT 2;\n\nتم حفظ باقي الأسعار الأساسية بنجاح!');
       } else {
         alert('خطأ أثناء حفظ التعديلات في Supabase: ' + error.message);
       }
