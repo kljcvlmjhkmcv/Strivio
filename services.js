@@ -14,7 +14,12 @@ var SERVICES = [
     n: { en: 'Spotify Premium', fr: 'Spotify Premium', ar: 'سبوتيفاي بريميوم' },
     f: { en: ['Offline Downloads', 'No Ads', 'Full Warranty'], fr: ['Télécharg. Hors Ligne', 'Sans Publicités', 'Garantie Complète'], ar: ['تحميل بدون إنترنت', 'بدون إعلانات', 'ضمان كامل'] },
     types: { en: ['Individual Account', 'Family Plan (6 Accs)', 'Duo Plan'], fr: ['Compte Individuel', 'Plan Famille (6 Comptes)', 'Plan Duo'], ar: ['حساب فردي', 'باقة العائلة (6 حسابات)', 'باقة ثنائية'] },
-    p: [700, 1300, 1900, 3500, 6500]
+    p: [700, 1300, 1900, 3500, 6500],
+    typePrices: [
+      [700, 1300, 1900, 3500, 6500],
+      [1200, 2200, 3200, 6000, 11000],
+      [900, 1700, 2500, 4500, 8500]
+    ]
   },
   {
     id: 'netflix', cat: 'streaming', pop: 'hot',
@@ -25,7 +30,14 @@ var SERVICES = [
     n: { en: 'Netflix Premium', fr: 'Netflix Premium', ar: 'نتفليكس بريميوم' },
     f: { en: ['4K Ultra HD', 'Private Screen', 'Full Warranty'], fr: ['4K Ultra HD', 'Écran Privé', 'Garantie Complète'], ar: ['4K الترا HD', 'شاشة خاصة', 'ضمان كامل'] },
     types: { en: ['1 Screen', '2 Screens', '3 Screens', '4 Screens', '5 Screens'], fr: ['1 Écran', '2 Écrans', '3 Écrans', '4 Écrans', '5 Écrans'], ar: ['شاشة واحدة', 'شاشتان', '3 شاشات', '4 شاشات', '5 شاشات'] },
-    p: [1500, 2800, 4000, 7500, 14000]
+    p: [1500, 2800, 4000, 7500, 14000],
+    typePrices: [
+      [1500, 2800, 4000, 7500, 14000],
+      [2800, 5200, 7500, 14000, 26000],
+      [4000, 7500, 11000, 20000, 38000],
+      [5200, 9800, 14500, 27000, 50000],
+      [6500, 12000, 18000, 33000, 62000]
+    ]
   },
   {
     id: 'chatgpt', cat: 'ai', pop: 'trending',
@@ -36,7 +48,12 @@ var SERVICES = [
     n: { en: 'ChatGPT Plus', fr: 'ChatGPT Plus', ar: 'شات جي بي تي بلس' },
     f: { en: ['GPT 5.5 Access', 'DALL·E 3 Images', 'Full Warranty'], fr: ['Accès GPT 5.5', 'Images DALL·E 3', 'Garantie Complète'], ar: ['وصول GPT 5.5', 'صور DALL·E 3', 'ضمان كامل'] },
     types: { en: ['Shared Account (Plus)', 'Private Account (Plus)', 'Team Workspace'], fr: ['Compte Partagé (Plus)', 'Compte Privé (Plus)', 'Espace Équipe'], ar: ['حساب مشترك (Plus)', 'حساب خاص بك (Plus)', 'مساحة فريق / شركات'] },
-    p: [2000, 3800, 5500, 10000, 19000]
+    p: [2000, 3800, 5500, 10000, 19000],
+    typePrices: [
+      [2000, 3800, 5500, 10000, 19000],
+      [3500, 6800, 9800, 18000, 34000],
+      [7000, 13500, 19000, 35000, 65000]
+    ]
   },
   {
     id: 'gemini', cat: 'ai', pop: null,
@@ -47,7 +64,11 @@ var SERVICES = [
     n: { en: 'Gemini Pro', fr: 'Gemini Pro', ar: 'جيميني برو' },
     f: { en: ['Gemini Advanced AI', '5TB Google Drive', 'Full Warranty'], fr: ['Gemini Advanced', '5To Google Drive', 'Garantie Complète'], ar: ['جيميني أدفانسد', '5TB تخزين جوجل', 'ضمان كامل'] },
     types: { en: ['Shared Pro Account', 'Private Google Account (5TB)'], fr: ['Compte Pro Partagé', 'Compte Google Privé (5To)'], ar: ['حساب برو مشترك', 'حساب جوجل خاص (5TB)'] },
-    p: [1800, 3400, 5000, 9000, 17000]
+    p: [1800, 3400, 5000, 9000, 17000],
+    typePrices: [
+      [1800, 3400, 5000, 9000, 17000],
+      [3200, 6000, 8800, 16000, 30000]
+    ]
   },
   {
     id: 'snapchat', cat: 'social', pop: null,
@@ -58,7 +79,11 @@ var SERVICES = [
     n: { en: 'Snapchat+', fr: 'Snapchat+', ar: 'سناب شات بلس' },
     f: { en: ['Exclusive Features', 'Priority Support', 'Full Warranty'], fr: ['Fonctionnalités Exclusives', 'Support Prioritaire', 'Garantie Complète'], ar: ['ميزات حصرية', 'دعم أولوية', 'ضمان كامل'] },
     types: { en: ['Standard Snapchat+', 'VIP Priority Badge'], fr: ['Snapchat+ Standard', 'Badge VIP Prioritaire'], ar: ['سناب شات+ قياسي', 'شارة VIP أولوية'] },
-    p: [600, 1100, 1600, 3000, 5500]
+    p: [600, 1100, 1600, 3000, 5500],
+    typePrices: [
+      [600, 1100, 1600, 3000, 5500],
+      [900, 1600, 2400, 4500, 8000]
+    ]
   },
   {
     id: 'crunchyroll', cat: 'streaming', pop: null,
@@ -69,7 +94,11 @@ var SERVICES = [
     n: { en: 'Crunchyroll Premium', fr: 'Crunchyroll Premium', ar: 'كرانشيرول بريميوم' },
     f: { en: ['Ad-Free Anime', 'Simulcast Access', 'Full Warranty'], fr: ['Animés Sans Pub', 'Accès Simulcast', 'Garantie Complète'], ar: ['أنيمي بدون إعلانات', 'Simulcast', 'ضمان كامل'] },
     types: { en: ['Mega Fan (4 Screens)', 'Fan Plan (1 Screen)'], fr: ['Mega Fan (4 Écrans)', 'Plan Fan (1 Écran)'], ar: ['ميغا فان (4 شاشات)', 'باقة فان (شاشة واحدة)'] },
-    p: [900, 1700, 2400, 4500, 8500]
+    p: [900, 1700, 2400, 4500, 8500],
+    typePrices: [
+      [900, 1700, 2400, 4500, 8500],
+      [600, 1100, 1600, 3000, 5500]
+    ]
   },
   {
     id: 'canva', cat: 'creative', pop: null,
@@ -80,7 +109,12 @@ var SERVICES = [
     n: { en: 'Canva Pro', fr: 'Canva Pro', ar: 'كانفا برو' },
     f: { en: ['All Pro Features', 'Brand Kit', 'Full Warranty'], fr: ['Toutes les Fonctions Pro', 'Brand Kit', 'Garantie Complète'], ar: ['كل مزايا Pro', 'Brand Kit', 'ضمان كامل'] },
     types: { en: ['Pro Invitation (Your Email)', 'Private Pro Account', 'Team Admin License'], fr: ['Invitation Pro (Votre Email)', 'Compte Pro Privé', 'Licence Admin Équipe'], ar: ['دعوة Pro (بريدك الشخصي)', 'حساب Pro خاص', 'ترخيص مسؤول فريق'] },
-    p: [1200, 2200, 3200, 6000, 11000]
+    p: [1200, 2200, 3200, 6000, 11000],
+    typePrices: [
+      [1200, 2200, 3200, 6000, 11000],
+      [2000, 3800, 5500, 10000, 18000],
+      [4500, 8500, 12000, 22000, 40000]
+    ]
   },
   {
     id: 'capcut', cat: 'creative', pop: null,
@@ -91,7 +125,11 @@ var SERVICES = [
     n: { en: 'CapCut Pro', fr: 'CapCut Pro', ar: 'كاب كات برو' },
     f: { en: ['AI Editing Tools', 'No Watermark', 'Full Warranty'], fr: ['Outils IA Édition', 'Sans Filigrane', 'Garantie Complète'], ar: ['أدوات تحرير AI', 'بدون علامة مائية', 'ضمان كامل'] },
     types: { en: ['Pro Shared Account', 'Private Pro Account'], fr: ['Compte Pro Partagé', 'Compte Pro Privé'], ar: ['حساب برو مشترك', 'حساب برو خاص'] },
-    p: [800, 1500, 2100, 3900, 7200]
+    p: [800, 1500, 2100, 3900, 7200],
+    typePrices: [
+      [800, 1500, 2100, 3900, 7200],
+      [1500, 2800, 4000, 7500, 14000]
+    ]
   },
   {
     id: 'prime', cat: 'streaming', pop: null,
@@ -102,7 +140,12 @@ var SERVICES = [
     n: { en: 'Prime Video', fr: 'Prime Video', ar: 'برايم فيديو' },
     f: { en: ['Full HD Streaming', 'Private Screen', 'Full Warranty'], fr: ['Streaming Full HD', 'Écran Privé', 'Garantie Complète'], ar: ['بث Full HD', 'شاشة خاصة', 'ضمان كامل'] },
     types: { en: ['Shared Profile (4K)', 'Private Screen (PIN)', 'Full Account (6 Profiles)'], fr: ['Profil Partagé (4K)', 'Écran Privé (PIN)', 'Compte Complet (6 Profils)'], ar: ['بروفايل مشترك (4K)', 'شاشة خاصة برمز PIN', 'حساب كامل (6 بروفايلات)'] },
-    p: [900, 1700, 2400, 4500, 8500]
+    p: [900, 1700, 2400, 4500, 8500],
+    typePrices: [
+      [900, 1700, 2400, 4500, 8500],
+      [1500, 2800, 4000, 7500, 14000],
+      [2500, 4800, 6800, 12500, 24000]
+    ]
   },
   {
     id: 'shahid', cat: 'streaming', pop: null,
@@ -113,7 +156,12 @@ var SERVICES = [
     n: { en: 'Shahid VIP', fr: 'Shahid VIP', ar: 'شاهد VIP' },
     f: { en: ['Arabic & Gulf Content', '4K HD Quality', 'Full Warranty'], fr: ['Contenu Arabe & Golf', 'Qualité 4K HD', 'Garantie Complète'], ar: ['محتوى عربي وخليجي', 'جودة 4K HD', 'ضمان كامل'] },
     types: { en: ['VIP Shared Profile', 'VIP Private Screen (PIN)', 'VIP + Sport Package'], fr: ['Profil VIP Partagé', 'Écran VIP Privé (PIN)', 'Pack VIP + Sport'], ar: ['بروفايل VIP مشترك', 'شاشة VIP خاصة برمز PIN', 'باقة VIP + رياضة'] },
-    p: [1100, 2000, 2900, 5500, 10000]
+    p: [1100, 2000, 2900, 5500, 10000],
+    typePrices: [
+      [1100, 2000, 2900, 5500, 10000],
+      [1800, 3400, 4800, 9000, 17000],
+      [2200, 4000, 5800, 11000, 20000]
+    ]
   },
   {
     id: 'tod', cat: 'streaming', pop: null,
@@ -124,7 +172,12 @@ var SERVICES = [
     n: { en: 'TOD', fr: 'TOD', ar: 'تي او دي' },
     f: { en: ['Sports & Movies', 'beIN Sports Access', 'Full Warranty'], fr: ['Sports & Films', 'Accès beIN Sports', 'Garantie Complète'], ar: ['رياضة وأفلام', 'beIN Sports', 'ضمان كامل'] },
     types: { en: ['Mobile Plan', 'Total 4K Package', 'beIN Sports Ultimate'], fr: ['Plan Mobile', 'Pack Total 4K', 'beIN Sports Ultimate'], ar: ['باقة الموبايل', 'باقة توتال 4K', 'باقة beIN Sports الشاملة'] },
-    p: [1300, 2400, 3500, 6500, 12000]
+    p: [1300, 2400, 3500, 6500, 12000],
+    typePrices: [
+      [1300, 2400, 3500, 6500, 12000],
+      [2200, 4000, 5800, 10500, 19000],
+      [3500, 6500, 9500, 18000, 34000]
+    ]
   },
   {
     id: 'watchit', cat: 'streaming', pop: null,
@@ -135,7 +188,11 @@ var SERVICES = [
     n: { en: 'Watch It', fr: 'Watch It', ar: 'واتش إت' },
     f: { en: ['Egyptian Drama & Movies', 'Exclusive Series', 'Full Warranty'], fr: ['Dramas Égyptiens', 'Séries Exclusives', 'Garantie Complète'], ar: ['دراما ومسلسلات مصرية', 'مسلسلات حصرية', 'ضمان كامل'] },
     types: { en: ['Standard Profile', 'VIP Screen (Ad-Free)'], fr: ['Profil Standard', 'Écran VIP (Sans Pub)'], ar: ['بروفايل قياسي', 'شاشة VIP (بدون إعلانات)'] },
-    p: [700, 1300, 1800, 3400, 6200]
+    p: [700, 1300, 1800, 3400, 6200],
+    typePrices: [
+      [700, 1300, 1800, 3400, 6200],
+      [1100, 2000, 2900, 5500, 10000]
+    ]
   },
   {
     id: 'iptv', cat: 'streaming', pop: 'hot',
@@ -154,6 +211,13 @@ var SERVICES = [
       fr: ['Iron Pro', 'Atlas Pro', 'Neo 4K', 'KD Max', 'Lynx'],
       ar: ['Iron Pro', 'Atlas Pro', 'Neo 4K', 'KD Max', 'Lynx']
     },
-    p: [800, 1500, 2200, 3800, 6800]
+    p: [800, 1500, 2200, 3800, 6800],
+    typePrices: [
+      [800, 1500, 2200, 3800, 6800],
+      [1000, 1800, 2700, 4800, 8500],
+      [1200, 2200, 3200, 5800, 10000],
+      [1400, 2600, 3800, 6800, 12000],
+      [1600, 3000, 4400, 8000, 14500]
+    ]
   }
 ];

@@ -790,10 +790,19 @@ function openModal(sid){
   setT('MQNTL', tx.qtyLabel);
   $('MQVAL').textContent=selQty;
 
+  renderModalDurations();
+  updateConfirm();
+  $('MO').classList.add('O');
+  document.body.style.overflow='hidden';
+}
+
+function renderModalDurations(){
+  var tx=t();
   var MN=[1,2,3,6,12];
+  var prices = (curSvc && curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType] : (curSvc ? curSvc.p : []);
   var _mdoHtml='<div class="DOG">';
-  svc.p.forEach(function(pr,i){
-    var _c='<div class="DOC'+(i===4?' FULL':'')+'" data-i="'+i+'">';
+  prices.forEach(function(pr,i){
+    var _c='<div class="DOC'+(i===4?' FULL':'')+(i===selDur?' SL':'')+'" data-i="'+i+'">';
     if(i===2)_c+='<span class="BVB">'+tx.bv+'</span>';
     _c+='<div class="DM">'+MN[i]+'<span style="font-size:.6rem;font-weight:600;color:rgba(224,224,224,.4);margin-left:3px">'+(L==='ar'?'شهر':'mo')+'</span></div>';
     _c+='<div class="DL">'+tx.dl[i]+'</div>';
@@ -803,9 +812,6 @@ function openModal(sid){
   });
   _mdoHtml+='</div>';
   $('MDO').innerHTML=_mdoHtml;
-  updateConfirm();
-  $('MO').classList.add('O');
-  document.body.style.overflow='hidden';
 }
 
 function closeModal(){
@@ -816,7 +822,8 @@ function closeModal(){
 function updateConfirm(){
   var tx=t(), btn=$('MCB'), atcb=$('MACB');
   if(selDur!==null&&curSvc){
-    var totalPrice = curSvc.p[selDur] * selQty;
+    var unitPr = (curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
+    var totalPrice = unitPr * selQty;
     btn.textContent=tx.bn+' — '+fmtP(totalPrice);btn.disabled=false;
     if(atcb){atcb.textContent=tx.atc;atcb.disabled=false;}
   } else {
@@ -842,6 +849,8 @@ document.addEventListener('click',function(e){
       b.style.background=isSel?'rgba(57,255,20,.15)':'#1A1A1A';
       b.style.color=isSel?'#39ff14':'rgba(224,224,224,.7)';
     });
+    renderModalDurations();
+    updateConfirm();
     return;
   }
   
@@ -869,7 +878,7 @@ $('MCLB').addEventListener('click',closeModal);
 
 function buildCartItem(){
   var DUR_MONTHS=[1,2,3,6,12]; var tx=t();
-  var unitPr=curSvc.p[selDur];
+  var unitPr=(curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
   var tLabel=curSvc.types && curSvc.types[L] ? curSvc.types[L][selType] : null;
   var tData=curSvc.types ? curSvc.types : null;
   return {
