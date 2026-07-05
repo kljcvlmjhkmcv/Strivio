@@ -8,6 +8,6 @@
 var COUPONS = {
   'STRIVIO10': 0.10, // 10% discount
   'STRIVIO20': 0.20, // 20% discount
-  'SERSERTY':   0.99, // 15% discount
+  'RAMADAN':   0.99, // 15% discount
   'VIP500':    500   // 500 DZD fixed discount
 };
