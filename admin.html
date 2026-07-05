@@ -369,7 +369,7 @@ async function addCoupon() {
 
   if (window.supabaseClient) {
     var { error } = await window.supabaseClient.from('coupons').insert([{
-      code: code, type: type, val: val, is_active: true
+      code: code, type: type, val: val, active: true
     }]);
     if (error) alert('خطأ أثناء إضافة الكوبون (تأكد من الصلاحيات): ' + error.message);
     else {

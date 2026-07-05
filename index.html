@@ -789,7 +789,7 @@ function openModal(sid){
   
   /* Render Type Bar */
   var typWrap=$('MTYPE_WRAP'), typContainer=$('MTYPE');
-  if(svc.types && svc.types[L] && svc.types[L].length > 0){
+  if(svc.showTypes && svc.types && svc.types[L] && svc.types[L].length > 0){
     typWrap.style.display='block';
     setT('MTPLBL', tx.typeLabel);
     typContainer.innerHTML=svc.types[L].map(function(tName, idx){
@@ -813,7 +813,7 @@ function openModal(sid){
 function renderModalDurations(){
   var tx=t();
   var MN=[1,2,3,6,12];
-  var prices = (curSvc && curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType] : (curSvc ? curSvc.p : []);
+  var prices = (curSvc && curSvc.showTypes && curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType] : (curSvc ? curSvc.p : []);
   var _mdoHtml='<div class="DOG">';
   prices.forEach(function(pr,i){
     var _c='<div class="DOC'+(i===4?' FULL':'')+(i===selDur?' SL':'')+'" data-i="'+i+'">';
@@ -836,7 +836,7 @@ function closeModal(){
 function updateConfirm(){
   var tx=t(), btn=$('MCB'), atcb=$('MACB');
   if(selDur!==null&&curSvc){
-    var unitPr = (curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
+    var unitPr = (curSvc.showTypes && curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
     var totalPrice = unitPr * selQty;
     btn.textContent=tx.bn+' — '+fmtP(totalPrice);btn.disabled=false;
     if(atcb){atcb.textContent=tx.atc;atcb.disabled=false;}
@@ -892,9 +892,9 @@ $('MCLB').addEventListener('click',closeModal);
 
 function buildCartItem(){
   var DUR_MONTHS=[1,2,3,6,12]; var tx=t();
-  var unitPr=(curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
-  var tLabel=curSvc.types && curSvc.types[L] ? curSvc.types[L][selType] : null;
-  var tData=curSvc.types ? curSvc.types : null;
+  var unitPr=(curSvc.showTypes && curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
+  var tLabel=curSvc.showTypes && curSvc.types && curSvc.types[L] ? curSvc.types[L][selType] : null;
+  var tData=curSvc.showTypes && curSvc.types ? curSvc.types : null;
   return {
     id:curSvc.id, name:curSvc.n[L], nameData:curSvc.n,
     iconType:curSvc.iconType, iconSrc:curSvc.iconSrc,
