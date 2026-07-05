@@ -272,6 +272,11 @@ function renderServicesEditor() {
       dynamicHtml += '</div></div>';
     }
 
+    var toggleHtml = '<div class="flex items-center gap-3 my-3 bg-brand-black p-3 rounded-xl border border-brand-border">' +
+      '<input type="checkbox" id="st-' + s.id + '" ' + (s.showTypes ? 'checked' : '') + ' class="w-5 h-5 accent-brand-neon cursor-pointer" onchange="toggleShowTypes(\'' + s.id + '\', ' + idx + ', this.checked)"/>' +
+      '<label for="st-' + s.id + '" class="text-sm font-bold text-white cursor-pointer select-none">⚡ تفعيل شريط اختيار الباقات / الأنواع في المتجر (show_types)</label>' +
+    '</div>';
+
     return '<div class="bg-brand-card border border-brand-border p-6 rounded-2xl flex flex-col justify-between">' +
       '<div class="flex items-center justify-between mb-4 pb-3 border-b border-brand-border">' +
         '<div class="flex items-center gap-3">' +
@@ -280,11 +285,16 @@ function renderServicesEditor() {
         '</div>' +
         '<button onclick="saveServicePricing(\'' + s.id + '\', ' + idx + ')" class="save-btn">💾 حفظ التعديلات</button>' +
       '</div>' +
+      toggleHtml +
       '<div class="text-xs font-bold text-gray-400 mb-2">الأسعار الأساسية (دج):</div>' +
       basePricesHtml +
       dynamicHtml +
     '</div>';
   }).join('');
+}
+
+function toggleShowTypes(serviceId, idx, isChecked) {
+  ADMIN_SERVICES[idx].showTypes = isChecked;
 }
 
 async function saveServicePricing(serviceId, idx) {
@@ -316,7 +326,8 @@ async function saveServicePricing(serviceId, idx) {
       .from('services')
       .update({
         p: s.p,
-        type_prices: s.typePrices || null
+        type_prices: s.typePrices || null,
+        show_types: s.showTypes
       })
       .eq('id', serviceId);
 
