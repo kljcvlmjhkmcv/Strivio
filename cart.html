@@ -615,7 +615,7 @@ function renderSummary(){
 /* ══════════════════════════════════════════════════════
    COUPON SYSTEM
 ════════════════════════════════════════════════════════ */
-$('CPN_BTN').addEventListener('click', function(){
+$('CPN_BTN').addEventListener('click', async function(){
   var tx = t();
   var val = ($('CPN_INP').value || '').trim().toUpperCase();
   var msg = $('CPN_MSG');
@@ -625,7 +625,18 @@ $('CPN_BTN').addEventListener('click', function(){
     renderSummary();
     return;
   }
-  if(COUPONS[val]){
+  if (typeof validateCouponInDB === 'function') {
+    var res = await validateCouponInDB(val, getSubtotal());
+    if (res && res.valid) {
+      appliedCoupon = val;
+      msg.textContent = tx.cpnOk;
+      msg.className = 'text-xs mt-1.5 font-semibold text-[#39ff14] block';
+    } else {
+      appliedCoupon = null;
+      msg.textContent = res ? res.message : tx.cpnErr;
+      msg.className = 'text-xs mt-1.5 font-semibold text-[#ff5555] block';
+    }
+  } else if(COUPONS && COUPONS[val]){
     appliedCoupon = val;
     msg.textContent = tx.cpnOk;
     msg.className = 'text-xs mt-1.5 font-semibold text-[#39ff14] block';
@@ -754,10 +765,12 @@ function confirmOrder(){
   if (typeof saveOrderToDB === 'function') {
     saveOrderToDB({
       items: cart,
-      total_amount: getFinalTotal(),
+      subtotal: getSubtotal(),
+      discount: calculateDiscount(getSubtotal()) || 0,
+      total_payable: getFinalTotal(),
+      flexy_fee: getFlexyFee(Math.max(0, getSubtotal() - calculateDiscount(getSubtotal()))),
       payment_method: selPay,
       coupon_code: appliedCoupon || null,
-      discount_amount: calculateDiscount(getSubtotal()) || 0,
       status: 'pending'
     });
   }
@@ -783,10 +796,12 @@ function confirmOrderSocial(platform){
   if (typeof saveOrderToDB === 'function') {
     saveOrderToDB({
       items: cart,
-      total_amount: getFinalTotal(),
+      subtotal: getSubtotal(),
+      discount: calculateDiscount(getSubtotal()) || 0,
+      total_payable: getFinalTotal(),
+      flexy_fee: getFlexyFee(Math.max(0, getSubtotal() - calculateDiscount(getSubtotal()))),
       payment_method: selPay,
       coupon_code: appliedCoupon || null,
-      discount_amount: calculateDiscount(getSubtotal()) || 0,
       status: 'pending'
     });
   }

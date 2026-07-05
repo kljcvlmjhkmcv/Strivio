@@ -59,7 +59,7 @@ async function loadServicesFromDB() {
   }
 }
 
-/* جلب أكواد الخصم النشطة من قاعدة البيانات */
+/* جلب أكواد الخصم النشطة من قاعدة البيانات (للأدمن فقط) */
 async function loadCouponsFromDB() {
   if (!supabaseClient) initSupabase();
   if (!supabaseClient) return null;
@@ -88,7 +88,27 @@ async function loadCouponsFromDB() {
   }
 }
 
-/* حفظ طلب العميل في قاعدة البيانات عند الضغط على تأكيد الطلب */
+/* التحقق الآمن من كود الخصم عبر السيرفر دون كشف الكوبونات */
+async function validateCouponInDB(code, subtotal) {
+  if (!supabaseClient) initSupabase();
+  if (!supabaseClient) return null;
+  try {
+    const { data, error } = await supabaseClient.rpc('validate_coupon', {
+      p_code: code,
+      p_subtotal: subtotal || 0
+    });
+    if (error) {
+      console.error('❌ Error validating coupon via RPC:', error.message);
+      return null;
+    }
+    return data;
+  } catch (e) {
+    console.error('❌ Exception in validateCouponInDB:', e);
+    return null;
+  }
+}
+
+/* حفظ طلب العميل في قاعدة البيانات بأمان تام عبر السيرفر */
 async function saveOrderToDB(orderData) {
   if (!supabaseClient) initSupabase();
   if (!supabaseClient) {
@@ -97,9 +117,35 @@ async function saveOrderToDB(orderData) {
   }
 
   try {
+    // 1. محاولة حفظ الطلب وحساب السعر عبر دالة السيرفر الآمنة RPC
+    const { data: rpcData, error: rpcError } = await supabaseClient.rpc('create_order_secure', {
+      p_items: orderData.items || [],
+      p_payment_method: orderData.payment_method || 'cib',
+      p_coupon_code: orderData.coupon_code || null,
+      p_customer_info: orderData.customer_info || {}
+    });
+
+    if (!rpcError && rpcData && rpcData.success) {
+      console.log('✅ Order created securely via RPC:', rpcData);
+      return rpcData;
+    }
+
+    // 2. خطة بديلة (Fallback) في حال عدم تفعيل الـ RPC مع مطابقة 100% لأسماء حقول الجدول
+    const fallbackOrder = {
+      items: orderData.items || [],
+      subtotal: orderData.subtotal || orderData.total_amount || 0,
+      discount: orderData.discount_amount || orderData.discount || 0,
+      coupon_code: orderData.coupon_code || null,
+      flexy_fee: orderData.flexy_fee || 0,
+      total_payable: orderData.total_payable || orderData.total_amount || 0,
+      payment_method: orderData.payment_method || 'cib',
+      status: orderData.status || 'pending',
+      customer_info: orderData.customer_info || {}
+    };
+
     const { data, error } = await supabaseClient
       .from('orders')
-      .insert([orderData])
+      .insert([fallbackOrder])
       .select();
 
     if (error) {

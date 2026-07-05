@@ -1,27 +1,7 @@
-/* ╔═════════════════════════════════════════════════════════════════════════════╗
-   ║  🎟️  PROMO CODES & DISCOUNTS — Strivio Store (Protected & Obfuscated)      ║
-   ║  Encrypted data dictionary — Protected against DevTools inspection.         ║
-   ╚═════════════════════════════════════════════════════════════════════════════╝ */
-
-(function(){
-  // Encoded coupon mappings
-  var _0x9c41 = {
-    'U1RSSVZJTzEw': 0.10,
-    'U1RSSVZJTzIw': 0.20,
-    'UkFNQURBTg==': 0.15,
-    'VklQNTAw':    500
-  };
-
-  window.COUPONS = new Proxy({}, {
-    get: function(target, prop) {
-      if (typeof prop !== 'string') return undefined;
-      var encodedKey = btoa(prop.trim().toUpperCase());
-      return _0x9c41[encodedKey];
-    },
-    has: function(target, prop) {
-      if (typeof prop !== 'string') return false;
-      var encodedKey = btoa(prop.trim().toUpperCase());
-      return encodedKey in _0x9c41;
-    }
-  });
-})();
+/* ═══════════════════════════════════════════════════════════════
+   SECURITY NOTICE:
+   This file has been emptied for security reasons.
+   Coupons and discount rates are no longer exposed in frontend JavaScript.
+   All coupon validation and discount calculations are strictly performed
+   server-side via Supabase Database Functions (RPC: validate_coupon / create_order_secure).
+═══════════════════════════════════════════════════════════════ */

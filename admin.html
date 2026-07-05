@@ -259,9 +259,19 @@ function renderServicesEditor() {
       
       s.types.ar.forEach(function(typeName, tIdx) {
         var tPrices = (s.typePrices && s.typePrices[tIdx]) ? s.typePrices[tIdx] : s.p;
+        var nameAr = s.types.ar[tIdx] || '';
+        var nameEn = (s.types.en && s.types.en[tIdx]) ? s.types.en[tIdx] : nameAr;
+        var nameFr = (s.types.fr && s.types.fr[tIdx]) ? s.types.fr[tIdx] : nameAr;
         dynamicHtml += '<div class="bg-brand-black p-3 rounded-xl border border-brand-border">' +
-          '<div class="text-xs font-bold text-white mb-2 flex items-center gap-1.5"><span class="text-brand-neon">▫</span> ' + typeName + '</div>' +
-          '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2">' +
+          '<div class="text-xs font-bold text-white mb-2 flex flex-wrap items-center gap-2">' +
+            '<span class="text-brand-neon font-bold">▫ اسم الباقة (ar):</span> ' +
+            '<input type="text" id="tname-ar-' + s.id + '-' + tIdx + '" value="' + nameAr + '" class="input-box text-xs py-1 px-2 w-28 text-center"/>' +
+            '<span class="text-gray-400">| (en):</span> ' +
+            '<input type="text" id="tname-en-' + s.id + '-' + tIdx + '" value="' + nameEn + '" class="input-box text-xs py-1 px-2 w-28 text-center"/>' +
+            '<span class="text-gray-400">| (fr):</span> ' +
+            '<input type="text" id="tname-fr-' + s.id + '-' + tIdx + '" value="' + nameFr + '" class="input-box text-xs py-1 px-2 w-28 text-center"/>' +
+          '</div>' +
+          '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-2">' +
             tPrices.map(function(tp, dIdx) {
               return '<div><div class="text-[10px] text-gray-500 mb-0.5 text-center">' + DUR_LABELS[dIdx] + '</div>' +
                 '<input type="number" id="tp-' + s.id + '-' + tIdx + '-' + dIdx + '" value="' + tp + '" class="input-box text-center text-sm"/></div>';
@@ -309,7 +319,17 @@ async function saveServicePricing(serviceId, idx) {
 
   if (s.types && s.types.ar) {
     var newTypePrices = [];
+    var newTypesAr = [];
+    var newTypesEn = [];
+    var newTypesFr = [];
     s.types.ar.forEach(function(_, tIdx){
+      var inpAr = document.getElementById('tname-ar-' + s.id + '-' + tIdx);
+      var inpEn = document.getElementById('tname-en-' + s.id + '-' + tIdx);
+      var inpFr = document.getElementById('tname-fr-' + s.id + '-' + tIdx);
+      newTypesAr.push(inpAr && inpAr.value ? inpAr.value.trim() : s.types.ar[tIdx]);
+      newTypesEn.push(inpEn && inpEn.value ? inpEn.value.trim() : (s.types.en ? s.types.en[tIdx] : s.types.ar[tIdx]));
+      newTypesFr.push(inpFr && inpFr.value ? inpFr.value.trim() : (s.types.fr ? s.types.fr[tIdx] : s.types.ar[tIdx]));
+
       var tArr = [];
       s.p.forEach(function(_, dIdx){
         var input = document.getElementById('tp-' + s.id + '-' + tIdx + '-' + dIdx);
@@ -318,6 +338,9 @@ async function saveServicePricing(serviceId, idx) {
       });
       newTypePrices.push(tArr);
     });
+    s.types.ar = newTypesAr;
+    s.types.en = newTypesEn;
+    s.types.fr = newTypesFr;
     s.typePrices = newTypePrices;
   }
 
@@ -326,6 +349,7 @@ async function saveServicePricing(serviceId, idx) {
       .from('services')
       .update({
         p: s.p,
+        types: s.types || null,
         type_prices: s.typePrices || null,
         show_types: s.showTypes
       })
@@ -334,7 +358,7 @@ async function saveServicePricing(serviceId, idx) {
     if (error) {
       alert('خطأ أثناء حفظ التعديلات في Supabase (تأكد أنك مسجل دخول كمدير وأن سياسات RLS تسمح للمدير): ' + error.message);
     } else {
-      showToast('تم تحديث أسعار ' + s.n.ar + ' بنجاح في قاعدة البيانات!');
+      showToast('تم تحديث أسعار وباقات ' + s.n.ar + ' بنجاح في قاعدة البيانات!');
     }
   } else {
     showToast('تم حفظ الأسعار محلياً!');
@@ -403,7 +427,8 @@ async function loadOrders() {
   }
   container.innerHTML = data.map(function(o){
     var dateStr = new Date(o.created_at).toLocaleString('ar-DZ');
-    var itemsStr = (o.items || []).map(function(i){ return i.title + ' (الكمية: ' + i.qty + ')'; }).join(' | ');
+    var itemsStr = (o.items || []).map(function(i){ return (i.title || i.name || 'منتج') + ' (الكمية: ' + (i.qty || 1) + ')'; }).join(' | ');
+    var totalAmt = o.total_payable || o.total_amount || 0;
     return '<div class="p-5 bg-brand-card rounded-2xl border border-brand-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">' +
       '<div>' +
         '<div class="flex items-center gap-2 mb-1"><span class="text-xs font-bold px-2 py-0.5 rounded bg-brand-neon/10 text-brand-neon border border-brand-neon/30">طلب #' + o.id + '</span><span class="text-xs text-gray-500">' + dateStr + '</span></div>' +
@@ -411,7 +436,7 @@ async function loadOrders() {
         '<div class="text-xs text-gray-400">طريقة الدفع: <span class="text-white font-medium">' + o.payment_method + '</span>' + (o.coupon_code ? (' | الكوبون: <span class="text-brand-neon font-bold">' + o.coupon_code + '</span>') : '') + '</div>' +
       '</div>' +
       '<div class="text-right flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-brand-border">' +
-        '<div class="font-display font-black text-brand-neon text-xl">' + (o.total_amount || 0).toLocaleString('ar-DZ') + ' دج</div>' +
+        '<div class="font-display font-black text-brand-neon text-xl">' + Number(totalAmt).toLocaleString('ar-DZ') + ' دج</div>' +
         '<span class="text-[11px] px-2.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 mt-1">' + (o.status === 'pending' ? 'بانتظار التأكيد' : o.status) + '</span>' +
       '</div>' +
     '</div>';

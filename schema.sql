@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 );
 
 -- ====================================================================
--- تفعيل سياسات الأمان (Row Level Security - RLS)
+-- تفعيل سياسات الأمان (Row Level Security - RLS) و الدوال الآمنة (RPC)
 -- ====================================================================
 
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
@@ -56,17 +56,13 @@ CREATE POLICY "Allow public read access on services"
   ON public.services FOR SELECT
   USING (true);
 
+-- منع العامة تماماً من قراءة أو تعديل جدول الكوبونات (لا توجد سياسة SELECT للعامة)
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read access on active coupons" ON public.coupons;
-CREATE POLICY "Allow public read access on active coupons"
-  ON public.coupons FOR SELECT
-  USING (active = true);
 
+-- منع العامة من الإضافة المباشرة في جدول الطلبات (تتم الإضافة فقط عبر دالة الـ RPC الآمنة)
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public insert on orders" ON public.orders;
-CREATE POLICY "Allow public insert on orders"
-  ON public.orders FOR INSERT
-  WITH CHECK (true);
 
 -- ====================================================================
 -- صلاحيات المدير (الذي يسجل دخوله بحساب Supabase Auth)
@@ -74,17 +70,195 @@ CREATE POLICY "Allow public insert on orders"
 DROP POLICY IF EXISTS "Allow admin full access on services" ON public.services;
 CREATE POLICY "Allow admin full access on services"
   ON public.services FOR ALL
-  USING (auth.role() = 'authenticated');
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow admin full access on coupons" ON public.coupons;
 CREATE POLICY "Allow admin full access on coupons"
   ON public.coupons FOR ALL
-  USING (auth.role() = 'authenticated');
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "Allow admin full access on orders" ON public.orders;
 CREATE POLICY "Allow admin full access on orders"
   ON public.orders FOR ALL
-  USING (auth.role() = 'authenticated');
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
+-- ====================================================================
+-- دوال السيرفر الآمنة (Backend RPC Functions) - حماية 100% ضد التلاعب
+-- ====================================================================
+
+-- 1. دالة التحقق الآمن من الكوبون في الباك اند دون كشف القائمة للعامة
+CREATE OR REPLACE FUNCTION public.validate_coupon(
+  p_code TEXT,
+  p_subtotal NUMERIC DEFAULT 0
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_val NUMERIC;
+  v_type TEXT;
+  v_disc NUMERIC := 0;
+BEGIN
+  IF p_code IS NULL OR LENGTH(TRIM(p_code)) = 0 THEN
+    RETURN jsonb_build_object('valid', false, 'message', 'الكوبون فارغ');
+  END IF;
+
+  SELECT val, type INTO v_val, v_type
+  FROM public.coupons
+  WHERE UPPER(code) = UPPER(TRIM(p_code)) AND active = true;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('valid', false, 'message', 'كود الخصم غير صحيح أو غير فعال');
+  END IF;
+
+  IF v_type = 'pct' THEN
+    v_disc := ROUND((p_subtotal * v_val) / 100);
+  ELSE
+    v_disc := LEAST(p_subtotal, v_val);
+  END IF;
+
+  RETURN jsonb_build_object(
+    'valid', true,
+    'code', UPPER(TRIM(p_code)),
+    'discount', v_disc,
+    'type', v_type,
+    'val', v_val
+  );
+END;
+$$;
+
+-- 2. دالة إتمام الطلب وحساب السعر الحقيقي في الباك اند (منع التلاعب بالأسعار)
+CREATE OR REPLACE FUNCTION public.create_order_secure(
+  p_items JSONB,
+  p_payment_method TEXT,
+  p_coupon_code TEXT DEFAULT NULL,
+  p_customer_info JSONB DEFAULT '{}'::jsonb
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_subtotal NUMERIC := 0;
+  v_discount NUMERIC := 0;
+  v_sub_after_disc NUMERIC := 0;
+  v_flexy_fee NUMERIC := 0;
+  v_total_payable NUMERIC := 0;
+  v_coupon_val NUMERIC;
+  v_coupon_type TEXT;
+  v_order_id UUID;
+  v_item JSONB;
+  v_service_id TEXT;
+  v_dur_idx INTEGER;
+  v_type_idx INTEGER;
+  v_qty INTEGER;
+  v_unit_price NUMERIC;
+  v_service_record RECORD;
+  v_verified_items JSONB := '[]'::jsonb;
+  v_verified_item JSONB;
+BEGIN
+  -- 1. حساب السعر الحقيقي لكل منتج من جدول الخدمات في السيرفر
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    v_service_id := v_item->>'id';
+    v_dur_idx := COALESCE((v_item->>'durIdx')::int, 0);
+    v_type_idx := COALESCE((v_item->>'typeIdx')::int, 0);
+    v_qty := COALESCE((v_item->>'qty')::int, 1);
+    IF v_qty < 1 THEN v_qty := 1; END IF;
+    
+    SELECT * INTO v_service_record FROM public.services WHERE id = v_service_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Service % not found', v_service_id;
+    END IF;
+
+    -- تحديد سعر الوحدة المعتمد في السيرفر
+    IF v_service_record.type_prices IS NOT NULL AND jsonb_array_length(v_service_record.type_prices) > v_type_idx THEN
+      v_unit_price := ((v_service_record.type_prices->v_type_idx)->>v_dur_idx)::numeric;
+    ELSE
+      v_unit_price := (v_service_record.p->>v_dur_idx)::numeric;
+    END IF;
+
+    IF v_unit_price IS NULL THEN
+      v_unit_price := 0;
+    END IF;
+
+    v_subtotal := v_subtotal + (v_unit_price * v_qty);
+
+    v_verified_item := jsonb_build_object(
+      'id', v_service_id,
+      'title', COALESCE(v_item->>'name', v_item->>'title', v_service_record.n->>'ar'),
+      'durIdx', v_dur_idx,
+      'durLabel', COALESCE(v_item->>'durLabel', ''),
+      'typeIdx', v_type_idx,
+      'typeLabel', COALESCE(v_item->>'typeLabel', ''),
+      'qty', v_qty,
+      'unitPrice', v_unit_price,
+      'price', v_unit_price * v_qty
+    );
+    v_verified_items := v_verified_items || v_verified_item;
+  END LOOP;
+
+  -- 2. التحقق من الكوبون وحساب الخصم
+  IF p_coupon_code IS NOT NULL AND LENGTH(TRIM(p_coupon_code)) > 0 THEN
+    SELECT val, type INTO v_coupon_val, v_coupon_type
+    FROM public.coupons
+    WHERE UPPER(code) = UPPER(TRIM(p_coupon_code)) AND active = true;
+    
+    IF FOUND THEN
+      IF v_coupon_type = 'pct' THEN
+        v_discount := ROUND((v_subtotal * v_coupon_val) / 100);
+      ELSE
+        v_discount := LEAST(v_subtotal, v_coupon_val);
+      END IF;
+    END IF;
+  END IF;
+
+  v_sub_after_disc := GREATEST(0, v_subtotal - v_discount);
+
+  -- 3. حساب رسوم فليكسي (19%)
+  IF p_payment_method = 'flexy' THEN
+    v_flexy_fee := ROUND(v_sub_after_disc * 0.19);
+  ELSE
+    v_flexy_fee := 0;
+  END IF;
+
+  v_total_payable := v_sub_after_disc + v_flexy_fee;
+
+  -- 4. إدراج الطلب الموثق في قاعدة البيانات
+  INSERT INTO public.orders (
+    items,
+    subtotal,
+    discount,
+    coupon_code,
+    flexy_fee,
+    total_payable,
+    payment_method,
+    status,
+    customer_info
+  ) VALUES (
+    v_verified_items,
+    v_subtotal,
+    v_discount,
+    p_coupon_code,
+    v_flexy_fee,
+    v_total_payable,
+    p_payment_method,
+    'pending',
+    p_customer_info
+  ) RETURNING id INTO v_order_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'order_id', v_order_id,
+    'subtotal', v_subtotal,
+    'discount', v_discount,
+    'flexy_fee', v_flexy_fee,
+    'total_payable', v_total_payable
+  );
+END;
+$$;
 
 -- ====================================================================
 -- إدخال بيانات الخدمات والمنتجات الـ 13 (مع أسعار الشاشات و الـ IPTV)
