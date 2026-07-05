@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr" id="HR" class="scroll-smooth">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>Strivio — Cart & Checkout</title>
 <meta name="description" content="Review your cart and complete your order on Strivio."/>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -11,7 +11,8 @@
 <style>
 :root{--n:#39ff14;--nr:57,255,20}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0}
+html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0;overflow-x:hidden !important;width:100%;max-width:100%}
+body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;position:relative}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#121212}::-webkit-scrollbar-thumb{background:var(--n);border-radius:99px}
 .NT{color:var(--n);text-shadow:0 0 18px rgba(var(--nr),.5)}
 .GN{background:rgba(18,18,18,.82);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid rgba(var(--nr),.08)}
@@ -30,9 +31,10 @@ html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0}
 .HMB.O span:nth-child(1){transform:translateY(7px) rotate(45deg)}
 .HMB.O span:nth-child(2){opacity:0}
 .HMB.O span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-/* Cart Item */
+/* Cart Item & Icon Wrap */
 .CI{background:#181818;border:1px solid #2A2A2A;border-radius:16px;padding:1rem 1.2rem;display:flex;align-items:center;gap:1rem;transition:all .3s;animation:FI .35s ease forwards}
 .CI:hover{border-color:rgba(var(--nr),.22)}
+.CI-ICON-WRAP{width:56px;height:56px;border-radius:14px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin:auto}
 /* Payment Options */
 .PM{background:#181818;border:1.5px solid #2A2A2A;border-radius:14px;padding:1rem 1.2rem;cursor:pointer;transition:all .22s;display:flex;align-items:center;gap:.85rem}
 .PM:hover:not(.DIS){border-color:rgba(var(--nr),.4);background:rgba(var(--nr),.04)}
@@ -44,28 +46,36 @@ html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0}
 /* Summary box */
 .SUM{background:#181818;border:1px solid #2A2A2A;border-radius:18px;padding:1.5rem}
 /* Toast */
-#TOAST{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(100px);background:#1A1A1A;border:1px solid rgba(var(--nr),.3);border-radius:14px;padding:1rem 1.5rem;max-width:360px;width:calc(100% - 2rem);z-index:9999;transition:transform .4s cubic-bezier(.23,1,.32,1),opacity .4s;opacity:0;display:flex;align-items:flex-start;gap:.75rem;box-shadow:0 8px 40px rgba(0,0,0,.7)}
+#TOAST{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(100px);background:#1A1A1A;border:1px solid rgba(var(--nr),.3);border-radius:14px;padding:1rem 1.5rem;max-width:380px;width:calc(100% - 2rem);z-index:9999;transition:transform .4s cubic-bezier(.23,1,.32,1),opacity .4s;opacity:0;display:flex;align-items:flex-start;gap:.75rem;box-shadow:0 8px 40px rgba(0,0,0,.7)}
 #TOAST.SH{transform:translateX(-50%) translateY(0);opacity:1}
 /* empty state */
 .EMPT{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:1.2rem;text-align:center;padding:2rem}
 @keyframes FI{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes P2{0%,100%{box-shadow:0 0 10px 2px rgba(var(--nr),.4)}50%{box-shadow:0 0 24px 6px rgba(var(--nr),.65)}}
-@keyframes SI{from{transform:translateX(-50%) translateY(100px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
 [dir=rtl] .LO{text-align:right;flex-direction:row-reverse}
 #LDPD.O,#LDPM.O{display:block}
 #LDPD,#LDPM{box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .GBGR{background-image:linear-gradient(rgba(var(--nr),.03) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--nr),.03) 1px,transparent 1px);background-size:48px 48px}
+.SOC-BTN{display:flex;align-items:center;justify-content:center;gap:.5rem;border-radius:12px;padding:.75rem 1rem;font-weight:700;font-size:.875rem;transition:all .2s;text-decoration:none;border:none;cursor:pointer;width:100%}
+.SOC-BTN:hover{filter:brightness(1.15);transform:translateY(-1px)}
+@media(max-width:640px){
+  .CI{padding:0.85rem;gap:0.75rem}
+  .CI-ICON-WRAP{width:48px;height:48px}
+  .SUM{padding:1.15rem}
+}
 </style>
+<script src="services.js"></script>
+<script src="coupons.js"></script>
 </head>
 <body class="overflow-x-hidden" style="background:#121212">
 
 <!-- NAV -->
 <header id="NAV" class="GN fixed top-0 left-0 right-0 z-50 transition-shadow duration-300">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-    <a href="index.html" class="NT font-display font-bold text-2xl select-none" style="text-decoration:none">Strivio</a>
+    <a href="./" class="NT font-display font-bold text-2xl select-none" style="text-decoration:none">Strivio</a>
     <nav class="hidden lg:flex items-center gap-7">
-      <a href="index.html" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLH"></a>
-      <a href="index.html#subs" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLS"></a>
+      <a href="./" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLH"></a>
+      <a href="./#subs" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLS"></a>
     </nav>
     <div class="hidden lg:flex items-center gap-3">
       <div class="relative">
@@ -102,9 +112,9 @@ html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0}
     </div>
   </div>
   <div id="MM">
-    <a href="index.html" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLH"></a>
-    <a href="index.html#subs" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLS"></a>
-    <a href="index.html" class="BO self-start" id="MTB"></a>
+    <a href="./" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLH"></a>
+    <a href="./#subs" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLS"></a>
+    <a href="./" class="BO self-start" id="MTB"></a>
   </div>
 </header>
 
@@ -124,7 +134,7 @@ html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0}
 
   <!-- Breadcrumb -->
   <div class="flex items-center gap-2 text-sm mb-8" style="color:rgba(224,224,224,.45)">
-    <a href="index.html" style="text-decoration:none;color:rgba(224,224,224,.45)" onmouseover="this.style.color='#39ff14'" onmouseout="this.style.color='rgba(224,224,224,.45)'" id="BCH"></a>
+    <a href="./" style="text-decoration:none;color:rgba(224,224,224,.45)" onmouseover="this.style.color='#39ff14'" onmouseout="this.style.color='rgba(224,224,224,.45)'" id="BCH"></a>
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
     <span style="color:#E0E0E0" id="BCCR"></span>
   </div>
@@ -142,7 +152,7 @@ html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0}
     </div>
     <div class="font-display font-bold text-white text-xl" id="EMTL"></div>
     <p style="color:rgba(224,224,224,.5);max-width:300px" id="EMST2"></p>
-    <a href="index.html#subs" class="BN" style="max-width:220px;animation:P2 3s ease-in-out infinite" id="EMBTN"></a>
+    <a href="./#subs" class="BN" style="max-width:220px;animation:P2 3s ease-in-out infinite" id="EMBTN"></a>
   </div>
 
   <!-- Cart Content (shown when items exist) -->
@@ -169,15 +179,40 @@ html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0}
       <div class="SUM sticky top-24">
         <h2 class="font-display font-bold text-white text-lg mb-5" id="SMTL"></h2>
 
-        <!-- Subtotal rows -->
-        <div id="SMROWS" class="flex flex-col gap-2 mb-4"></div>
+        <!-- Coupon Input -->
+        <div class="mb-5">
+          <label class="block text-xs font-semibold mb-2" style="color:rgba(224,224,224,.7)" id="CPNLBL"></label>
+          <div class="flex gap-2">
+            <input id="CPN_INP" type="text" placeholder="STRIVIO10" class="flex-1 bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl px-3 py-2 text-sm text-white uppercase outline-none focus:border-[#39ff14] transition-colors" />
+            <button id="CPN_BTN" type="button" class="BO px-4 py-2 text-xs font-bold whitespace-nowrap"></button>
+          </div>
+          <div id="CPN_MSG" class="text-xs mt-1.5 font-medium hidden"></div>
+        </div>
+
         <div style="height:1px;background:linear-gradient(90deg,transparent,#2A2A2A,transparent);margin-bottom:1rem"></div>
 
-        <!-- Flexy fee row -->
+        <!-- Subtotal rows -->
+        <div id="SMROWS" class="flex flex-col gap-2 mb-4"></div>
+
+        <!-- Discount row -->
+        <div id="DISCROW" style="display:none" class="flex items-center justify-between mb-2 text-sm">
+          <span style="color:#39ff14" id="DISCLBL"></span>
+          <span style="color:#39ff14;font-weight:700" id="DISCAMT"></span>
+        </div>
+
+        <!-- Flexy fee row (19%) -->
         <div id="FLXROW" style="display:none" class="flex items-center justify-between mb-2 text-sm">
           <span style="color:#ffa94d" id="FLXLBL"></span>
           <span style="color:#ffa94d;font-weight:700" id="FLXAMT"></span>
         </div>
+
+        <!-- Wise rate row -->
+        <div id="WISEROW" style="display:none" class="flex items-center justify-between mb-2 text-sm">
+          <span style="color:#00b9ff" id="WISELBL"></span>
+          <span style="color:#00b9ff;font-weight:700" id="WISEAMT"></span>
+        </div>
+
+        <div style="height:1px;background:linear-gradient(90deg,transparent,#2A2A2A,transparent);margin-bottom:1rem"></div>
 
         <!-- Total -->
         <div class="flex items-center justify-between mb-6">
@@ -189,11 +224,26 @@ html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0}
         <h3 class="font-display font-semibold text-white text-sm mb-3" id="PMTL"></h3>
         <div class="flex flex-col gap-2.5 mb-6" id="PMLIST"></div>
 
-        <!-- Confirm button -->
-        <button class="BN" id="CFRMBTN" disabled style="animation:P2 3s ease-in-out infinite"></button>
+        <!-- Confirm button (WhatsApp) -->
+        <button class="BN mb-4" id="CFRMBTN" disabled style="animation:P2 3s ease-in-out infinite"></button>
+
+        <!-- Social Ordering Options (Facebook / Instagram) -->
+        <div class="pt-3" style="border-top:1px dashed #2A2A2A">
+          <div class="text-xs text-center mb-3 font-medium" style="color:rgba(224,224,224,.5)" id="ORCONT"></div>
+          <div class="flex flex-col sm:flex-row gap-2.5">
+            <button id="IG_BTN" type="button" onclick="confirmOrderSocial('ig')" class="SOC-BTN" style="background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+              <span>Instagram</span>
+            </button>
+            <button id="FB_BTN" type="button" onclick="confirmOrderSocial('fb')" class="SOC-BTN" style="background:#1877F2;color:#fff">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              <span>Facebook</span>
+            </button>
+          </div>
+        </div>
 
         <!-- Terms note -->
-        <p class="text-xs text-center mt-3" style="color:rgba(224,224,224,.35)" id="TERMS"></p>
+        <p class="text-xs text-center mt-4" style="color:rgba(224,224,224,.35)" id="TERMS"></p>
       </div>
     </div>
 
@@ -235,11 +285,21 @@ var TX={
     selectPayFirst:'Select a payment method',
     terms:'By confirming, your order details will be sent via WhatsApp.',
     flexyFee:'Flexy service fee (19%)',
+    couponLabel:'Have a promo code?',
+    applyBtn:'Apply',
+    couponApplied:'Coupon applied successfully!',
+    couponInvalid:'Invalid promo code',
+    discount:'Discount',
+    socialTitle:'Or order directly via Social Media:',
+    copySuccess:'✅ Order Details Copied!',
+    copyDesc:'Your order summary was copied to your clipboard. Redirecting you to paste it in message...',
+    igUrl:'https://instagram.com/strivio.store',
+    fbUrl:'https://www.facebook.com/people/Strivio/61578300089117',
     payMethods:[
       {id:'cib',     label:'Dahabia Card / CIB', desc:'Coming Soon', icon:'💳', disabled:true},
       {id:'baridimob',label:'BariDi Mob',          desc:'Instant transfer',  icon:'📱', disabled:false},
       {id:'ccp',     label:'CCP',                desc:'Post office transfer',icon:'🏦',disabled:false},
-      {id:'wise',    label:'Wise',               desc:'International transfer',icon:'💸',disabled:false},
+      {id:'wise',    label:'Wise',               desc:'International (1€=260 DZD)',icon:'💸',disabled:false},
       {id:'flexy',   label:'Flexy',              desc:'+19% service fee',  icon:'⚡', disabled:false}
     ],
     toastTitle:'✅ Order Sent!',
@@ -264,11 +324,21 @@ var TX={
     selectPayFirst:'Choisissez un mode de paiement',
     terms:'En confirmant, vos détails seront envoyés via WhatsApp.',
     flexyFee:'Frais Flexy (19%)',
+    couponLabel:'Code promo ?',
+    applyBtn:'Appliquer',
+    couponApplied:'Code promo appliqué avec succès !',
+    couponInvalid:'Code promo invalide',
+    discount:'Réduction',
+    socialTitle:'Ou commandez directement sur les réseaux :',
+    copySuccess:'✅ Détails de commande copiés !',
+    copyDesc:'Le résumé de votre commande a été copié. Redirection en cours pour le coller en message...',
+    igUrl:'https://instagram.com/strivio.store',
+    fbUrl:'https://www.facebook.com/people/Strivio/61578300089117',
     payMethods:[
       {id:'cib',     label:'Dahabia / CIB',      desc:'Bientôt disponible', icon:'💳', disabled:true},
       {id:'baridimob',label:'BariDi Mob',           desc:'Virement instantané', icon:'📱', disabled:false},
       {id:'ccp',     label:'CCP',                desc:'Virement postal',    icon:'🏦', disabled:false},
-      {id:'wise',    label:'Wise',               desc:'Virement international',icon:'💸',disabled:false},
+      {id:'wise',    label:'Wise',               desc:'International (1€=260 DZD)',icon:'💸',disabled:false},
       {id:'flexy',   label:'Flexy',              desc:'+19% frais de service',icon:'⚡',disabled:false}
     ],
     toastTitle:'✅ Commande Envoyée !',
@@ -293,11 +363,21 @@ var TX={
     selectPayFirst:'اختر طريقة الدفع',
     terms:'بالتأكيد، سيتم إرسال تفاصيل طلبك عبر واتساب.',
     flexyFee:'رسوم Flexy (19%)',
+    couponLabel:'لديك كود خصم؟',
+    applyBtn:'تطبيق',
+    couponApplied:'تم تطبيق كود الخصم بنجاح!',
+    couponInvalid:'كود الخصم غير صالح',
+    discount:'الخصم',
+    socialTitle:'أو اطلب مباشرة عبر مواقع التواصل:',
+    copySuccess:'✅ تم نسخ تفاصيل الطلب!',
+    copyDesc:'تم نسخ ملخص طلبك إلى الحافظة. جاري توجيهك لإرساله في رسالة...',
+    igUrl:'https://instagram.com/strivio.store',
+    fbUrl:'https://www.facebook.com/people/Strivio/61578300089117',
     payMethods:[
       {id:'cib',     label:'بطاقة دحبية / CIB',    desc:'قريباً', icon:'💳', disabled:true},
       {id:'baridimob',label:'بريدي موب',              desc:'تحويل فوري',  icon:'📱', disabled:false},
       {id:'ccp',     label:'CCP',                    desc:'تحويل بريدي', icon:'🏦', disabled:false},
-      {id:'wise',    label:'Wise',                   desc:'تحويل دولي',  icon:'💸', disabled:false},
+      {id:'wise',    label:'Wise',                   desc:'تحويل دولي (1€=260 دج)',  icon:'💸', disabled:false},
       {id:'flexy',   label:'فليكسي',                  desc:'+19% رسوم الخدمة',icon:'⚡',disabled:false}
     ],
     toastTitle:'✅ تم إرسال الطلب!',
@@ -309,12 +389,22 @@ var TX={
 };
 
 /* ══════════════════════════════════════════════════════
-   STATE
+   STATE & COUPONS
 ════════════════════════════════════════════════════════ */
-var L = localStorage.getItem('strivio_lang') || 'en';
+var L = localStorage.getItem('strivio_lang') || 'fr';
 var selPay = null;
 var cart = [];
-var fmtP = function(n){ return n.toLocaleString('ar-DZ') + ' دج'; };
+var appliedCoupon = null;
+var couponDiscount = 0;
+
+var COUPONS = window.COUPONS || {
+  'STRIVIO10': 0.10,
+  'STRIVIO20': 0.20,
+  'RAMADAN':   0.15,
+  'VIP500':    500
+};
+
+var fmtP = function(n){ return Math.round(n).toLocaleString('ar-DZ') + ' دج'; };
 var t = function(){ return TX[L]; };
 var $ = function(id){ return document.getElementById(id); };
 var setT = function(id, txt){ var e=$(id); if(e) e.textContent = txt; };
@@ -334,22 +424,34 @@ function makeIcon(item, sz){
 }
 
 /* ══════════════════════════════════════════════════════
-   CART TOTALS
+   CART TOTALS & DISCOUNTS
 ════════════════════════════════════════════════════════ */
 function getSubtotal(){
-  return cart.reduce(function(s,i){ return s + i.price; }, 0);
+  return cart.reduce(function(s,i){ return s + (i.price * (i.qty || 1)); }, 0);
 }
-function getFlexyFee(sub){
-  return Math.round(sub * 0.19);
+function calculateDiscount(sub){
+  if(!appliedCoupon) return 0;
+  var val = COUPONS[appliedCoupon];
+  if(!val) return 0;
+  if(val < 1){
+    return Math.round(sub * val);
+  } else {
+    return Math.min(sub, val);
+  }
+}
+function getFlexyFee(subAfterDisc){
+  return Math.round(subAfterDisc * 0.19);
 }
 function getFinalTotal(){
   var sub = getSubtotal();
-  if(selPay === 'flexy') return sub + getFlexyFee(sub);
-  return sub;
+  var disc = calculateDiscount(sub);
+  var afterDisc = sub - disc;
+  if(selPay === 'flexy') return afterDisc + getFlexyFee(afterDisc);
+  return afterDisc;
 }
 
 /* ══════════════════════════════════════════════════════
-   RENDER CART ITEMS
+   RENDER CART ITEMS WITH QUANTITY
 ════════════════════════════════════════════════════════ */
 function renderItems(){
   var tx = t();
@@ -362,15 +464,21 @@ function renderItems(){
   el.innerHTML = cart.map(function(item, idx){
     var durLabel = item.durLabelData ? (item.durLabelData[L] || item.durLabel) : item.durLabel;
     var itemName = item.nameData ? (item.nameData[L] || item.name) : item.name;
+    var qty = item.qty || 1;
     return [
       '<div class="CI" id="CI'+idx+'">',
-        '<div style="width:52px;height:52px;border-radius:13px;overflow:hidden;flex-shrink:0;background:'+item.bg+'">',
-          makeIcon(item, 48),
+        '<div class="CI-ICON-WRAP" style="background:'+item.bg+'">',
+          makeIcon(item, 44),
         '</div>',
         '<div style="flex:1;min-width:0">',
           '<div class="font-display font-bold text-white text-sm leading-tight">'+itemName+'</div>',
           '<div class="text-xs mt-0.5" style="color:rgba(224,224,224,.45)">'+durLabel+'</div>',
           '<div class="font-display font-bold mt-1" style="color:var(--n)">'+fmtP(item.price)+'</div>',
+        '</div>',
+        '<div class="flex items-center gap-2 bg-[#121212] border border-[#2A2A2A] rounded-xl px-2 py-1">',
+          '<button type="button" onclick="updateQty('+idx+', -1)" class="w-6 h-6 flex items-center justify-center text-white font-bold hover:text-[#39ff14] transition-colors">-</button>',
+          '<span class="text-xs font-bold w-4 text-center">'+qty+'</span>',
+          '<button type="button" onclick="updateQty('+idx+', 1)" class="w-6 h-6 flex items-center justify-center text-white font-bold hover:text-[#39ff14] transition-colors">+</button>',
         '</div>',
         '<button onclick="removeItem('+idx+')" class="flex items-center justify-center w-8 h-8 rounded-lg transition-all flex-shrink-0" style="background:#2A2A2A;border:none;cursor:pointer;color:rgba(224,224,224,.5)" onmouseover="this.style.background=\'rgba(255,50,50,.2)\';this.style.color=\'#ff5555\'" onmouseout="this.style.background=\'#2A2A2A\';this.style.color=\'rgba(224,224,224,.5)\'" title="'+tx.remove+'">',
           '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
@@ -380,14 +488,30 @@ function renderItems(){
   }).join('');
 }
 
+function updateQty(idx, delta){
+  if(!cart[idx]) return;
+  var q = (cart[idx].qty || 1) + delta;
+  if(q < 1) q = 1;
+  if(q > 20) q = 20;
+  cart[idx].qty = q;
+  localStorage.setItem('strivio_cart', JSON.stringify(cart));
+  render();
+}
+
 /* ══════════════════════════════════════════════════════
    RENDER SUMMARY
 ════════════════════════════════════════════════════════ */
 function renderSummary(){
   var tx = t();
   var sub = getSubtotal();
-  var flexyFee = getFlexyFee(sub);
+  var disc = calculateDiscount(sub);
+  var afterDisc = sub - disc;
+  var flexyFee = getFlexyFee(afterDisc);
   var total = getFinalTotal();
+
+  setT('CPNLBL', tx.couponLabel);
+  setT('CPN_BTN', tx.applyBtn);
+  setT('ORCONT', tx.socialTitle);
 
   // Item rows
   var rowsEl = $('SMROWS');
@@ -395,8 +519,22 @@ function renderSummary(){
     rowsEl.innerHTML = cart.map(function(item){
       var itemName = item.nameData ? (item.nameData[L] || item.name) : item.name;
       var durLabel = item.durLabelData ? (item.durLabelData[L] || item.durLabel) : item.durLabel;
-      return '<div class="flex items-center justify-between text-sm"><span style="color:rgba(224,224,224,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">'+itemName+' ('+durLabel+')</span><span class="font-medium text-white ml-2 flex-shrink-0">'+fmtP(item.price)+'</span></div>';
+      var qty = item.qty || 1;
+      var qtyStr = qty > 1 ? ' x'+qty : '';
+      return '<div class="flex items-center justify-between text-sm"><span style="color:rgba(224,224,224,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">'+itemName+' ('+durLabel+')'+qtyStr+'</span><span class="font-medium text-white ml-2 flex-shrink-0">'+fmtP(item.price * qty)+'</span></div>';
     }).join('');
+  }
+
+  // Discount row
+  var discRow = $('DISCROW');
+  if(discRow){
+    if(disc > 0){
+      discRow.style.display = 'flex';
+      setT('DISCLBL', tx.discount + ' ('+appliedCoupon+')');
+      setT('DISCAMT', '-'+fmtP(disc));
+    } else {
+      discRow.style.display = 'none';
+    }
   }
 
   // Flexy row
@@ -411,9 +549,52 @@ function renderSummary(){
     }
   }
 
+  // Wise row
+  var wiseRow = $('WISEROW');
+  if(wiseRow){
+    if(selPay === 'wise'){
+      wiseRow.style.display = 'flex';
+      setT('WISELBL', L==='ar' ? 'سعر الصرف (Wise)' : L==='fr' ? 'Taux Wise (1€ = 260 DZD)' : 'Wise Rate (1€ = 260 DZD)');
+      setT('WISEAMT', (total / 260).toFixed(2) + ' €');
+    } else {
+      wiseRow.style.display = 'none';
+    }
+  }
+
   setT('TTTLBL', tx.total);
-  setT('TTAMT', fmtP(total));
+  if(selPay === 'wise'){
+    var eur = (total / 260).toFixed(2);
+    setT('TTAMT', eur + ' € (~' + fmtP(total) + ')');
+  } else {
+    setT('TTAMT', fmtP(total));
+  }
 }
+
+// Coupon button click
+$('CPN_BTN').addEventListener('click', function(){
+  var tx = t();
+  var inp = $('CPN_INP');
+  var msg = $('CPN_MSG');
+  if(!inp || !msg) return;
+  var code = inp.value.trim().toUpperCase();
+  if(!code){
+    appliedCoupon = null;
+    msg.classList.add('hidden');
+    renderSummary();
+    return;
+  }
+  if(COUPONS[code] !== undefined){
+    appliedCoupon = code;
+    msg.textContent = tx.couponApplied;
+    msg.className = 'text-xs mt-1.5 font-medium text-[#39ff14] block';
+    renderSummary();
+  } else {
+    appliedCoupon = null;
+    msg.textContent = tx.couponInvalid;
+    msg.className = 'text-xs mt-1.5 font-medium text-[#ff5555] block';
+    renderSummary();
+  }
+});
 
 /* ══════════════════════════════════════════════════════
    RENDER PAYMENT METHODS
@@ -480,7 +661,7 @@ function updateConfirmBtn(){
 }
 
 /* ══════════════════════════════════════════════════════
-   BUILD WHATSAPP MESSAGE
+   BUILD WHATSAPP / SOCIAL MESSAGE
 ════════════════════════════════════════════════════════ */
 function buildMessage(){
   var tx = t();
@@ -490,24 +671,38 @@ function buildMessage(){
   cart.forEach(function(item, i){
     var itemName = item.nameData ? (item.nameData['en'] || item.name) : item.name;
     var dur = item.durLabelData ? (item.durLabelData['en'] || item.durLabel) : item.durLabel;
-    lines.push((i+1)+'. '+itemName+' — '+dur+' → '+item.price.toLocaleString()+' DZD');
+    var qty = item.qty || 1;
+    var qtyStr = qty > 1 ? ' (x'+qty+')' : '';
+    lines.push((i+1)+'. '+itemName+' — '+dur+qtyStr+' → '+(item.price * qty).toLocaleString()+' DZD');
   });
   var sub = getSubtotal();
+  var disc = calculateDiscount(sub);
+  var afterDisc = sub - disc;
   var total = getFinalTotal();
   lines.push('');
-  if(selPay === 'flexy'){
+  if(disc > 0){
     lines.push('Subtotal: '+sub.toLocaleString()+' DZD');
-    lines.push('Flexy fee (19%): +'+getFlexyFee(sub).toLocaleString()+' DZD');
+    lines.push('Promo ('+appliedCoupon+'): -'+disc.toLocaleString()+' DZD');
   }
-  lines.push('💰 *Total: '+total.toLocaleString()+' DZD*');
-  lines.push('💳 Payment: '+payLabel);
+  if(selPay === 'flexy'){
+    if(disc === 0) lines.push('Subtotal: '+sub.toLocaleString()+' DZD');
+    lines.push('Flexy fee (19%): +'+getFlexyFee(afterDisc).toLocaleString()+' DZD');
+  }
+  if(selPay === 'wise'){
+    var eur = (total / 260).toFixed(2);
+    lines.push('💰 *Total: ' + eur + ' EUR (~' + total.toLocaleString() + ' DZD)*');
+    lines.push('💱 Rate applied: 1 EUR = 260 DZD');
+  } else {
+    lines.push('💰 *Total: '+total.toLocaleString()+' DZD*');
+  }
+  lines.push('💳 Payment: '+(payLabel || 'Not specified (Social Order)'));
   lines.push('');
   lines.push('Please confirm my order. Thank you! 🙏');
   return lines.join('\n');
 }
 
 /* ══════════════════════════════════════════════════════
-   CONFIRM ORDER
+   CONFIRM ORDER (WHATSAPP)
 ════════════════════════════════════════════════════════ */
 function confirmOrder(){
   if(!selPay || cart.length === 0) return;
@@ -517,13 +712,44 @@ function confirmOrder(){
   // Open WhatsApp
   window.open(waUrl, '_blank');
   // Copy to clipboard
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(msg).catch(function(){});
-  }
+  copyToClipboard(msg);
   // Show toast
-  setT('TTTL', tx.toastTitle);
-  setT('TTXT', tx.toastDesc);
+  showToast(tx.toastTitle, tx.toastDesc);
+}
+
+/* ══════════════════════════════════════════════════════
+   CONFIRM ORDER SOCIAL (INSTAGRAM / FACEBOOK)
+════════════════════════════════════════════════════════ */
+function confirmOrderSocial(platform){
+  if(cart.length === 0) return;
+  var tx = t();
+  var msg = buildMessage();
+  copyToClipboard(msg);
+  showToast(tx.copySuccess, tx.copyDesc);
+  setTimeout(function(){
+    if(platform === 'ig') window.open(tx.igUrl, '_blank');
+    if(platform === 'fb') window.open(tx.fbUrl, '_blank');
+  }, 1200);
+}
+
+function copyToClipboard(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).catch(function(){});
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta);
+  }
+}
+
+function showToast(title, desc){
+  setT('TTTL', title);
+  setT('TTXT', desc);
   var toast = $('TOAST');
+  if(!toast) return;
   toast.classList.add('SH');
   setTimeout(function(){ toast.classList.remove('SH'); }, 5500);
 }
