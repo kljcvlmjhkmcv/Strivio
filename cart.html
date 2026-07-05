@@ -422,13 +422,6 @@ var cart = [];
 var appliedCoupon = null;
 var couponDiscount = 0;
 
-var COUPONS = window.COUPONS || {
-  'STRIVIO10': { type: 'pct', val: 0.10 },
-  'STRIVIO20': { type: 'pct', val: 0.20 },
-  'RAMADAN':   { type: 'pct', val: 0.15 },
-  'VIP500':    { type: 'fixed', val: 500 }
-};
-
 var fmtP = function(n){ return Math.max(0, Math.round(n)).toLocaleString('ar-DZ') + ' دج'; };
 var t = function(){ return TX[L]; };
 var $ = function(id){ return document.getElementById(id); };
@@ -456,23 +449,11 @@ function getSubtotal(){
 }
 
 function calculateDiscount(sub){
-  if(!appliedCoupon || !COUPONS[appliedCoupon]) return 0;
-  var c = COUPONS[appliedCoupon];
-  if(c.type === 'pct') return Math.round(sub * c.val);
-  if(c.type === 'fixed') return c.val;
-  return 0;
+  return appliedCoupon ? (couponDiscount || 0) : 0;
 }
 
 function getFlexyFee(subAfterDisc){
   return Math.round(subAfterDisc * 0.19);
-}
-
-function getFinalTotal(){
-  var sub = getSubtotal();
-  var disc = calculateDiscount(sub);
-  var subAfterDisc = Math.max(0, sub - disc);
-  if(selPay === 'flexy') return subAfterDisc + getFlexyFee(subAfterDisc);
-  return subAfterDisc;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -538,7 +519,7 @@ function renderSummary(){
   var disc = calculateDiscount(sub);
   var subAfterDisc = Math.max(0, sub - disc);
   var flexyFee = getFlexyFee(subAfterDisc);
-  var total = getFinalTotal();
+  var total = subAfterDisc + (selPay === 'flexy' ? flexyFee : 0);
 
   // Item rows
   var rowsEl = $('SMROWS');
@@ -621,6 +602,7 @@ $('CPN_BTN').addEventListener('click', async function(){
   var msg = $('CPN_MSG');
   if(!val){
     appliedCoupon = null;
+    couponDiscount = 0;
     msg.classList.add('hidden');
     renderSummary();
     return;
@@ -629,19 +611,18 @@ $('CPN_BTN').addEventListener('click', async function(){
     var res = await validateCouponInDB(val, getSubtotal());
     if (res && res.valid) {
       appliedCoupon = val;
+      couponDiscount = res.discount || 0;
       msg.textContent = tx.cpnOk;
       msg.className = 'text-xs mt-1.5 font-semibold text-[#39ff14] block';
     } else {
       appliedCoupon = null;
+      couponDiscount = 0;
       msg.textContent = res ? res.message : tx.cpnErr;
       msg.className = 'text-xs mt-1.5 font-semibold text-[#ff5555] block';
     }
-  } else if(COUPONS && COUPONS[val]){
-    appliedCoupon = val;
-    msg.textContent = tx.cpnOk;
-    msg.className = 'text-xs mt-1.5 font-semibold text-[#39ff14] block';
   } else {
     appliedCoupon = null;
+    couponDiscount = 0;
     msg.textContent = tx.cpnErr;
     msg.className = 'text-xs mt-1.5 font-semibold text-[#ff5555] block';
   }
@@ -704,13 +685,14 @@ function updateConfirmBtn(){
 }
 
 /* ══════════════════════════════════════════════════════
-   BUILD ORDER MESSAGE
+   BUILD ORDER MESSAGE FROM VERIFIED SERVER RESULTS
 ════════════════════════════════════════════════════════ */
-function buildMessage(){
+function buildMessage(rpcData){
   var tx = t();
   var payLabel = '';
   tx.payMethods.forEach(function(p){ if(p.id===selPay) payLabel = p.label; });
   var lines = ['🛒 *New Order — Strivio*', ''];
+  if(rpcData && rpcData.order_id) lines.push('🔖 *Order ID:* ' + rpcData.order_id);
   cart.forEach(function(item, i){
     var itemName = item.nameData ? (item.nameData[L] || item.name) : item.name;
     var dur = item.durLabelData ? (item.durLabelData[L] || item.durLabel) : item.durLabel;
@@ -723,17 +705,18 @@ function buildMessage(){
     lines.push('   • Quantity: x'+q);
     lines.push('   • Price: '+fmtP(itemTotal));
   });
-  var sub = getSubtotal();
-  var disc = calculateDiscount(sub);
-  var subAfterDisc = Math.max(0, sub - disc);
-  var total = getFinalTotal();
+  var sub = rpcData ? rpcData.subtotal : getSubtotal();
+  var disc = rpcData ? rpcData.discount : calculateDiscount(sub);
+  var flexyFee = rpcData ? rpcData.flexy_fee : getFlexyFee(Math.max(0, sub - disc));
+  var total = rpcData ? rpcData.total_payable : (sub - disc + (selPay==='flexy'?flexyFee:0));
+
   lines.push('');
   lines.push('Subtotal: '+fmtP(sub));
   if(disc > 0){
-    lines.push('Promo Discount ('+appliedCoupon+'): -'+fmtP(disc));
+    lines.push('Promo Discount ('+(appliedCoupon||'Coupon')+'): -'+fmtP(disc));
   }
-  if(selPay === 'flexy'){
-    lines.push('Flexy fee (19%): +' + fmtP(getFlexyFee(subAfterDisc)));
+  if(selPay === 'flexy' && flexyFee > 0){
+    lines.push('Flexy fee (19%): +' + fmtP(flexyFee));
   }
   if(selPay === 'wise'){
     var eur = (total / 260).toFixed(2);
@@ -753,60 +736,62 @@ function buildMessage(){
 }
 
 /* ══════════════════════════════════════════════════════
-   CONFIRM ORDER & COPY CLIPBOARD
+   CONFIRM ORDER VIA SERVER RPC & COPY CLIPBOARD
 ════════════════════════════════════════════════════════ */
-function confirmOrder(){
+async function confirmOrder(){
   if(!selPay || cart.length === 0) return;
   var tx = t();
-  var msg = buildMessage();
-  var waUrl = 'https://wa.me/'+CONFIG.whatsapp+'?text='+encodeURIComponent(msg);
-  
-  // Save order to Supabase database
+  var btn = $('CFRMBTN');
+  if(btn) { btn.disabled = true; btn.textContent = '⏳ ...'; }
+
+  var rpcData = null;
   if (typeof saveOrderToDB === 'function') {
-    saveOrderToDB({
+    rpcData = await saveOrderToDB({
       items: cart,
-      subtotal: getSubtotal(),
-      discount: calculateDiscount(getSubtotal()) || 0,
-      total_payable: getFinalTotal(),
-      flexy_fee: getFlexyFee(Math.max(0, getSubtotal() - calculateDiscount(getSubtotal()))),
       payment_method: selPay,
       coupon_code: appliedCoupon || null,
-      status: 'pending'
+      customer_info: { lang: L }
     });
   }
 
-  // Copy to clipboard automatically
-  copyToClipboard(msg);
+  if(btn) { btn.disabled = false; btn.textContent = tx.confirmBtn; }
 
-  // Open WhatsApp
+  if (!rpcData || !rpcData.success) {
+    alert(L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
+    return;
+  }
+
+  var msg = buildMessage(rpcData);
+  var waUrl = 'https://wa.me/'+CONFIG.whatsapp+'?text='+encodeURIComponent(msg);
+
+  copyToClipboard(msg);
   window.open(waUrl, '_blank');
-  
   showToast(tx.toastTitle, tx.toastDesc);
 }
 
-function confirmOrderSocial(platform){
+async function confirmOrderSocial(platform){
   if(!selPay || cart.length === 0){
     alert(t().selectPayFirst);
     return;
   }
   var tx = t();
-  var msg = buildMessage();
   
-  // Save order to Supabase database
+  var rpcData = null;
   if (typeof saveOrderToDB === 'function') {
-    saveOrderToDB({
+    rpcData = await saveOrderToDB({
       items: cart,
-      subtotal: getSubtotal(),
-      discount: calculateDiscount(getSubtotal()) || 0,
-      total_payable: getFinalTotal(),
-      flexy_fee: getFlexyFee(Math.max(0, getSubtotal() - calculateDiscount(getSubtotal()))),
       payment_method: selPay,
       coupon_code: appliedCoupon || null,
-      status: 'pending'
+      customer_info: { lang: L, platform: platform }
     });
   }
 
-  // Copy to clipboard automatically
+  if (!rpcData || !rpcData.success) {
+    alert(L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
+    return;
+  }
+
+  var msg = buildMessage(rpcData);
   copyToClipboard(msg);
   
   if(platform === 'ig') window.open(CONFIG.instagram, '_blank');
@@ -922,18 +907,7 @@ document.querySelectorAll('.FAR').forEach(function(el){ el.innerHTML = FL.ar; })
 
 // Load cart from localStorage
 cart = JSON.parse(localStorage.getItem('strivio_cart') || '[]');
-
 applyLang(L);
-
-if (typeof loadCouponsFromDB === 'function') {
-  loadCouponsFromDB().then(function(dbCoupons) {
-    if (dbCoupons && Object.keys(dbCoupons).length > 0) {
-      COUPONS = dbCoupons;
-      window.COUPONS = dbCoupons;
-      renderSummary();
-    }
-  });
-}
 
 /* ═══════════════════════════════════════════════════════════════
    DOM PROTECTION & DECOY SCRAMBLER

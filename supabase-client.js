@@ -117,7 +117,7 @@ async function saveOrderToDB(orderData) {
   }
 
   try {
-    // 1. محاولة حفظ الطلب وحساب السعر عبر دالة السيرفر الآمنة RPC
+    // الاتصال بدالة السيرفر الآمنة RPC لحساب السعر وإنشاء الطلب
     const { data: rpcData, error: rpcError } = await supabaseClient.rpc('create_order_secure', {
       p_items: orderData.items || [],
       p_payment_method: orderData.payment_method || 'cib',
@@ -130,31 +130,14 @@ async function saveOrderToDB(orderData) {
       return rpcData;
     }
 
-    // 2. خطة بديلة (Fallback) في حال عدم تفعيل الـ RPC مع مطابقة 100% لأسماء حقول الجدول
-    const fallbackOrder = {
-      items: orderData.items || [],
-      subtotal: orderData.subtotal || orderData.total_amount || 0,
-      discount: orderData.discount_amount || orderData.discount || 0,
-      coupon_code: orderData.coupon_code || null,
-      flexy_fee: orderData.flexy_fee || 0,
-      total_payable: orderData.total_payable || orderData.total_amount || 0,
-      payment_method: orderData.payment_method || 'cib',
-      status: orderData.status || 'pending',
-      customer_info: orderData.customer_info || {}
-    };
-
-    const { data, error } = await supabaseClient
-      .from('orders')
-      .insert([fallbackOrder])
-      .select();
-
-    if (error) {
-      console.error('❌ Error saving order to Supabase:', error.message);
-      return null;
+    if (rpcError) {
+      console.error('❌ Error saving order via RPC:', rpcError.message);
+    } else if (rpcData && !rpcData.success) {
+      console.error('❌ RPC returned failure:', rpcData.error || 'Unknown error');
+      return rpcData;
     }
 
-    console.log('✅ Order saved to Supabase DB successfully:', data);
-    return data && data[0] ? data[0] : true;
+    return null;
   } catch (e) {
     console.error('❌ Exception saving order:', e);
     return null;
