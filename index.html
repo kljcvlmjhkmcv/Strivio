@@ -6,6 +6,7 @@
 <title>Strivio — Official Digital Subscriptions | Instant Delivery</title>
 <meta name="description" content="Buy Netflix, Spotify, ChatGPT Plus and more at the best prices. Instant delivery, full warranty."/>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"/>
 <script>tailwind.config={theme:{extend:{colors:{brand:{black:'#121212',neon:'#39ff14',card:'#181818',border:'#2A2A2A'}},fontFamily:{sans:['Inter','sans-serif'],display:['Space Grotesk','sans-serif']}}}}</script>
 <style>
@@ -349,6 +350,8 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   </div>
 </footer>
 
+<script src="services.js"></script>
+<script src="supabase-client.js"></script>
 <script>
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  ⚙️  CONFIGURATION — Edit your store details here           ║
@@ -940,6 +943,17 @@ document.querySelectorAll('.FFR').forEach(function(el){el.innerHTML=FL.fr});
 document.querySelectorAll('.FAR').forEach(function(el){el.innerHTML=FL.ar});
 applyLang(L);
 updateCartBadge();
+
+if (typeof loadServicesFromDB === 'function') {
+  loadServicesFromDB().then(function(dbServices) {
+    if (dbServices && dbServices.length > 0) {
+      SERVICES = dbServices;
+      window.SERVICES = dbServices;
+      if (typeof buildFilters === 'function') buildFilters();
+      if (typeof renderProducts === 'function') renderProducts(curFilt || 'all');
+    }
+  });
+}
 </script>
 </body>
 </html>

@@ -6,6 +6,7 @@
 <title>Strivio — Cart & Checkout</title>
 <meta name="description" content="Review your cart and complete your order on Strivio."/>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"/>
 <script>tailwind.config={theme:{extend:{colors:{brand:{black:'#121212',neon:'#39ff14',card:'#181818',border:'#2A2A2A'}},fontFamily:{sans:['Inter','sans-serif'],display:['Space Grotesk','sans-serif']}}}}</script>
 <style>
@@ -275,6 +276,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   </div>
 </main>
 
+<script src="supabase-client.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════
    CONFIG
@@ -748,6 +750,18 @@ function confirmOrder(){
   var msg = buildMessage();
   var waUrl = 'https://wa.me/'+CONFIG.whatsapp+'?text='+encodeURIComponent(msg);
   
+  // Save order to Supabase database
+  if (typeof saveOrderToDB === 'function') {
+    saveOrderToDB({
+      items: cart,
+      total_amount: getFinalTotal(),
+      payment_method: selPay,
+      coupon_code: appliedCoupon || null,
+      discount_amount: calculateDiscount(getSubtotal()) || 0,
+      status: 'pending'
+    });
+  }
+
   // Copy to clipboard automatically
   copyToClipboard(msg);
 
@@ -765,6 +779,18 @@ function confirmOrderSocial(platform){
   var tx = t();
   var msg = buildMessage();
   
+  // Save order to Supabase database
+  if (typeof saveOrderToDB === 'function') {
+    saveOrderToDB({
+      items: cart,
+      total_amount: getFinalTotal(),
+      payment_method: selPay,
+      coupon_code: appliedCoupon || null,
+      discount_amount: calculateDiscount(getSubtotal()) || 0,
+      status: 'pending'
+    });
+  }
+
   // Copy to clipboard automatically
   copyToClipboard(msg);
   
@@ -883,6 +909,16 @@ document.querySelectorAll('.FAR').forEach(function(el){ el.innerHTML = FL.ar; })
 cart = JSON.parse(localStorage.getItem('strivio_cart') || '[]');
 
 applyLang(L);
+
+if (typeof loadCouponsFromDB === 'function') {
+  loadCouponsFromDB().then(function(dbCoupons) {
+    if (dbCoupons && Object.keys(dbCoupons).length > 0) {
+      COUPONS = dbCoupons;
+      window.COUPONS = dbCoupons;
+      renderSummary();
+    }
+  });
+}
 </script>
 </body>
 </html>
