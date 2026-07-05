@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Strivio — لوحة التحكم والباك اند</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"/>
+<script>tailwind.config={theme:{extend:{colors:{brand:{black:'#121212',neon:'#39ff14',card:'#181818',border:'#2A2A2A'}},fontFamily:{sans:['Inter','sans-serif'],display:['Space Grotesk','sans-serif']}}}}</script>
+<style>
+  body{background:#121212;color:#E0E0E0;font-family:'Inter',sans-serif;}
+  .tab-btn{padding:0.75rem 1.5rem;border-radius:12px;font-weight:700;cursor:pointer;transition:all 0.2s;border:1px solid #2A2A2A;background:#181818;color:rgba(224,224,224,0.6);}
+  .tab-btn.active{background:rgba(57,255,20,0.12);color:#39ff14;border-color:#39ff14;box-shadow:0 0 15px rgba(57,255,20,0.2);}
+  .input-box{background:#1E1E1E;border:1px solid #2A2A2A;border-radius:8px;padding:0.5rem 0.75rem;color:#fff;width:100%;font-family:'Space Grotesk',sans-serif;font-weight:700;text-align:center;}
+  .input-box:focus{outline:none;border-color:#39ff14;box-shadow:0 0 10px rgba(57,255,20,0.3);}
+  .save-btn{background:#39ff14;color:#121212;font-weight:800;font-family:'Space Grotesk',sans-serif;padding:0.6rem 1.25rem;border-radius:10px;cursor:pointer;transition:all 0.2s;}
+  .save-btn:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 0 15px rgba(57,255,20,0.4);}
+</style>
+</head>
+<body class="min-h-screen p-4 sm:p-8">
+
+<div class="max-w-7xl mx-auto">
+  <!-- HEADER -->
+  <header class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 pb-6 border-b border-brand-border">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-brand-neon/10 border border-brand-neon/30 flex items-center justify-center text-brand-neon font-display font-black text-xl">S</div>
+      <div>
+        <h1 class="font-display font-black text-2xl text-white">Strivio <span class="text-brand-neon text-sm font-normal px-2 py-0.5 rounded-full bg-brand-neon/10 border border-brand-neon/30">Backend Admin</span></h1>
+        <p class="text-xs text-gray-400 mt-0.5">لوحة التحكم المنظمة لإدارة الأسعار الديناميكية، الكوبونات، وسجل الطلبات</p>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <a href="index.html" class="px-4 py-2 rounded-xl border border-brand-border bg-brand-card hover:border-brand-neon hover:text-brand-neon text-sm font-medium transition-all">← العودة للمتجر</a>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="flex flex-wrap gap-3 mb-8">
+    <button class="tab-btn active" onclick="switchTab('prices')">💰 إدارة الأسعار والباقات الديناميكية</button>
+    <button class="tab-btn" onclick="switchTab('coupons')">🎟️ إدارة كوبونات الخصم</button>
+    <button class="tab-btn" onclick="switchTab('orders')">📦 سجل الطلبات الواردة</button>
+  </div>
+
+  <!-- TAB 1: PRICES MANAGEMENT -->
+  <div id="tab-prices" class="space-y-6">
+    <div class="bg-brand-card border border-brand-border p-5 rounded-2xl mb-6">
+      <h2 class="text-white font-bold text-base mb-1 flex items-center gap-2"><span class="text-brand-neon">💡</span> إرشادات التعديل المنظم:</h2>
+      <p class="text-sm text-gray-400 leading-relaxed">يمكنك تغيير أسعار أي خدمة أو باقة مباشرة من الحقول أدناه. بالنسبة للباقات الديناميكية مثل (نتفلكس و IPTV)، يمكنك تعديل السعر لكل عدد شاشات ولكل مدة بدقة. عند الانتهاء، اضغط على زر <b>"حفظ التعديلات"</b> ليتم تحديث قاعدة بيانات Supabase والمتجر فوراً.</p>
+    </div>
+
+    <div id="services-grid" class="grid grid-cols-1 gap-6">
+      <div class="text-center py-12 text-gray-500">جاري تحميل المنتجات والأسعار من قاعدة البيانات...</div>
+    </div>
+  </div>
+
+  <!-- TAB 2: COUPONS MANAGEMENT -->
+  <div id="tab-coupons" class="space-y-6 hidden">
+    <div class="bg-brand-card border border-brand-border p-6 rounded-2xl">
+      <h3 class="text-white font-bold text-lg mb-4">✨ إضافة كوبون خصم جديد</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">كود الخصم (مثال: STRIVIO20)</label>
+          <input type="text" id="new-coupon-code" class="input-box uppercase" placeholder="CODE"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">نوع الخصم</label>
+          <select id="new-coupon-type" class="input-box">
+            <option value="percent">نسبة مئوية (%)</option>
+            <option value="fixed">مبلغ ثابت (دج)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">قيمة الخصم</label>
+          <input type="number" id="new-coupon-val" class="input-box" placeholder="20"/>
+        </div>
+        <div>
+          <button onclick="addCoupon()" class="save-btn w-full py-2.5">➕ إضافة الكوبون</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-brand-card border border-brand-border rounded-2xl overflow-hidden">
+      <div class="p-4 border-b border-brand-border font-bold text-white">🎟️ الكوبونات النشطة في قاعدة البيانات</div>
+      <div id="coupons-list" class="p-4 space-y-3">
+        <div class="text-center py-8 text-gray-500">جاري تحميل الكوبونات...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: ORDERS HISTORY -->
+  <div id="tab-orders" class="space-y-6 hidden">
+    <div class="flex justify-between items-center bg-brand-card border border-brand-border p-4 rounded-2xl">
+      <div class="text-white font-bold">📦 أحدث طلبات العملاء (مربوط بالوقت الفعلي من Supabase)</div>
+      <button onclick="loadOrders()" class="px-4 py-1.5 bg-brand-border hover:bg-brand-neon hover:text-black text-white rounded-lg text-sm font-bold transition-all">🔄 تحديث القائمة</button>
+    </div>
+    <div id="orders-list" class="space-y-4">
+      <div class="text-center py-12 text-gray-500">جاري تحميل الطلبات...</div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="fixed bottom-6 left-6 bg-brand-card border border-brand-neon text-white px-5 py-3 rounded-xl shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-3">
+  <span class="text-brand-neon text-xl">✓</span>
+  <span id="toast-msg" class="font-bold text-sm"></span>
+</div>
+
+<script src="supabase-client.js"></script>
+<script>
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.remove('opacity-0', 'pointer-events-none');
+  setTimeout(function(){ t.classList.add('opacity-0', 'pointer-events-none'); }, 3500);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(function(btn, i){
+    btn.classList.toggle('active', (tab === 'prices' && i===0) || (tab === 'coupons' && i===1) || (tab === 'orders' && i===2));
+  });
+  document.getElementById('tab-prices').classList.toggle('hidden', tab !== 'prices');
+  document.getElementById('tab-coupons').classList.toggle('hidden', tab !== 'coupons');
+  document.getElementById('tab-orders').classList.toggle('hidden', tab !== 'orders');
+  if(tab === 'orders') loadOrders();
+  if(tab === 'coupons') loadCoupons();
+}
+
+/* ─── LOAD AND RENDER SERVICES FOR EDITING ─── */
+var ADMIN_SERVICES = [];
+var DUR_LABELS = ['شهر واحد', 'شهران', '3 أشهر', '6 أشهر', 'سنة كاملة'];
+
+async function initAdmin() {
+  if (typeof loadServicesFromDB === 'function') {
+    var list = await loadServicesFromDB();
+    if (list && list.length > 0) ADMIN_SERVICES = list;
+  }
+  renderServicesEditor();
+  loadCoupons();
+}
+
+function renderServicesEditor() {
+  var container = document.getElementById('services-grid');
+  if (!ADMIN_SERVICES || ADMIN_SERVICES.length === 0) {
+    container.innerHTML = '<div class="text-center py-12 text-gray-500">لم يتم العثور على منتجات. تأكد من تشغيل ملف schema.sql في Supabase.</div>';
+    return;
+  }
+
+  container.innerHTML = ADMIN_SERVICES.map(function(s, idx) {
+    var isDynamic = (s.typePrices && s.typePrices.length > 0) || (s.types && s.types.ar);
+    
+    var basePricesHtml = '<div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">' + 
+      s.p.map(function(price, dIdx){
+        return '<div class="bg-brand-black p-2.5 rounded-xl border border-brand-border">' +
+          '<div class="text-xs text-gray-400 mb-1.5 text-center">' + (DUR_LABELS[dIdx] || ('مدة ' + (dIdx+1))) + '</div>' +
+          '<input type="number" id="p-' + s.id + '-' + dIdx + '" value="' + price + '" class="input-box"/>' +
+        '</div>';
+      }).join('') + 
+    '</div>';
+
+    var dynamicHtml = '';
+    if (isDynamic && s.types && s.types.ar) {
+      dynamicHtml += '<div class="mt-4 pt-4 border-t border-brand-border"><div class="text-sm font-bold text-brand-neon mb-3">⚡ جدول الأسعار الديناميكية على حسب الباقة / عدد الشاشات:</div><div class="space-y-3">';
+      
+      s.types.ar.forEach(function(typeName, tIdx) {
+        var tPrices = (s.typePrices && s.typePrices[tIdx]) ? s.typePrices[tIdx] : s.p;
+        dynamicHtml += '<div class="bg-brand-black p-3 rounded-xl border border-brand-border">' +
+          '<div class="text-xs font-bold text-white mb-2 flex items-center gap-1.5"><span class="text-brand-neon">▫</span> ' + typeName + '</div>' +
+          '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2">' +
+            tPrices.map(function(tp, dIdx) {
+              return '<div><div class="text-[10px] text-gray-500 mb-0.5 text-center">' + DUR_LABELS[dIdx] + '</div>' +
+                '<input type="number" id="tp-' + s.id + '-' + tIdx + '-' + dIdx + '" value="' + tp + '" class="input-box text-sm"/></div>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      });
+      dynamicHtml += '</div></div>';
+    }
+
+    return '<div class="bg-brand-card border border-brand-border p-6 rounded-2xl flex flex-col justify-between">' +
+      '<div class="flex items-center justify-between mb-4 pb-3 border-b border-brand-border">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-10 h-10 rounded-xl bg-brand-black border border-brand-border flex items-center justify-center font-bold text-brand-neon">' + (s.iconSrc || '★') + '</div>' +
+          '<div><h3 class="font-display font-bold text-white text-lg">' + s.n.ar + ' (' + s.n.en + ')</h3><span class="text-xs text-gray-400">ID: ' + s.id + ' | التصنيف: ' + s.cat + '</span></div>' +
+        '</div>' +
+        '<button onclick="saveServicePricing(\'' + s.id + '\', ' + idx + ')" class="save-btn">💾 حفظ التعديلات</button>' +
+      '</div>' +
+      '<div class="text-xs font-bold text-gray-400 mb-2">الأسعار الأساسية (دج):</div>' +
+      basePricesHtml +
+      dynamicHtml +
+    '</div>';
+  }).join('');
+}
+
+async function saveServicePricing(serviceId, idx) {
+  var s = ADMIN_SERVICES[idx];
+  
+  // Collect base prices
+  var newP = [];
+  s.p.forEach(function(_, dIdx){
+    var val = parseInt(document.getElementById('p-' + s.id + '-' + dIdx).value) || 0;
+    newP.push(val);
+  });
+  s.p = newP;
+
+  // Collect dynamic prices
+  if (s.types && s.types.ar) {
+    var newTypePrices = [];
+    s.types.ar.forEach(function(_, tIdx){
+      var tArr = [];
+      s.p.forEach(function(_, dIdx){
+        var input = document.getElementById('tp-' + s.id + '-' + tIdx + '-' + dIdx);
+        var val = input ? (parseInt(input.value) || 0) : s.p[dIdx];
+        tArr.push(val);
+      });
+      newTypePrices.push(tArr);
+    });
+    s.typePrices = newTypePrices;
+  }
+
+  // Save to Supabase
+  if (window.supabaseClient) {
+    var { error } = await window.supabaseClient
+      .from('services')
+      .update({
+        p: s.p,
+        type_prices: s.typePrices || null
+      })
+      .eq('id', serviceId);
+
+    if (error) {
+      alert('خطأ أثناء حفظ التعديلات في Supabase: ' + error.message);
+    } else {
+      showToast('تم تحديث أسعار ' + s.n.ar + ' بنجاح في قاعدة البيانات!');
+    }
+  } else {
+    showToast('تم حفظ الأسعار محلياً! (يرجى إعداد Supabase Client)');
+  }
+}
+
+/* ─── COUPONS MANAGEMENT ─── */
+async function loadCoupons() {
+  if (typeof loadCouponsFromDB === 'function') {
+    var cList = await loadCouponsFromDB();
+    var container = document.getElementById('coupons-list');
+    if (!cList || Object.keys(cList).length === 0) {
+      container.innerHTML = '<div class="text-center py-8 text-gray-500">لا توجد كوبونات نشطة حالياً.</div>';
+      return;
+    }
+    container.innerHTML = Object.keys(cList).map(function(code){
+      var c = cList[code];
+      var desc = c.type === 'percent' ? ('خصم ' + c.val + '%') : ('خصم ' + c.val + ' دج');
+      return '<div class="flex items-center justify-between p-4 bg-brand-black rounded-xl border border-brand-border">' +
+        '<div class="flex items-center gap-3"><span class="px-3 py-1 bg-brand-neon/10 border border-brand-neon/30 text-brand-neon font-display font-bold rounded-lg text-sm">' + code + '</span><span class="text-sm font-medium text-white">' + desc + '</span></div>' +
+        '<button onclick="deleteCoupon(\'' + code + '\')" class="px-3 py-1 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-lg text-xs font-bold transition-all">🗑️ حذف</button>' +
+      '</div>';
+    }).join('');
+  }
+}
+
+async function addCoupon() {
+  var code = document.getElementById('new-coupon-code').value.trim().toUpperCase();
+  var type = document.getElementById('new-coupon-type').value;
+  var val = parseInt(document.getElementById('new-coupon-val').value) || 0;
+  if (!code || val <= 0) { alert('يرجى إدخال كود صحيح وقيمة خصم أكبر من 0'); return; }
+
+  if (window.supabaseClient) {
+    var { error } = await window.supabaseClient.from('coupons').insert([{
+      code: code, type: type, val: val, is_active: true
+    }]);
+    if (error) alert('خطأ: ' + error.message);
+    else {
+      showToast('تمت إضافة الكوبون ' + code + ' بنجاح!');
+      document.getElementById('new-coupon-code').value = '';
+      loadCoupons();
+    }
+  }
+}
+
+async function deleteCoupon(code) {
+  if (!confirm('هل أنت متأكد من حذف الكوبون ' + code + '؟')) return;
+  if (window.supabaseClient) {
+    await window.supabaseClient.from('coupons').delete().eq('code', code);
+    showToast('تم حذف الكوبون!');
+    loadCoupons();
+  }
+}
+
+/* ─── ORDERS MANAGEMENT ─── */
+async function loadOrders() {
+  var container = document.getElementById('orders-list');
+  if (!window.supabaseClient) {
+    container.innerHTML = '<div class="text-center py-8 text-gray-500">يرجى الاتصال بـ Supabase أولاً.</div>';
+    return;
+  }
+  var { data, error } = await window.supabaseClient.from('orders').select('*').order('created_at', { ascending: false }).limit(20);
+  if (error || !data || data.length === 0) {
+    container.innerHTML = '<div class="text-center py-12 text-gray-500">لا توجد طلبات مسجلة بعد.</div>';
+    return;
+  }
+  container.innerHTML = data.map(function(o){
+    var dateStr = new Date(o.created_at).toLocaleString('ar-DZ');
+    var itemsStr = (o.items || []).map(function(i){ return i.title + ' (الكمية: ' + i.qty + ')'; }).join(' | ');
+    return '<div class="p-5 bg-brand-card rounded-2xl border border-brand-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">' +
+      '<div>' +
+        '<div class="flex items-center gap-2 mb-1"><span class="text-xs font-bold px-2 py-0.5 rounded bg-brand-neon/10 text-brand-neon border border-brand-neon/30">طلب #' + o.id + '</span><span class="text-xs text-gray-500">' + dateStr + '</span></div>' +
+        '<div class="font-bold text-white text-base mb-1">' + itemsStr + '</div>' +
+        '<div class="text-xs text-gray-400">طريقة الدفع: <span class="text-white font-medium">' + o.payment_method + '</span>' + (o.coupon_code ? (' | الكوبون: <span class="text-brand-neon font-bold">' + o.coupon_code + '</span>') : '') + '</div>' +
+      '</div>' +
+      '<div class="text-right flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-brand-border">' +
+        '<div class="font-display font-black text-brand-neon text-xl">' + (o.total_amount || 0).toLocaleString('ar-DZ') + ' دج</div>' +
+        '<span class="text-[11px] px-2.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 mt-1">' + (o.status === 'pending' ? 'بانتظار التأكيد' : o.status) + '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+window.addEventListener('DOMContentLoaded', initAdmin);
+</script>
+</body>
+</html>

@@ -919,6 +919,40 @@ if (typeof loadCouponsFromDB === 'function') {
     }
   });
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   DOM PROTECTION & DECOY SCRAMBLER
+   يجعل محاولة نسخ الكود أو سحب الـ HTML عبر F12 مليئة بالفخاخ والأكواد الملخبطة والناقصة دون تغيير أي بكسل في المتجر
+═══════════════════════════════════════════════════════════════ */
+(function(){
+  try {
+    var decoyHTML = [
+      '<div class="strivio-decoy-layer-x99 clone-trap" style="display:none !important;opacity:0 !important;position:absolute;left:-9999px;width:0;height:0;z-index:-1000;pointer-events:none" aria-hidden="true">',
+      '<header class="gn-fake-header"><h1>ERROR 403: PROTECTED STRIVIO DOM STRUCTURE</h1><div class="fake-grid-container"><div class="fake-card-item">Null Reference Exception in UI Render</div></div></header>',
+      '<section class="decoy-pricing-matrix"><table><tr><td>Corrupted Token</td><td>0x00000</td></tr></table></section>',
+      '</div>'
+    ].join('');
+    
+    var targets = [document.body, document.querySelector('main'), document.getElementById('NAV')];
+    targets.forEach(function(t){
+      if(t){
+        var d1 = document.createElement('div');
+        d1.innerHTML = decoyHTML;
+        t.appendChild(d1);
+        var d2 = document.createElement('div');
+        d2.innerHTML = '<span style="display:none !important" class="scrambled-token-998">-- STRIVIO ANTI-CLONE TRAP: MISSING REQUIRED SHADOW ROOT --</span>';
+        t.insertBefore(d2, t.firstChild);
+      }
+    });
+
+    setInterval(function(){
+      var decoys = document.querySelectorAll('.clone-trap');
+      decoys.forEach(function(el){
+        el.setAttribute('data-sec-hash', Math.random().toString(36).substring(2));
+      });
+    }, 4000);
+  } catch(e){}
+})();
 </script>
 </body>
 </html>

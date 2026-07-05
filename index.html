@@ -33,7 +33,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 .TP{font-family:'Space Grotesk',sans-serif;font-size:1.7rem;font-weight:800;color:var(--n);text-shadow:0 0 15px rgba(var(--nr),.3);line-height:1}
 .BC{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;background:transparent;border:1.5px solid var(--n);color:var(--n);font-weight:700;font-family:'Space Grotesk',sans-serif;border-radius:10px;padding:.75rem;transition:all .22s;cursor:pointer;font-size:.88rem;margin-top:auto}
 .BC:hover{background:var(--n);color:#121212;box-shadow:0 0 20px rgba(var(--nr),.4);transform:translateY(-1px)}
-.TP2{display:flex;align-items:center;gap:.5rem;padding:.55rem 1.2rem;border-radius:99px;border:1px solid #2A2A2A;background:#1A1A1A;white-space:nowrap;transition:border-color .2s}
+.TP2{display:flex;align-items:center;gap:.5rem;padding:.55rem 1.2rem;border-radius:99px;border:1px solid #2A2A2A;background:#1A1A1A;white-space:nowrap;transition:border-color .2s;pointer-events:none !important;user-select:none !important}
 .TP2:hover{border-color:rgba(var(--nr),.3)}
 .RC{background:#181818;border:1px solid #2A2A2A;border-radius:16px;padding:1.4rem;transition:all .3s}
 .RC:hover{border-color:rgba(var(--nr),.35);transform:translateY(-4px);box-shadow:0 8px 30px rgba(var(--nr),.07)}
@@ -91,8 +91,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 @keyframes CGA{0%,100%{box-shadow:0 0 16px rgba(var(--nr),.08)}50%{box-shadow:0 0 28px rgba(var(--nr),.18)}}
 .AFL{animation:FL 5s ease-in-out infinite}
 .AFU{animation:FU .9s ease forwards}
-.MQT{animation:MQ 28s linear infinite;display:flex;gap:.75rem}
-.MQT:hover{animation-play-state:paused}
+.MQT{animation:MQ 28s linear infinite;display:flex;gap:.75rem;pointer-events:none !important;user-select:none !important}
 /* Duration card grid */
 .DOG{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem}
 .DOC{display:flex;flex-direction:column;gap:.25rem;padding:.85rem 1rem;border-radius:14px;border:1.5px solid #2A2A2A;background:#1E1E1E;cursor:pointer;transition:all .2s;position:relative;-webkit-tap-highlight-color:transparent;user-select:none}
@@ -954,6 +953,40 @@ if (typeof loadServicesFromDB === 'function') {
     }
   });
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   DOM PROTECTION & DECOY SCRAMBLER
+   يجعل محاولة نسخ الكود أو سحب الـ HTML عبر F12 مليئة بالفخاخ والأكواد الملخبطة والناقصة دون تغيير أي بكسل في المتجر
+═══════════════════════════════════════════════════════════════ */
+(function(){
+  try {
+    var decoyHTML = [
+      '<div class="strivio-decoy-layer-x99 clone-trap" style="display:none !important;opacity:0 !important;position:absolute;left:-9999px;width:0;height:0;z-index:-1000;pointer-events:none" aria-hidden="true">',
+      '<header class="gn-fake-header"><h1>ERROR 403: PROTECTED STRIVIO DOM STRUCTURE</h1><div class="fake-grid-container"><div class="fake-card-item">Null Reference Exception in UI Render</div></div></header>',
+      '<section class="decoy-pricing-matrix"><table><tr><td>Corrupted Token</td><td>0x00000</td></tr></table></section>',
+      '</div>'
+    ].join('');
+    
+    var targets = [document.body, document.getElementById('home'), document.getElementById('why'), document.getElementById('NAV'), document.getElementById('PG')];
+    targets.forEach(function(t){
+      if(t){
+        var d1 = document.createElement('div');
+        d1.innerHTML = decoyHTML;
+        t.appendChild(d1);
+        var d2 = document.createElement('div');
+        d2.innerHTML = '<span style="display:none !important" class="scrambled-token-998">-- STRIVIO ANTI-CLONE TRAP: MISSING REQUIRED SHADOW ROOT --</span>';
+        t.insertBefore(d2, t.firstChild);
+      }
+    });
+
+    setInterval(function(){
+      var decoys = document.querySelectorAll('.clone-trap');
+      decoys.forEach(function(el){
+        el.setAttribute('data-sec-hash', Math.random().toString(36).substring(2));
+      });
+    }, 4000);
+  } catch(e){}
+})();
 </script>
 </body>
 </html>
