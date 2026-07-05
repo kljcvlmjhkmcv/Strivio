@@ -601,6 +601,18 @@ var SERVICES = window.SERVICES || [
   }
 ];
 
+SERVICES.forEach(function(s) {
+  if (s.id !== 'netflix' && s.id !== 'iptv') {
+    s.showTypes = false;
+    s.types = {
+      en: ['type 1', 'type 2', 'type 3', 'type 4', 'type 5'],
+      fr: ['type 1', 'type 2', 'type 3', 'type 4', 'type 5'],
+      ar: ['type 1', 'type 2', 'type 3', 'type 4', 'type 5']
+    };
+    s.typePrices = [s.p, s.p, s.p, s.p, s.p];
+  }
+});
+
 /* ═══════════════════════════════════════════════════════════════
    REVIEWS
 ═══════════════════════════════════════════════════════════════ */
