@@ -113,6 +113,24 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 </style>
 <script src="services.js"></script>
 <script src="coupons.js"></script>
+<script>
+(function(){
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) || (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's'))) {
+      e.preventDefault();
+    }
+  });
+  setInterval(function(){
+    var before = new Date().getTime();
+    debugger;
+    var after = new Date().getTime();
+    if (after - before > 100) {
+      document.body.innerHTML = '<div style="background:#121212;color:#ff3333;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:bold;font-size:24px">Protected Code — Access Denied</div>';
+    }
+  }, 1000);
+})();
+</script>
 </head>
 <body class="overflow-x-hidden" style="background:#121212">
 
@@ -171,6 +189,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
       <a href="#subs" id="NL1" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none"></a>
       <a href="#why"  id="NL2" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none"></a>
       <a href="#rev"  id="NL3" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none"></a>
+      <a href="faq"  class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none">FAQ</a>
     </nav>
     <div class="hidden lg:flex items-center gap-3">
       <div class="relative">

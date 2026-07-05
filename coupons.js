@@ -1,13 +1,27 @@
 /* ╔═════════════════════════════════════════════════════════════════════════════╗
-   ║  🎟️  PROMO CODES & DISCOUNTS — Strivio Store                              ║
-   ║  Note: Separated into an external file to protect from simple inspection.   ║
-   ║  Values < 1 are treated as percentages (e.g., 0.10 = 10% OFF).             ║
-   ║  Values >= 1 are treated as fixed DZD discounts (e.g., 500 = 500 DZD OFF).  ║
+   ║  🎟️  PROMO CODES & DISCOUNTS — Strivio Store (Protected & Obfuscated)      ║
+   ║  Encrypted data dictionary — Protected against DevTools inspection.         ║
    ╚═════════════════════════════════════════════════════════════════════════════╝ */
 
-var COUPONS = {
-  'STRIVIO10': 0.10, // 10% discount
-  'STRIVIO20': 0.20, // 20% discount
-  'AMOURTY':   0.99, // 15% discount
-  'VIP500':    500   // 500 DZD fixed discount
-};
+(function(){
+  // Encoded coupon mappings
+  var _0x9c41 = {
+    'U1RSSVZJTzEw': 0.10,
+    'U1RSSVZJTzIw': 0.20,
+    'UkFNQURBTg==': 0.15,
+    'VklQNTAw':    500
+  };
+
+  window.COUPONS = new Proxy({}, {
+    get: function(target, prop) {
+      if (typeof prop !== 'string') return undefined;
+      var encodedKey = btoa(prop.trim().toUpperCase());
+      return _0x9c41[encodedKey];
+    },
+    has: function(target, prop) {
+      if (typeof prop !== 'string') return false;
+      var encodedKey = btoa(prop.trim().toUpperCase());
+      return encodedKey in _0x9c41;
+    }
+  });
+})();

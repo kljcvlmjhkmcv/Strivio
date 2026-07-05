@@ -24,7 +24,7 @@ var SERVICES = [
     iconSrc: '<svg viewBox="10 0 500 520"><linearGradient id="a_netflix" gradientUnits="userSpaceOnUse" x1="108.142" x2="176.518" y1="240.643" y2="189.038"><stop offset="0" stop-color="#c20000" stop-opacity="0"/><stop offset="1" stop-color="#9d0000"/></linearGradient><linearGradient id="b_netflix" x1="400.786" x2="338.861" xlink:href="#a_netflix" y1="312.035" y2="337.837"/><path d="m216.398 16h-91.87v480c30.128-7.135 61.601-10.708 91.87-12.052z" fill="#c20000"/><path d="m216.398 16h-91.87v367.267c30.128-7.135 61.601-10.707 91.87-12.051z" fill="url(#a_netflix)"/><path d="m387.472 496v-480h-91.87v468.904c53.636 3.416 91.87 11.096 91.87 11.096z" fill="#c20000"/><path d="m387.472 496v-318.555h-91.87v307.459c53.636 3.416 91.87 11.096 91.87 11.096z" fill="url(#b_netflix)"/><path d="m387.472 496-171.074-480h-91.87l167.03 468.655c55.75 3.276 95.914 11.345 95.914 11.345z" fill="#fa0000"/></svg>',
     n: { en: 'Netflix Premium', fr: 'Netflix Premium', ar: 'نتفليكس بريميوم' },
     f: { en: ['4K Ultra HD', 'Private Screen', 'Full Warranty'], fr: ['4K Ultra HD', 'Écran Privé', 'Garantie Complète'], ar: ['4K الترا HD', 'شاشة خاصة', 'ضمان كامل'] },
-    types: { en: ['type 1', 'type 2', 'type 3', 'type 4', 'type 5'], fr: ['type 1', 'type 2', 'type 3', 'type 4', 'type 5'], ar: ['type 1', 'type 2', 'type 3', 'type 4', 'type 5'] },
+    types: { en: ['1 Screen', '2 Screens', '3 Screens', '4 Screens', '5 Screens'], fr: ['1 Écran', '2 Écrans', '3 Écrans', '4 Écrans', '5 Écrans'], ar: ['شاشة واحدة', 'شاشتان', '3 شاشات', '4 شاشات', '5 شاشات'] },
     p: [1500, 2800, 4000, 7500, 14000]
   },
   {
@@ -34,7 +34,7 @@ var SERVICES = [
     iconType: 'svg', iconSize: 72,
     iconSrc: '<svg viewBox="-0.17090198558635983 0.482230148717937 41.14235318283891 40.0339509076386"><path d="M37.532 16.87a9.963 9.963 0 0 0-.856-8.184 10.078 10.078 0 0 0-10.855-4.835A9.964 9.964 0 0 0 18.306.5a10.079 10.079 0 0 0-9.614 6.977 9.967 9.967 0 0 0-6.664 4.834 10.08 10.08 0 0 0 1.24 11.817 9.965 9.965 0 0 0 .856 8.185 10.079 10.079 0 0 0 10.855 4.835 9.965 9.965 0 0 0 7.516 3.35 10.078 10.078 0 0 0 9.617-6.981 9.967 9.967 0 0 0 6.663-4.834 10.079 10.079 0 0 0-1.243-11.813zM22.498 37.886a7.474 7.474 0 0 1-4.799-1.735c.061-.033.168-.091.237-.134l7.964-4.6a1.294 1.294 0 0 0 .655-1.134V19.054l3.366 1.944a.12.12 0 0 1 .066.092v9.299a7.505 7.505 0 0 1-7.49 7.496zm-16.106-6.88a7.471 7.471 0 0 1-.894-5.023c.06.036.162.099.237.141l7.964 4.6a1.297 1.297 0 0 0 1.308 0l9.724-5.614v3.888a.12.12 0 0 1-.048.103l-8.051 4.649a7.504 7.504 0 0 1-10.24-2.744zM4.297 13.62A7.469 7.469 0 0 1 8.2 10.333c0 .068-.004.19-.004.274v9.201a1.294 1.294 0 0 0 .654 1.132l9.723 5.614-3.366 1.944a.12.12 0 0 1-.114.01L7.04 23.856a7.504 7.504 0 0 1-2.743-10.237zm27.658 6.437l-9.724-5.615 3.367-1.943a.121.121 0 0 1 .113-.01l8.052 4.648a7.498 7.498 0 0 1-1.158 13.528v-9.476a1.293 1.293 0 0 0-.65-1.132zm3.35-5.043a7.395 7.395 0 0 0-.236-.141l-7.965-4.6a1.298 1.298 0 0 0-1.308 0l-9.723 5.614v-3.888a.12.12 0 0 1 .048-.103l8.05-4.645a7.497 7.497 0 0 1 11.135 7.763zm-21.063 6.929l-3.367-1.944a.12.12 0 0 1-.065-.092v-9.299a7.497 7.497 0 0 1 12.293-5.756 6.94 6.94 0 0 0-.236.134l-7.965 4.6a1.294 1.294 0 0 0-.654 1.132l-.006 11.225zM16.071 18l4.33-2.501 4.332 2.5v5l-4.331 2.5-4.331-2.5V18z" fill="#10a37f"/></svg>',
     n: { en: 'ChatGPT Plus', fr: 'ChatGPT Plus', ar: 'شات جي بي تي بلس' },
-    f: { en: ['GPT-4o Access', 'DALL·E 3 Images', 'Full Warranty'], fr: ['Accès GPT-4o', 'Images DALL·E 3', 'Garantie Complète'], ar: ['وصول GPT-4o', 'صور DALL·E 3', 'ضمان كامل'] },
+    f: { en: ['GPT 5.5 Access', 'DALL·E 3 Images', 'Full Warranty'], fr: ['Accès GPT 5.5', 'Images DALL·E 3', 'Garantie Complète'], ar: ['وصول GPT 5.5', 'صور DALL·E 3', 'ضمان كامل'] },
     types: { en: ['Shared Account (Plus)', 'Private Account (Plus)', 'Team Workspace'], fr: ['Compte Partagé (Plus)', 'Compte Privé (Plus)', 'Espace Équipe'], ar: ['حساب مشترك (Plus)', 'حساب خاص بك (Plus)', 'مساحة فريق / شركات'] },
     p: [2000, 3800, 5500, 10000, 19000]
   },
@@ -45,8 +45,8 @@ var SERVICES = [
     iconType: 'svg', iconSize: 72,
     iconSrc: '<svg viewBox="-3 -3 34 34"><radialGradient id="gemini_grad" cx="-576.08" cy="491.7" gradientTransform="matrix(28.2302 9.54441 76.4642 -226.16369 -21336.18 116711.38)" gradientUnits="userSpaceOnUse" r="1"><stop offset=".07" stop-color="#9168c0"/><stop offset=".34" stop-color="#5684d1"/><stop offset=".67" stop-color="#1ba1e3"/></radialGradient><path d="M14 28c0-1.94-.37-3.76-1.12-5.46-.72-1.7-1.72-3.19-2.98-4.45s-2.74-2.25-4.44-2.97C3.76 14.37 1.94 14 0 14c1.94 0 3.76-.36 5.46-1.09 1.7-.75 3.19-1.75 4.44-3.01 1.26-1.26 2.25-2.74 2.98-4.44C13.63 3.76 14 1.94 14 0c0 1.94.36 3.76 1.09 5.46.75 1.7 1.75 3.19 3.01 4.44 1.26 1.26 2.74 2.26 4.45 3.01 1.7.72 3.52 1.09 5.46 1.09-1.94 0-3.76.37-5.46 1.12-1.7.72-3.19 1.71-4.45 2.97s-2.26 2.74-3.01 4.45A13.86 13.86 0 0 0 14 28z" fill="url(#gemini_grad)"/></svg>',
     n: { en: 'Gemini Pro', fr: 'Gemini Pro', ar: 'جيميني برو' },
-    f: { en: ['Gemini Advanced AI', '2TB Google Drive', 'Full Warranty'], fr: ['Gemini Advanced', '2To Google Drive', 'Garantie Complète'], ar: ['جيميني أدفانسد', '2TB تخزين جوجل', 'ضمان كامل'] },
-    types: { en: ['Shared Pro Account', 'Private Google Account (2TB)'], fr: ['Compte Pro Partagé', 'Compte Google Privé (2To)'], ar: ['حساب برو مشترك', 'حساب جوجل خاص (2TB)'] },
+    f: { en: ['Gemini Advanced AI', '5TB Google Drive', 'Full Warranty'], fr: ['Gemini Advanced', '5To Google Drive', 'Garantie Complète'], ar: ['جيميني أدفانسد', '5TB تخزين جوجل', 'ضمان كامل'] },
+    types: { en: ['Shared Pro Account', 'Private Google Account (5TB)'], fr: ['Compte Pro Partagé', 'Compte Google Privé (5To)'], ar: ['حساب برو مشترك', 'حساب جوجل خاص (5TB)'] },
     p: [1800, 3400, 5000, 9000, 17000]
   },
   {
@@ -136,5 +136,24 @@ var SERVICES = [
     f: { en: ['Egyptian Drama & Movies', 'Exclusive Series', 'Full Warranty'], fr: ['Dramas Égyptiens', 'Séries Exclusives', 'Garantie Complète'], ar: ['دراما ومسلسلات مصرية', 'مسلسلات حصرية', 'ضمان كامل'] },
     types: { en: ['Standard Profile', 'VIP Screen (Ad-Free)'], fr: ['Profil Standard', 'Écran VIP (Sans Pub)'], ar: ['بروفايل قياسي', 'شاشة VIP (بدون إعلانات)'] },
     p: [700, 1300, 1800, 3400, 6200]
+  },
+  {
+    id: 'iptv', cat: 'streaming', pop: 'hot',
+    showTypes: true,
+    bg: 'linear-gradient(145deg,#240c30,#110419)',
+    iconType: 'svg', iconSize: 72,
+    iconSrc: '<svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="3"/><polyline points="17 2 12 7 7 2"/></svg>',
+    n: { en: 'IPTV Subscription', fr: 'Abonnement IPTV', ar: 'اشتراك IPTV' },
+    f: {
+      en: ['4K / FHD Quality', 'VOD Movies & Series', 'Anti-Freeze Server', 'Instant Activation'],
+      fr: ['Qualité 4K / FHD', 'Films & Séries VOD', 'Serveur Anti-Coupure', 'Activation Instantanée'],
+      ar: ['جودة 4K / FHD', 'أفلام ومسلسلات VOD', 'سيرفر بدون تقطيع', 'تفعيل فوري']
+    },
+    types: {
+      en: ['Iron Pro', 'Atlas Pro', 'Neo 4K', 'KD Max', 'Lynx'],
+      fr: ['Iron Pro', 'Atlas Pro', 'Neo 4K', 'KD Max', 'Lynx'],
+      ar: ['Iron Pro', 'Atlas Pro', 'Neo 4K', 'KD Max', 'Lynx']
+    },
+    p: [800, 1500, 2200, 3800, 6800]
   }
 ];

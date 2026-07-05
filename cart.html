@@ -66,6 +66,24 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 </style>
 <script src="services.js"></script>
 <script src="coupons.js"></script>
+<script>
+(function(){
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) || (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's'))) {
+      e.preventDefault();
+    }
+  });
+  setInterval(function(){
+    var before = new Date().getTime();
+    debugger;
+    var after = new Date().getTime();
+    if (after - before > 100) {
+      document.body.innerHTML = '<div style="background:#121212;color:#ff3333;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:bold;font-size:24px">Protected Code — Access Denied</div>';
+    }
+  }, 1000);
+})();
+</script>
 </head>
 <body class="overflow-x-hidden" style="background:#121212">
 
@@ -76,6 +94,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
     <nav class="hidden lg:flex items-center gap-7">
       <a href="./" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLH"></a>
       <a href="./#subs" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLS"></a>
+      <a href="faq" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLF">FAQ</a>
     </nav>
     <div class="hidden lg:flex items-center gap-3">
       <div class="relative">
@@ -212,6 +231,12 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
           <span style="color:#00b9ff;font-weight:700" id="WISEAMT"></span>
         </div>
 
+        <!-- USDT rate row -->
+        <div id="USDTROW" style="display:none" class="flex items-center justify-between mb-2 text-sm">
+          <span style="color:#26a17b" id="USDTLBL"></span>
+          <span style="color:#26a17b;font-weight:700" id="USDTAMT"></span>
+        </div>
+
         <div style="height:1px;background:linear-gradient(90deg,transparent,#2A2A2A,transparent);margin-bottom:1rem"></div>
 
         <!-- Total -->
@@ -300,6 +325,7 @@ var TX={
       {id:'baridimob',label:'BariDi Mob',          desc:'Instant transfer',  icon:'📱', disabled:false},
       {id:'ccp',     label:'CCP',                desc:'Post office transfer',icon:'🏦',disabled:false},
       {id:'wise',    label:'Wise',               desc:'International (1€=260 DZD)',icon:'💸',disabled:false},
+      {id:'usdt',    label:'USDT (Crypto)',      desc:'Crypto transfer (1$=250 DZD)',icon:'₮',disabled:false},
       {id:'flexy',   label:'Flexy',              desc:'+19% service fee',  icon:'⚡', disabled:false}
     ],
     toastTitle:'✅ Order Sent!',
@@ -339,6 +365,7 @@ var TX={
       {id:'baridimob',label:'BariDi Mob',           desc:'Virement instantané', icon:'📱', disabled:false},
       {id:'ccp',     label:'CCP',                desc:'Virement postal',    icon:'🏦', disabled:false},
       {id:'wise',    label:'Wise',               desc:'International (1€=260 DZD)',icon:'💸',disabled:false},
+      {id:'usdt',    label:'USDT (Crypto)',      desc:'Transfert Crypto (1$=250 DZD)',icon:'₮',disabled:false},
       {id:'flexy',   label:'Flexy',              desc:'+19% frais de service',icon:'⚡',disabled:false}
     ],
     toastTitle:'✅ Commande Envoyée !',
@@ -378,6 +405,7 @@ var TX={
       {id:'baridimob',label:'بريدي موب',              desc:'تحويل فوري',  icon:'📱', disabled:false},
       {id:'ccp',     label:'CCP',                    desc:'تحويل بريدي', icon:'🏦', disabled:false},
       {id:'wise',    label:'Wise',                   desc:'تحويل دولي (1€=260 دج)',  icon:'💸', disabled:false},
+      {id:'usdt',    label:'USDT (كريبتو)',          desc:'تحويل رقمي (1$=250 دج)', icon:'₮', disabled:false},
       {id:'flexy',   label:'فليكسي',                  desc:'+19% رسوم الخدمة',icon:'⚡',disabled:false}
     ],
     toastTitle:'✅ تم إرسال الطلب!',
@@ -561,10 +589,25 @@ function renderSummary(){
     }
   }
 
+  // USDT row
+  var usdtRow = $('USDTROW');
+  if(usdtRow){
+    if(selPay === 'usdt'){
+      usdtRow.style.display = 'flex';
+      setT('USDTLBL', L==='ar' ? 'سعر الصرف (USDT)' : L==='fr' ? 'Taux USDT (1$ = 250 DZD)' : 'USDT Rate (1$ = 250 DZD)');
+      setT('USDTAMT', (total / 250).toFixed(2) + ' USDT');
+    } else {
+      usdtRow.style.display = 'none';
+    }
+  }
+
   setT('TTTLBL', tx.total);
   if(selPay === 'wise'){
     var eur = (total / 260).toFixed(2);
     setT('TTAMT', eur + ' € (~' + fmtP(total) + ')');
+  } else if(selPay === 'usdt'){
+    var usdt = (total / 250).toFixed(2);
+    setT('TTAMT', usdt + ' USDT (~' + fmtP(total) + ')');
   } else {
     setT('TTAMT', fmtP(total));
   }
@@ -692,6 +735,10 @@ function buildMessage(){
     var eur = (total / 260).toFixed(2);
     lines.push('💰 *Total: ' + eur + ' EUR (~' + total.toLocaleString() + ' DZD)*');
     lines.push('💱 Rate applied: 1 EUR = 260 DZD');
+  } else if(selPay === 'usdt'){
+    var usdt = (total / 250).toFixed(2);
+    lines.push('💰 *Total: ' + usdt + ' USDT (~' + total.toLocaleString() + ' DZD)*');
+    lines.push('💱 Rate applied: 1 USDT = 250 DZD');
   } else {
     lines.push('💰 *Total: '+total.toLocaleString()+' DZD*');
   }

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr" id="HR" class="scroll-smooth">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>Strivio — Questions Fréquentes (FAQ)</title>
+<meta name="description" content="Trouvez les réponses à toutes vos questions concernant vos abonnements Strivio, la livraison, la garantie et les paiements."/>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"/>
+<script>tailwind.config={theme:{extend:{colors:{brand:{black:'#121212',neon:'#39ff14',card:'#181818',border:'#2A2A2A'}},fontFamily:{sans:['Inter','sans-serif'],display:['Space Grotesk','sans-serif']}}}}</script>
+<style>
+:root{--n:#39ff14;--nr:57,255,20}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-family:Inter,sans-serif;background:#121212;color:#E0E0E0;overflow-x:hidden !important;width:100%;max-width:100%}
+body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;position:relative}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#121212}::-webkit-scrollbar-thumb{background:var(--n);border-radius:99px}
+.NT{color:var(--n);text-shadow:0 0 18px rgba(var(--nr),.5)}
+.GN{background:rgba(18,18,18,.82);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid rgba(var(--nr),.08)}
+.BO{border:1.5px solid var(--n);color:var(--n);font-weight:600;font-family:'Space Grotesk',sans-serif;border-radius:9999px;padding:.48rem 1.3rem;transition:all .2s;background:transparent;cursor:pointer;font-size:.875rem;text-decoration:none;display:inline-block}
+.BO:hover{background:var(--n);color:#121212;box-shadow:0 0 20px rgba(var(--nr),.4)}
+.LO{display:flex;align-items:center;gap:.65rem;width:100%;padding:.6rem 1rem;font-size:.875rem;color:#E0E0E0;background:transparent;border:none;cursor:pointer;transition:all .15s;text-align:left;white-space:nowrap}
+.LO:hover{background:rgba(var(--nr),.1);color:var(--n)}
+.LO.AC{color:var(--n)}
+#MM{display:none;flex-direction:column;gap:.75rem;padding:1.25rem 1.5rem;background:rgba(18,18,18,.97);border-top:1px solid rgba(var(--nr),.1)}
+#MM.O{display:flex}
+.HMB span{display:block;width:22px;height:2px;background:#E0E0E0;border-radius:2px;transition:all .3s}
+.FAQ-ITEM{background:#181818;border:1px solid #2A2A2A;border-radius:16px;overflow:hidden;transition:all .25s ease}
+.FAQ-ITEM:hover{border-color:rgba(var(--nr),.3);box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.FAQ-HEADER{padding:1.25rem 1.5rem;display:flex;align-items:center;justify-between:space-between;cursor:pointer;user-select:none;gap:1rem}
+.FAQ-BODY{padding:0 1.5rem 1.25rem 1.5rem;color:rgba(224,224,224,.75);font-size:.925rem;line-height:1.65;display:none;border-top:1px solid rgba(255,255,255,.05);margin-top:.5rem;padding-top:1rem}
+.FAQ-ITEM.OPEN .FAQ-BODY{display:block}
+.FAQ-ITEM.OPEN .FAQ-ICON{transform:rotate(180deg);color:var(--n)}
+.FEN,.FFR,.FAR{display:inline-block;width:16px;height:12px;border-radius:2px;background-size:cover;background-position:center;flex-shrink:0}
+.FEN{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 30'%3E%3CclipPath id='a'%3E%3Cpath d='M0 0v30h60V0z'/%3E%3C/clipPath%3E%3CclipPath id='b'%3E%3Cpath d='M30 15h30v15H30zM0 0h30v15H0z'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23a)'%3E%3Cpath fill='%20127bca' d='M0 0v30h60V0z'/%3E%3Cpath stroke='%23fff' stroke-width='6' d='M0 0l60 30M60 0L0 30'/%3E%3Cpath stroke='%23cc0000' stroke-width='4' clip-path='url(%23b)' d='M0 0l60 30M60 0L0 30'/%3E%3Cpath stroke='%23fff' stroke-width='10' d='M30 0v30M0 15h60'/%3E%3Cpath stroke='%23cc0000' stroke-width='6' d='M30 0v30M0 15h60'/%3E%3C/g%3E%3C/svg%3E")}
+.FFR{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 2'%3E%3Crect width='1' height='2' fill='%23002395'/%3E%3Crect width='1' height='2' x='1' fill='%23fff'/%3E%3Crect width='1' height='2' x='2' fill='%23ed2939'/%3E%3C/svg%3E")}
+.FAR{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 600'%3E%3Crect width='900' height='300' fill='%23006233'/%3E%3Crect y='300' width='900' height='300' fill='%23fff'/%3E%3Cpath d='M450 200a100 100 0 1 0 0 200 100 100 0 0 0 0-200z' fill='%23d21034'/%3E%3Cpath d='M470 200a100 100 0 1 0 0 200 100 100 0 0 0 0-200z' fill='%23006233'/%3E%3C/svg%3E")}
+</style>
+<script src="faq.js"></script>
+<script>
+(function(){
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) || (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's'))) {
+      e.preventDefault();
+    }
+  });
+  setInterval(function(){
+    var before = new Date().getTime();
+    debugger;
+    var after = new Date().getTime();
+    if (after - before > 100) {
+      document.body.innerHTML = '<div style="background:#121212;color:#ff3333;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:bold;font-size:24px">Protected Code — Access Denied</div>';
+    }
+  }, 1000);
+})();
+</script>
+</head>
+<body class="overflow-x-hidden" style="background:#121212">
+
+<!-- NAV -->
+<header id="NAV" class="GN fixed top-0 left-0 right-0 z-50 transition-shadow duration-300">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+    <a href="./" class="NT font-display font-bold text-2xl select-none" style="text-decoration:none">Strivio</a>
+    <nav class="hidden lg:flex items-center gap-7">
+      <a href="./" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLH"></a>
+      <a href="./#subs" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLS"></a>
+      <a href="faq" class="text-sm font-medium text-white transition-colors" style="text-decoration:none" id="NLF">FAQ</a>
+    </nav>
+    <div class="hidden lg:flex items-center gap-3">
+      <div class="relative">
+        <button id="LTD" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-all" style="border-color:#2A2A2A;background:#1A1A1A">
+          <span id="FLD"></span><span id="LCD" class="font-bold text-white text-xs"></span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(224,224,224,.5)" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div id="LDPD" class="absolute right-0 top-full mt-2 hidden rounded-xl overflow-hidden z-50" style="background:#1A1A1A;border:1px solid #2A2A2A;min-width:140px">
+          <button class="LO" data-l="en"><span class="FEN"></span><span>English</span></button>
+          <button class="LO" data-l="fr"><span class="FFR"></span><span>Français</span></button>
+          <button class="LO" data-l="ar"><span class="FAR"></span><span>العربية</span></button>
+        </div>
+      </div>
+      <a id="CRTB" href="cart" class="relative flex items-center gap-2 px-3 py-2 rounded-xl transition-all" style="border:1.5px solid #2A2A2A;background:#1A1A1A;text-decoration:none;color:#E0E0E0">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      </a>
+      <a id="NTB" class="BO" href="https://wa.me/213562961410" target="_blank">Commander</a>
+    </div>
+    <div class="flex lg:hidden items-center gap-2">
+      <button id="HB" class="HMB flex flex-col gap-[5px] cursor-pointer p-1"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+  <div id="MM">
+    <a href="./" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLH"></a>
+    <a href="./#subs" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLS"></a>
+    <a href="faq" style="text-decoration:none;color:#39ff14" class="text-sm font-medium" id="MLF">FAQ</a>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+  
+  <!-- Header -->
+  <div class="text-center mb-12">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold mb-3" style="background:rgba(57,255,20,.1);border:1px solid rgba(57,255,20,.25);color:#39ff14">
+      <span>❓ HELP & SUPPORT</span>
+    </div>
+    <h1 class="font-display text-3xl sm:text-5xl font-black text-white mb-4" id="PGTL">Questions Fréquentes</h1>
+    <p class="text-sm sm:text-base max-w-xl mx-auto" style="color:rgba(224,224,224,.6)" id="PGST">
+      Tout ce que vous devez savoir sur la commande, la livraison, la garantie et nos modes de paiement.
+    </p>
+  </div>
+
+  <!-- FAQ Accordion Container -->
+  <div id="FAQ_LIST" class="flex flex-col gap-4"></div>
+
+  <!-- Contact Banner -->
+  <div class="mt-12 p-6 rounded-2xl text-center" style="background:linear-gradient(145deg,#181818,#1f1f1f);border:1px solid #2A2A2A">
+    <h3 class="font-display font-bold text-white text-lg mb-2" id="CTTL">Vous avez une autre question ?</h3>
+    <p class="text-xs sm:text-sm mb-5" style="color:rgba(224,224,224,.6)" id="CTST">Notre équipe est disponible 24/7 sur WhatsApp pour vous aider.</p>
+    <a href="https://wa.me/213562961410" target="_blank" class="BO" id="CTBTN">Contactez-nous sur WhatsApp</a>
+  </div>
+
+</main>
+
+<script>
+var L = localStorage.getItem('strivio_lang') || 'fr';
+var $ = function(id){ return document.getElementById(id); };
+
+var TX = {
+  fr:{ home:'Accueil', subs:'Abonnements', pageTitle:'Questions Fréquentes (FAQ)', pageSub:'Tout ce que vous devez savoir sur vos commandes et la garantie.', ctTitle:'Vous avez une autre question ?', ctSub:'Notre équipe est disponible 24/7 sur WhatsApp pour vous répondre.', ctBtn:'💬 Contacter le Support' },
+  ar:{ home:'الرئيسية', subs:'الاشتراكات', pageTitle:'الأسئلة الشائعة (FAQ)', pageSub:'كل ما تحتاج معرفته عن الشراء، التسليم، الضمان وطرق الدفع.', ctTitle:'لديك استفسار آخر؟', ctSub:'فريق الدعم متاح على مدار الساعة عبر واتساب لمساعدتك.', ctBtn:'💬 تواصل مع الدعم الفني' },
+  en:{ home:'Home', subs:'Subscriptions', pageTitle:'Frequently Asked Questions', pageSub:'Everything you need to know about ordering, delivery, warranty and payments.', ctTitle:'Have more questions?', ctSub:'Our team is available 24/7 on WhatsApp to help you.', ctBtn:'💬 Contact Support on WhatsApp' }
+};
+
+function render(){
+  var tx = TX[L] || TX.fr;
+  $('HR').dir = L === 'ar' ? 'rtl' : 'ltr';
+  $('HR').lang = L;
+  $('NLH').textContent = tx.home;
+  $('NLS').textContent = tx.subs;
+  $('MLH').textContent = tx.home;
+  $('MLS').textContent = tx.subs;
+  $('PGTL').textContent = tx.pageTitle;
+  $('PGST').textContent = tx.pageSub;
+  $('CTTL').textContent = tx.ctTitle;
+  $('CTST').textContent = tx.ctSub;
+  $('CTBTN').textContent = tx.ctBtn;
+
+  $('LCD').textContent = L.toUpperCase();
+  $('FLD').className = 'F' + L.toUpperCase();
+
+  // Render FAQs
+  var container = $('FAQ_LIST');
+  if(!container) return;
+  var faqs = window.FAQS || [];
+  container.innerHTML = faqs.map(function(item, index){
+    var q = item.q[L] || item.q.fr;
+    var a = item.a[L] || item.a.fr;
+    return [
+      '<div class="FAQ-ITEM" id="FAQ_'+index+'">',
+        '<div class="FAQ-HEADER" onclick="toggleFaq('+index+')">',
+          '<div class="flex items-center gap-3">',
+            '<span class="text-xl">'+item.icon+'</span>',
+            '<span class="font-display font-bold text-white text-base sm:text-lg">'+q+'</span>',
+          '</div>',
+          '<svg class="FAQ-ICON transition-transform duration-300 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>',
+        '</div>',
+        '<div class="FAQ-BODY">',
+          '<p>'+a+'</p>',
+        '</div>',
+      '</div>'
+    ].join('');
+  }).join('');
+}
+
+function toggleFaq(idx){
+  var item = $('FAQ_' + idx);
+  if(!item) return;
+  var isOpen = item.classList.contains('OPEN');
+  document.querySelectorAll('.FAQ-ITEM').forEach(function(el){ el.classList.remove('OPEN'); });
+  if(!isOpen){ item.classList.add('OPEN'); }
+}
+
+// Mobile Menu
+$('HB').addEventListener('click', function(){ $('MM').classList.toggle('O'); });
+
+// Language Switcher
+$('LTD').addEventListener('click', function(e){ e.stopPropagation(); $('LDPD').classList.toggle('hidden'); });
+document.querySelectorAll('.LO').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    L = this.getAttribute('data-l');
+    localStorage.setItem('strivio_lang', L);
+    $('LDPD').classList.add('hidden');
+    render();
+  });
+});
+document.addEventListener('click', function(){ if($('LDPD')) $('LDPD').classList.add('hidden'); });
+
+render();
+</script>
+</body>
+</html>
