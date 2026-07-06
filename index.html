@@ -658,8 +658,17 @@ function renderProducts(f){
   }
   if(list && list.length > 0){
     list = list.slice().sort(function(a, b){
-      var oosA = (a.out_of_stock === true || (a.out_of_stock && a.out_of_stock.all === true) || (!a.p || a.p.every(function(pr){ return !pr || pr <= 0; }))) ? 1 : 0;
-      var oosB = (b.out_of_stock === true || (b.out_of_stock && b.out_of_stock.all === true) || (!b.p || b.p.every(function(pr){ return !pr || pr <= 0; }))) ? 1 : 0;
+      var checkOos = function(item){
+        if(item.out_of_stock === true || (item.out_of_stock && item.out_of_stock.all === true)) return 1;
+        var hasP = false;
+        if(item.showTypes && item.typePrices && Array.isArray(item.typePrices)){
+          item.typePrices.forEach(function(tArr){ if(tArr && Array.isArray(tArr) && tArr.some(function(pr){ return pr > 0; })) hasP = true; });
+        }
+        if(!hasP && item.p && Array.isArray(item.p) && item.p.some(function(pr){ return pr > 0; })) hasP = true;
+        return hasP ? 0 : 1;
+      };
+      var oosA = checkOos(a);
+      var oosB = checkOos(b);
       if (oosA !== oosB) return oosA - oosB;
       return (a.sort_order || 0) - (b.sort_order || 0);
     });
@@ -676,22 +685,38 @@ function renderProducts(f){
     
     // Check Stock Status
     var isOos = s.out_of_stock === true || (s.out_of_stock && s.out_of_stock.all === true);
-    var allZero = !s.p || s.p.every(function(pr){ return !pr || pr <= 0; });
-    var oos = isOos || allZero;
+    var hasAnyPrice = false;
+    if(s.showTypes && s.typePrices && Array.isArray(s.typePrices)){
+      s.typePrices.forEach(function(tArr){
+        if(tArr && Array.isArray(tArr) && tArr.some(function(pr){ return pr > 0; })) hasAnyPrice = true;
+      });
+    }
+    if(!hasAnyPrice && s.p && Array.isArray(s.p) && s.p.some(function(pr){ return pr > 0; })){
+      hasAnyPrice = true;
+    }
+    var oos = isOos || !hasAnyPrice;
     
     // Check Promo Badge & Price
     var promo = s.promo || {};
     var startP = 0;
     var startIdx = -1;
-    if(s.p && Array.isArray(s.p)){
-      for(var idx = 0; idx < s.p.length; idx++){
-        if(s.p[idx] > 0 && (startIdx === -1 || s.p[idx] < startP)){
-          startP = s.p[idx];
-          startIdx = idx;
-        } else if(s.p[idx] === startP && startIdx === -1){
-          startIdx = idx;
+    var checkArray = function(arr){
+      if(arr && Array.isArray(arr)){
+        for(var idx = 0; idx < arr.length; idx++){
+          if(arr[idx] > 0 && (startIdx === -1 || arr[idx] < startP)){
+            startP = arr[idx];
+            startIdx = idx;
+          } else if(arr[idx] === startP && startIdx === -1 && arr[idx] > 0){
+            startIdx = idx;
+          }
         }
       }
+    };
+    if(s.showTypes && s.typePrices && Array.isArray(s.typePrices)){
+      s.typePrices.forEach(function(tArr){ checkArray(tArr); });
+    }
+    if(startIdx === -1){
+      checkArray(s.p);
     }
     var oldP = 0;
     if(startIdx !== -1 && promo.orig_p && Array.isArray(promo.orig_p) && promo.orig_p[startIdx] > startP){
