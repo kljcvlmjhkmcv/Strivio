@@ -458,9 +458,12 @@ SET
 WHERE id NOT IN ('netflix', 'iptv');
 
 -- ====================================================================
--- 4. قيد السعر الموجب في جدول الطلبات (positive_total)
--- ====================================================================
-ALTER TABLE public.orders ADD CONSTRAINT positive_total CHECK (total_payable >= 0);
+DO $$ 
+BEGIN 
+  ALTER TABLE public.orders ADD CONSTRAINT positive_total CHECK (total_payable >= 0);
+EXCEPTION 
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ====================================================================
 -- 5. جدول الإعدادات (settings)

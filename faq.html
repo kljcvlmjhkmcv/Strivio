@@ -35,7 +35,13 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 [dir=rtl] .LO{text-align:right;flex-direction:row-reverse}
 </style>
 <script src="supabase-client.js"></script>
-<script src="faq.js"></script>
+<script>
+(function(){
+  if(window.location.pathname.endsWith('.html')){
+    window.history.replaceState(null,'',window.location.pathname.replace(/\.html$/,'')+window.location.search+window.location.hash);
+  }
+})();
+</script>
 <script>
 (function(){
   document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
@@ -56,7 +62,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
     <nav class="hidden lg:flex items-center gap-7">
       <a href="./" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLH"></a>
       <a href="./#subs" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLS"></a>
-      <a href="faq.html" class="text-sm font-medium text-white transition-colors" style="text-decoration:none" id="NLF">FAQ</a>
+      <a href="faq" class="text-sm font-medium text-white transition-colors" style="text-decoration:none" id="NLF">FAQ</a>
     </nav>
     <div class="hidden lg:flex items-center gap-3">
       <div class="relative">
@@ -70,7 +76,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
           <button class="LO" data-l="ar"><span class="FAR"></span><span>العربية</span></button>
         </div>
       </div>
-      <a id="CRTB" href="cart.html" class="relative flex items-center gap-2 px-3 py-2 rounded-xl transition-all" style="border:1.5px solid #2A2A2A;background:#1A1A1A;text-decoration:none;color:#E0E0E0">
+      <a id="CRTB" href="cart" class="relative flex items-center gap-2 px-3 py-2 rounded-xl transition-all" style="border:1.5px solid #2A2A2A;background:#1A1A1A;text-decoration:none;color:#E0E0E0">
         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
       </a>
       <a id="NTB" class="BO" href="https://wa.me/213562961410" target="_blank">Commander</a>
@@ -93,7 +99,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   <div id="MM">
     <a href="./" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLH"></a>
     <a href="./#subs" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLS"></a>
-    <a href="faq.html" style="text-decoration:none;color:#39ff14" class="text-sm font-medium" id="MLF">FAQ</a>
+    <a href="faq" style="text-decoration:none;color:#39ff14" class="text-sm font-medium" id="MLF">FAQ</a>
   </div>
 </header>
 

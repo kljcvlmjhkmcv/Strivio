@@ -65,8 +65,13 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   .SUM{padding:1.15rem}
 }
 </style>
-<script src="services.js"></script>
-<script src="coupons.js"></script>
+<script>
+(function(){
+  if(window.location.pathname.endsWith('.html')){
+    window.history.replaceState(null,'',window.location.pathname.replace(/\.html$/,'')+window.location.search+window.location.hash);
+  }
+})();
+</script>
 <script>
 (function(){
   document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
@@ -95,7 +100,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
     <nav class="hidden lg:flex items-center gap-7">
       <a href="./" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLH"></a>
       <a href="./#subs" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLS"></a>
-      <a href="faq.html" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLF">FAQ</a>
+      <a href="faq" class="text-sm font-medium hover:text-white transition-colors" style="color:rgba(224,224,224,.75);text-decoration:none" id="NLF">FAQ</a>
     </nav>
     <div class="hidden lg:flex items-center gap-3">
       <div class="relative">
@@ -110,11 +115,11 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
         </div>
       </div>
       <!-- Cart badge -->
-      <a href="cart.html" class="relative flex items-center gap-2 px-3 py-2 rounded-xl" style="border:1.5px solid rgba(var(--nr),.4);background:rgba(var(--nr),.08);text-decoration:none;color:var(--n)">
+      <a href="cart" class="relative flex items-center gap-2 px-3 py-2 rounded-xl" style="border:1.5px solid rgba(var(--nr),.4);background:rgba(var(--nr),.08);text-decoration:none;color:var(--n)">
         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
         <span id="CNBD" class="text-xs font-bold" style="font-family:'Space Grotesk',sans-serif">0</span>
       </a>
-      <a href="index.html" class="BO" id="NTB"></a>
+      <a href="./" class="BO" id="NTB"></a>
     </div>
     <div class="flex lg:hidden items-center gap-2">
       <div class="relative">
@@ -134,7 +139,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   <div id="MM">
     <a href="./" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLH"></a>
     <a href="./#subs" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLS"></a>
-    <a href="faq.html" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLF">FAQ</a>
+    <a href="faq" style="text-decoration:none;color:#E0E0E0" class="text-sm font-medium" id="MLF">FAQ</a>
     <a href="./" class="BO self-start" id="MTB"></a>
   </div>
 </header>
