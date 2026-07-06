@@ -80,7 +80,9 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   .PC ul li{font-size:0.68rem !important;gap:0.35rem !important}
   .PC .TP{font-size:1.18rem}
   .PC .BC{padding:0.5rem 0.3rem;font-size:0.75rem}
-  .PC .BDG{font-size:0.55rem !important;padding:0.12rem 0.4rem !important;top:0.5rem !important;right:0.5rem !important}
+  .PC .BDG{font-size:0.58rem !important;padding:0.16rem 0.5rem !important;top:0.6rem !important;justify-content:center !important;text-align:center !important;line-height:1.2 !important}
+  .PC .BDG-LEFT{left:0.6rem !important;right:auto !important}
+  .PC .BDG-RIGHT{right:0.6rem !important;left:auto !important}
 }
 .GBGR{background-image:linear-gradient(rgba(var(--nr),.03) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--nr),.03) 1px,transparent 1px);background-size:48px 48px}
 @keyframes P2{0%,100%{box-shadow:0 0 10px 2px rgba(var(--nr),.4)}50%{box-shadow:0 0 24px 6px rgba(var(--nr),.65)}}
@@ -501,7 +503,7 @@ var SOCSVG={
    STATE & HELPERS
 ═══════════════════════════════════════════════════════════════ */
 var L=(localStorage.getItem('strivio_lang')||'fr'), selDur=null, curSvc=null, curFilt='all', selType=0, selQty=1;
-var fmtP=function(n){return '<span class="inline-flex items-baseline gap-1 whitespace-nowrap" dir="ltr"><span class="font-bold">'+Number(n).toLocaleString('en-US')+'</span><span class="text-[0.8em] font-medium opacity-85">دج</span></span>'};
+var fmtP=function(n){return '<span dir="ltr" style="display:inline-block;white-space:nowrap">'+Number(n).toLocaleString('en-US')+' دج</span>'};
 var t=function(){return TX[L]};
 
 function updateCartBadge(){
@@ -631,10 +633,9 @@ function renderProducts(f){
     
     return[
       '<div class="PC'+(s.pop?' POP':'')+'" style="'+(oos?'opacity:.65;border-color:#2a2a2a;':'')+'">',
-        '<div class="absolute top-3 inset-x-3 z-10 flex items-center justify-between gap-1.5 pointer-events-none">',
-          (promo.badge && !oos ? '<div class="BDG" style="font-size:.62rem;padding:.15rem .5rem;background:rgba(234,179,8,.18);border-color:rgba(234,179,8,.35);color:#facc15;pointer-events:auto;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+promo.badge+'</div>' : (oos ? '<div class="BDG" style="font-size:.62rem;padding:.15rem .5rem;background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#ef4444;pointer-events:auto;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (tx.oosBadge || 'نفد المخزون') + '</div>' : '<div></div>')),
-          pop ? '<div class="BDG" style="font-size:.62rem;padding:.15rem .5rem;pointer-events:auto;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+pop+'</div>' : '',
-        '</div>',
+        pop?'<div class="absolute top-3 right-3 z-10 BDG BDG-RIGHT" style="font-size:.62rem;padding:.15rem .55rem">'+pop+'</div>':'',
+        (promo.badge && !oos ? '<div class="absolute top-3 left-3 z-10 BDG BDG-LEFT" style="font-size:.62rem;padding:.15rem .55rem;background:rgba(234,179,8,.15);border-color:rgba(234,179,8,.4);color:#facc15">'+promo.badge+'</div>' : ''),
+        (oos ? '<div class="absolute top-3 left-3 z-10 BDG BDG-LEFT" style="font-size:.62rem;padding:.15rem .55rem;background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#ef4444">' + (tx.oosBadge || 'نفد المخزون') + '</div>' : ''),
         '<div class="CIA" style="background:'+s.bg+'">'+makeIcon(s)+'</div>',
         '<div class="p-5 flex flex-col flex-1">',
           '<div class="mb-3">',
@@ -642,7 +643,7 @@ function renderProducts(f){
             '<div class="text-xs mt-1" style="color:rgba(224,224,224,.4)">'+(tx.fl[catIdx]||s.cat)+'</div>',
           '</div>',
           '<ul class="mb-4 space-y-1.5">'+((s.f&&Array.isArray(s.f[L]))?s.f[L]:((s.f&&Array.isArray(s.f.ar))?s.f.ar:[])).map(function(feat){return'<li class="flex items-center gap-2 text-xs" style="color:rgba(224,224,224,.65)"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="'+(oos?'#666':'#39ff14')+'" stroke-width="2.5" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>'+feat+'</li>'}).join('')+'</ul>',
-          '<div class="mb-4"><div class="text-xs mb-0.5" style="color:rgba(224,224,224,.4)">'+tx.from+'</div><div class="TP flex items-baseline gap-2 flex-wrap" style="'+(oos?'color:#888;text-shadow:none':'')+'">'+(oldP > startP ? '<s class="text-xs text-gray-500 font-medium decoration-gray-500">'+fmtP(oldP)+'</s>' : '')+fmtP(startP)+'</div><div class="text-xs mt-0.5" style="color:rgba(224,224,224,.3)">'+tx.pm+'</div></div>',
+          '<div class="mb-4"><div class="text-xs mb-0.5" style="color:rgba(224,224,224,.4)">'+tx.from+'</div><div class="TP" style="'+(oos?'color:#888;text-shadow:none':'')+'">'+(oldP > startP ? '<s style="font-size:.9rem;color:#777;font-weight:600;margin-right:6px;margin-left:6px">'+fmtP(oldP)+'</s>' : '')+fmtP(startP)+'</div><div class="text-xs mt-0.5" style="color:rgba(224,224,224,.3)">'+tx.pm+'</div></div>',
           oos ? '<button class="BC" disabled style="opacity:.4;cursor:not-allowed;border-color:#333;color:#888;background:#141414">' + (tx.oosBtn || 'غير متوفر حالياً') + '</button>' : '<button class="BC" data-sid="'+s.id+'">'+tx.cd+'</button>',
         '</div>',
       '</div>'
@@ -716,9 +717,9 @@ function renderModalDurations(){
     _c+='<div class="DM">'+MN[i]+'<span style="font-size:.6rem;font-weight:600;color:rgba(224,224,224,.4);margin-left:3px">'+(L==='ar'?'شهر':'mo')+'</span></div>';
     _c+='<div class="DL">'+tx.dl[i]+'</div>';
     if(isOos){
-      _c+='<div class="DP flex items-center justify-center" style="color:#ef4444;font-size:.8rem">' + (tx.oosDur || 'غير متوفر حالياً') + '</div>';
+      _c+='<div class="DP" style="color:#ef4444;font-size:.8rem;text-align:center">' + (tx.oosDur || 'غير متوفر حالياً') + '</div>';
     } else {
-      _c+='<div class="DP flex items-baseline justify-center gap-1.5 flex-wrap">'+(oldPr > pr ? '<s class="text-xs text-gray-500 font-medium decoration-gray-500">'+fmtP(oldPr)+'</s> ' : '')+fmtP(pr)+'</div>';
+      _c+='<div class="DP" style="text-align:center">'+(oldPr > pr ? '<s style="font-size:.75rem;color:#777;font-weight:600;margin-right:4px;margin-left:4px">'+fmtP(oldPr)+'</s> ' : '')+fmtP(pr)+'</div>';
     }
     _c+='</div>';
     _mdoHtml+=_c;
@@ -737,11 +738,11 @@ function updateConfirm(){
   if(selDur!==null&&curSvc){
     var unitPr = (curSvc.showTypes && curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
     var totalPrice = unitPr * selQty;
-    btn.textContent=tx.bn+' — '+fmtP(totalPrice);btn.disabled=false;
-    if(atcb){atcb.textContent=tx.atc;atcb.disabled=false;}
+    btn.innerHTML=tx.bn+' — '+fmtP(totalPrice);btn.disabled=false;
+    if(atcb){atcb.innerHTML=tx.atc;atcb.disabled=false;}
   } else {
-    btn.textContent=tx.cf;btn.disabled=true;
-    if(atcb){atcb.textContent=tx.atc||'Add to Cart 🛒';atcb.disabled=true;}
+    btn.innerHTML=tx.cf;btn.disabled=true;
+    if(atcb){atcb.innerHTML=tx.atc||'Add to Cart 🛒';atcb.disabled=true;}
   }
 }
 
