@@ -60,6 +60,7 @@ async function loadServicesFromDB() {
         p: parseJ(s.p, []),
         typePrices: parseJ(s.type_prices, null),
         promo: parseJ(s.promo, null),
+        dur_notes: parseJ(s.dur_notes, (parseJ(s.promo, {}) || {}).dur_notes || null),
         out_of_stock: parseJ(s.out_of_stock, null),
         best_value: s.best_value !== undefined && s.best_value !== null ? Number(s.best_value) : 2
       };

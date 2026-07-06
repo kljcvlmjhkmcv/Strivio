@@ -454,11 +454,13 @@ function renderServicesEditor() {
     var basePricesHtml = '<div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">' + 
       s.p.map(function(price, dIdx){
         var oldP = (promo.orig_p && promo.orig_p[dIdx]) ? promo.orig_p[dIdx] : '';
+        var durNote = (s.dur_notes && s.dur_notes[dIdx]) ? s.dur_notes[dIdx] : ((promo.dur_notes && promo.dur_notes[dIdx]) ? promo.dur_notes[dIdx] : '');
         return '<div class="bg-[#101010] p-3 rounded-xl border border-brand-border flex flex-col justify-between">' +
           '<div class="text-xs font-bold text-gray-400 mb-2 text-center flex items-center justify-center gap-1"><span>⏳</span> ' + (DUR_LABELS[dIdx] || ('مدة ' + (dIdx+1))) + '</div>' +
           '<div class="space-y-1.5">' +
             '<div><span class="text-[10px] text-gray-500 block mb-0.5">السعر الحالي (0 = غير متوفر):</span><input type="number" id="p-' + s.id + '-' + dIdx + '" value="' + (price||0) + '" placeholder="0" class="input-box text-center text-sm font-bold text-brand-neon"/></div>' +
             '<div><span class="text-[10px] text-gray-500 block mb-0.5">السعر المشطوب قبل الخصم:</span><input type="number" id="op-' + s.id + '-' + dIdx + '" value="' + oldP + '" placeholder="فارغ = بدون خصم" class="input-box text-center text-xs text-gray-400"/></div>' +
+            '<div><span class="text-[10px] text-gray-500 block mb-0.5">ملاحظة المدة (اختياري):</span><input type="text" id="dn-' + s.id + '-' + dIdx + '" value="' + durNote + '" placeholder="مثال: تسليم فوري" class="input-box text-center text-xs text-gray-300"/></div>' +
           '</div>' +
         '</div>';
       }).join('') + 
@@ -578,13 +580,17 @@ async function saveServicePricing(serviceId, idx) {
   
   var newP = [];
   var origP = [];
+  var durNotes = [];
   s.p.forEach(function(_, dIdx){
     var val = parseInt(document.getElementById('p-' + s.id + '-' + dIdx).value) || 0;
     var oldVal = parseInt(document.getElementById('op-' + s.id + '-' + dIdx).value) || 0;
+    var dnVal = document.getElementById('dn-' + s.id + '-' + dIdx) ? document.getElementById('dn-' + s.id + '-' + dIdx).value.trim() : '';
     newP.push(val);
     origP.push(oldVal);
+    durNotes.push(dnVal);
   });
   s.p = newP;
+  s.dur_notes = durNotes;
   var bvInp = document.getElementById('bv-' + s.id);
   s.best_value = bvInp ? parseInt(bvInp.value) : (typeof s.best_value !== 'undefined' ? s.best_value : 2);
 
@@ -594,7 +600,8 @@ async function saveServicePricing(serviceId, idx) {
   s.promo = {
     active: badgeVal !== '' || origP.some(function(x){ return x > 0; }),
     badge: badgeVal,
-    orig_p: origP
+    orig_p: origP,
+    dur_notes: durNotes
   };
 
   if (s.types && s.types.ar) {
