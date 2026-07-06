@@ -184,12 +184,15 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 
 <!-- Page Toast -->
 <div id="PTOAST">
-  <div style="display:flex;align-items:center;gap:.65rem">
-    <span style="color:#39ff14;font-size:1.1rem">🛒</span>
-    <div>
-      <div class="font-display font-bold text-white text-sm" id="PTTL"></div>
-      <div class="text-xs" style="color:rgba(224,224,224,.55)" id="PTTX"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;width:100%;gap:1rem">
+    <div style="display:flex;align-items:center;gap:.65rem">
+      <span style="color:#39ff14;font-size:1.1rem">🛒</span>
+      <div>
+        <div class="font-display font-bold text-white text-sm" id="PTTL"></div>
+        <div class="text-xs" style="color:rgba(224,224,224,.55)" id="PTTX"></div>
+      </div>
     </div>
+    <a href="cart" id="PTBTN" style="text-decoration:none;background:rgba(57,255,20,.15);border:1px solid rgba(57,255,20,.4);color:#39ff14;padding:.35rem .75rem;border-radius:8px;font-size:.75rem;font-weight:700;transition:all .2s;white-space:nowrap" onmouseover="this.style.background='#39ff14';this.style.color='#121212'" onmouseout="this.style.background='rgba(57,255,20,.15)';this.style.color='#39ff14'">عرض السلة ←</a>
   </div>
 </div>
 
@@ -289,19 +292,6 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   <div class="overflow-hidden"><div class="MQT"><div id="TB1" class="flex gap-3" style="flex-shrink:0"></div><div id="TB2" class="flex gap-3" style="flex-shrink:0"></div></div></div>
 </section>
 
-<!-- WHY US -->
-<section id="why" class="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden relative RVL">
-  <div class="text-center mb-12">
-    <p class="BDG mx-auto mb-4" style="width:fit-content" id="WBG"></p>
-    <h2 class="font-display text-3xl sm:text-4xl font-bold text-white" id="WT"></h2>
-    <span class="block mx-auto mt-2 rounded-full" style="width:48px;height:3px;background:var(--n);box-shadow:0 0 10px rgba(var(--nr),.4)"></span>
-    <p class="mt-4 max-w-xl mx-auto" style="color:rgba(224,224,224,.6)" id="WS"></p>
-  </div>
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" id="WC"></div>
-</section>
-
-<div class="ND mx-4 sm:mx-8 max-w-7xl lg:mx-auto"></div>
-
 <!-- PRODUCTS -->
 <section id="subs" class="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden relative">
   <div class="BL w-[550px] h-[550px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="opacity:.08"></div>
@@ -320,6 +310,19 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   </div>
   <div class="flex flex-wrap justify-center gap-2 mb-8 RVL" id="FLT"></div>
   <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5 RVL" id="PG"></div>
+</section>
+
+<div class="ND mx-4 sm:mx-8 max-w-7xl lg:mx-auto"></div>
+
+<!-- WHY US -->
+<section id="why" class="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden relative RVL">
+  <div class="text-center mb-12">
+    <p class="BDG mx-auto mb-4" style="width:fit-content" id="WBG"></p>
+    <h2 class="font-display text-3xl sm:text-4xl font-bold text-white" id="WT"></h2>
+    <span class="block mx-auto mt-2 rounded-full" style="width:48px;height:3px;background:var(--n);box-shadow:0 0 10px rgba(var(--nr),.4)"></span>
+    <p class="mt-4 max-w-xl mx-auto" style="color:rgba(224,224,224,.6)" id="WS"></p>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" id="WC"></div>
 </section>
 
 <div class="ND mx-4 sm:mx-8 max-w-7xl lg:mx-auto"></div>
@@ -407,7 +410,7 @@ var TX={
     sbg:'Our Catalog',st:'Premium Subscription Deals',ss:'Official, instant, and fully warranted. Pick your platform and choose your duration.',
     fk:['all','streaming','music','ai','creative','social'],fl:['All','Streaming','Music','AI Tools','Creative','Social'],
     from:'Starting from',pm:'/ mo',cd:'Choose Duration →',
-    mst:'Choose your plan',bv:'Best Value',bn:'Buy Now →',atc:'Add to Cart 🛒',atcok:'Added to cart!',cf:'Choose a plan first',
+    mst:'Choose your plan',bv:'Best Value',bn:'Buy Now →',atc:'Add to Cart 🛒',atcok:'Added to cart!',cf:'Choose a plan first',vc:'View Cart →',
     dl:['1 Month','2 Months','3 Months','6 Months','1 Year'],
     pb:{hot:'🔥 Best Seller',popular:'🏆 Most Popular',trending:'⚡ Trending'},
     rbg:'Trusted by 6,000+ Customers',rt:'Real People. Real Reviews.',rs:'Thousands of satisfied customers.',ovr:'Overall Rating',vfy:'Verified Buyer',
@@ -441,21 +444,21 @@ var TX={
     sbg:'Notre Catalogue',st:'Offres Abonnements Premium',ss:'Officiels, instantanés et garantis. Choisissez votre durée.',
     fk:['all','streaming','music','ai','creative','social'],fl:['Tout','Streaming','Musique','Outils IA','Créatif','Social'],
     from:'À partir de',pm:'/ mois',cd:'Choisir la Durée →',
-    mst:'Choisissez votre offre',bv:'Meilleur Rapport',bn:'Acheter →',atc:'Ajouter au Panier 🛒',atcok:'Ajouté au panier !',cf:"Choisissez d'abord une durée",
+    mst:'Choisissez votre offre',bv:'Meilleur Rapport',bn:'Acheter →',atc:'Ajouter au Panier 🛒',atcok:'Ajouté au panier !',cf:"Choisissez d'abord une durée",vc:'Voir panier →',
     dl:['1 Mois','2 Mois','3 Mois','6 Mois','1 An'],
     pb:{hot:'🔥 Meilleures Ventes',popular:'🏆 Plus Populaire',trending:'⚡ Tendance'},
     rbg:'Approuvé par 6 000+ Clients',rt:'Vraies Personnes. Vrais Avis.',rs:'Des milliers de clients satisfaits.',ovr:'Note Globale',vfy:'Acheteur Vérifié',
     fd:'Abonnements officiels. Livraison instantanée, garantie complète, meilleurs prix.',
     fql:'Liens Rapides',fpl:'Politique & Légal',fcl:'Contactez-Nous',frt:'Réponse < 5 min',fcp:'© 2025 Strivio®. Tous droits réservés.',
     fqll:['Accueil','Abonnements','Pourquoi Strivio','Avis','Suivi Commande'],
-    fpll:['Garantie Complète','Remboursement','Confidentialité','CGU','Garantie Livraison'],
-    flg:['Confidentialité','CGU','Garantie'],
-    con:{email:'Email Support',phone:'Téléphone',whatsapp:'WhatsApp',telegram:'Telegram',instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok',youtube:'YouTube'},
+    fpll:['Garantie Période Complète','Politique de Remboursement','Confidentialité','Conditions de Service','Garantie Livraison'],
+    flg:['Confidentialité','Conditions','Garantie'],
+    con:{email:'Support Email',phone:'Appelez-nous',whatsapp:'WhatsApp',telegram:'Telegram',instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok',youtube:'YouTube'},
     typeLabel:'Sélectionnez le Type / Niveau :',
     qtyLabel:'Quantité (Comptes) :',
     oosBadge:'RUPTURE DE STOCK',
-    oosBtn:'Indisponible',
-    oosDur:'Indisponible'
+    oosBtn:'Actuellement Indisponible',
+    oosDur:'Rupture'
   },
   ar:{
     nav:['الرئيسية','الاشتراكات','لماذا نحن','التقييمات','تتبع الطلب'],
@@ -475,7 +478,7 @@ var TX={
     sbg:'كتالوجنا',st:'عروض اشتراكات متميزة',ss:'رسمية، فورية، ومضمونة. اختر منصتك والمدة المناسبة.',
     fk:['all','streaming','music','ai','creative','social'],fl:['الكل','ستريمنغ','موسيقى','أدوات الذكاء','إبداعي','اجتماعي'],
     from:'تبدأ من',pm:'/ شهر',cd:'اختر المدة ←',
-    mst:'اختر عرضك',bv:'الأفضل قيمة',bn:'اشتري الآن →',atc:'أضف للسلة 🛒',atcok:'تمت الإضافة!',cf:'اختر عرضاً أولاً',
+    mst:'اختر عرضك',bv:'الأفضل قيمة',bn:'اشتري الآن →',atc:'أضف للسلة 🛒',atcok:'تمت الإضافة!',cf:'اختر عرضاً أولاً',vc:'عرض السلة ←',
     dl:['شهر واحد','شهرين','3 أشهر','6 أشهر','سنة كاملة'],
     pb:{hot:'🔥 الأكثر مبيعاً',popular:'🏆 الأكثر طلباً',trending:'⚡ رائج'},
     rbg:'موثوق من أكثر من 6,000 عميل',rt:'أناس حقيقيون. تقييمات حقيقية.',rs:'آلاف العملاء الراضين.',ovr:'التقييم الإجمالي',vfy:'مشترٍ موثق',
@@ -591,6 +594,7 @@ function applyLang(l){
   setT('RBG',tx.rbg); setT('RT',tx.rt); setT('RS',tx.rs); setT('OVR',tx.ovr);
   buildReviews();
   setT('FD',tx.fd); setT('FQL',tx.fql); setT('FPL',tx.fpl); setT('FCL',tx.fcl); setT('FRT',tx.frt); setT('FCP',tx.fcp);
+  if($('PTBTN')) $('PTBTN').textContent = tx.vc || 'عرض السلة ←';
   $('FQLL').innerHTML=tx.fqll.map(function(x){return'<li><a href="#" style="text-decoration:none;color:inherit" onmouseover="this.style.color=\'#39ff14\'" onmouseout="this.style.color=\'inherit\'">'+x+'</a></li>'}).join('');
   $('FPLL').innerHTML=tx.fpll.map(function(x){return'<li><a href="#" style="text-decoration:none;color:inherit" onmouseover="this.style.color=\'#39ff14\'" onmouseout="this.style.color=\'inherit\'">'+x+'</a></li>'}).join('');
   $('FLG').innerHTML=tx.flg.map(function(x){return'<a href="#" style="text-decoration:none;color:inherit" onmouseover="this.style.color=\'#39ff14\'" onmouseout="this.style.color=\'inherit\'">'+x+'</a>'}).join('');
@@ -805,7 +809,7 @@ function renderModalDurations(){
   prices.forEach(function(pr,i){
     var isOos = !pr || pr <= 0 || (curSvc.out_of_stock && curSvc.out_of_stock.dur && curSvc.out_of_stock.dur[i]);
     var oldPr = origPrices[i] || 0;
-    var noteStr = (durNotes[i] && durNotes[i].trim() !== '') ? durNotes[i] : (L === 'ar' ? '⚡ تسليم فوري ومضمون' : (L === 'en' ? '⚡ Instant guaranteed delivery' : '⚡ Livraison immédiate garantie'));
+    var noteStr = (durNotes[i] && durNotes[i].trim() !== '') ? durNotes[i] : (L === 'ar' ? 'ضمان كامل للمدة' : (L === 'en' ? 'Full Period Guarantee' : 'Garantie complète'));
     
     var _c='<div class="DOC'+(i===4?' FULL':'')+(i===selDur && !isOos?' SL':'')+(isOos?' DIS':'')+'" data-i="'+i+'" style="'+(isOos?'opacity:.4;cursor:not-allowed;border-color:#222;background:#111':'')+'">';
     if(i===bvIdx && !isOos)_c+='<span class="BVB">'+tx.bv+'</span>';
