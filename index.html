@@ -784,8 +784,8 @@ function renderModalDurations(){
     
     var _c='<div class="DOC'+(i===4?' FULL':'')+(i===selDur && !isOos?' SL':'')+(isOos?' DIS':'')+'" data-i="'+i+'" style="'+(isOos?'opacity:.4;cursor:not-allowed;border-color:#222;background:#111':'')+'">';
     if(i===bvIdx && !isOos)_c+='<span class="BVB">'+tx.bv+'</span>';
-    _c+='<div class="DM">'+tx.dl[i]+'</div>';
-    _c+='<div class="DL" style="color:#a3e635;font-weight:600;">'+noteStr+'</div>';
+    _c+='<div class="DM">'+MN[i]+'<span style="font-size:.6rem;font-weight:600;color:rgba(224,224,224,.4);margin-left:3px">'+(L==='ar'?'شهر':'mo')+'</span></div>';
+    _c+='<div class="DL">'+noteStr+'</div>';
     if(isOos){
       _c+='<div class="DP" style="color:#ef4444;font-size:.8rem;margin-top:auto;padding-top:0.3rem">' + (tx.oosDur || 'غير متوفر حالياً') + '</div>';
     } else {
