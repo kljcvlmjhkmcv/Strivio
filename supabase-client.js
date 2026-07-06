@@ -36,6 +36,14 @@ async function loadServicesFromDB() {
 
     if (!data || data.length === 0) return null;
 
+    var parseJ = function(v, def) {
+      if (!v) return def;
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch(e) { return def; }
+      }
+      return v;
+    };
+
     return data.map(function(s) {
       return {
         id: s.id,
@@ -46,11 +54,14 @@ async function loadServicesFromDB() {
         iconType: s.icon_type,
         iconSize: s.icon_size || 72,
         iconSrc: s.icon_src,
-        n: s.n,
-        f: s.f,
-        types: s.types || null,
-        p: s.p,
-        typePrices: s.type_prices || null
+        n: parseJ(s.n, {}),
+        f: parseJ(s.f, {}),
+        types: parseJ(s.types, null),
+        p: parseJ(s.p, []),
+        typePrices: parseJ(s.type_prices, null),
+        promo: parseJ(s.promo, null),
+        out_of_stock: parseJ(s.out_of_stock, null),
+        best_value: s.best_value !== undefined && s.best_value !== null ? Number(s.best_value) : 2
       };
     });
   } catch (e) {
@@ -134,7 +145,7 @@ async function saveOrderToDB(orderData) {
       console.error('❌ Error saving order via RPC:', rpcError.message);
     } else if (rpcData && !rpcData.success) {
       console.error('❌ RPC returned failure:', rpcData.error || 'Unknown error');
-      return rpcData;
+      return null;
     }
 
     return null;
@@ -144,5 +155,57 @@ async function saveOrderToDB(orderData) {
   }
 }
 
+/* جلب الإعدادات (روابط التواصل وأرقام الهاتف) من قاعدة البيانات */
+async function loadSettingsFromDB() {
+  if (!supabaseClient) initSupabase();
+  if (!supabaseClient) return null;
+  try {
+    const { data, error } = await supabaseClient.from('settings').select('config').eq('id', 1).single();
+    if (!error && data && data.config) {
+      window.CONFIG = data.config;
+      return data.config;
+    }
+    return null;
+  } catch (e) {
+    console.error('❌ Exception loading settings:', e);
+    return null;
+  }
+}
+
+/* جلب التقييمات من قاعدة البيانات */
+async function loadReviewsFromDB() {
+  if (!supabaseClient) initSupabase();
+  if (!supabaseClient) return [];
+  try {
+    const { data, error } = await supabaseClient.from('reviews').select('*').eq('active', true).order('sort_order', { ascending: true });
+    if (!error && data) {
+      window.REVIEWS = data;
+      return data;
+    }
+    return [];
+  } catch (e) {
+    console.error('❌ Exception loading reviews:', e);
+    return [];
+  }
+}
+
+/* جلب الأسئلة الشائعة من قاعدة البيانات */
+async function loadFaqsFromDB() {
+  if (!supabaseClient) initSupabase();
+  if (!supabaseClient) return [];
+  try {
+    const { data, error } = await supabaseClient.from('faq').select('*').eq('active', true).order('sort_order', { ascending: true });
+    if (!error && data) {
+      window.FAQS = data;
+      return data;
+    }
+    return [];
+  } catch (e) {
+    console.error('❌ Exception loading faqs:', e);
+    return [];
+  }
+}
+
 // تهيئة الاتصال عند تحميل الملف
 initSupabase();
+

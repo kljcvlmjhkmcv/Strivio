@@ -34,6 +34,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 #LDPD,#LDPM{box-shadow:0 8px 30px rgba(0,0,0,.5)}
 [dir=rtl] .LO{text-align:right;flex-direction:row-reverse}
 </style>
+<script src="supabase-client.js"></script>
 <script src="faq.js"></script>
 <script>
 (function(){
@@ -214,6 +215,14 @@ document.addEventListener('click', function(e){
 });
 
 render();
+if (typeof loadFaqsFromDB === 'function') {
+  loadFaqsFromDB().then(function(dbFaqs) {
+    if (dbFaqs && dbFaqs.length > 0) {
+      window.FAQS = dbFaqs;
+      if (typeof render === 'function') render();
+    }
+  });
+}
 </script>
 </body>
 </html>

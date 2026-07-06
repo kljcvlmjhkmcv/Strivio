@@ -455,3 +455,86 @@ SET
   types = '{"en": ["type 1", "type 2", "type 3", "type 4", "type 5"], "fr": ["type 1", "type 2", "type 3", "type 4", "type 5"], "ar": ["type 1", "type 2", "type 3", "type 4", "type 5"]}'::jsonb,
   type_prices = jsonb_build_array(p, p, p, p, p)
 WHERE id NOT IN ('netflix', 'iptv');
+
+-- ====================================================================
+-- 4. قيد السعر الموجب في جدول الطلبات (positive_total)
+-- ====================================================================
+ALTER TABLE public.orders ADD CONSTRAINT positive_total CHECK (total_payable >= 0);
+
+-- ====================================================================
+-- 5. جدول الإعدادات (settings)
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS public.settings (
+  id INTEGER PRIMARY KEY DEFAULT 1,
+  config JSONB NOT NULL
+);
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read access on settings" ON public.settings;
+CREATE POLICY "Allow public read access on settings" ON public.settings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow admin full access on settings" ON public.settings;
+CREATE POLICY "Allow admin full access on settings" ON public.settings FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+INSERT INTO public.settings (id, config) VALUES (1, '{
+  "email": "mailto:support@strivio.com",
+  "phone": "tel:+213XXXXXXXXX",
+  "whatsapp": "213562961410",
+  "telegram": "",
+  "instagram": "https://instagram.com/strivio.store",
+  "facebook": "https://www.facebook.com/people/Strivio/61578300089117",
+  "tiktok": "",
+  "youtube": ""
+}'::jsonb) ON CONFLICT (id) DO UPDATE SET config = EXCLUDED.config;
+
+-- ====================================================================
+-- 6. جدول التقييمات (reviews)
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS public.reviews (
+  id SERIAL PRIMARY KEY,
+  i TEXT NOT NULL,
+  n TEXT NOT NULL,
+  s TEXT NOT NULL,
+  d TEXT NOT NULL,
+  t TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  active BOOLEAN DEFAULT true
+);
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read access on reviews" ON public.reviews;
+CREATE POLICY "Allow public read access on reviews" ON public.reviews FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow admin full access on reviews" ON public.reviews;
+CREATE POLICY "Allow admin full access on reviews" ON public.reviews FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+INSERT INTO public.reviews (id, i, n, s, d, t, sort_order) VALUES
+(1, 'A', 'Amir K.', 'Netflix Premium', '2 days ago', 'Ordered Netflix at 2am, had credentials by 2:02am. Genuinely shocked. This is how all digital stores should work.', 1),
+(2, 'S', 'Sara M.', 'Spotify Premium', '5 days ago', 'Support was insanely responsive. Had a small Spotify issue and they sorted it in under 5 minutes. 10/10.', 2),
+(3, 'Y', 'Youssef B.', 'Prime Video', '1 week ago', 'أفضل أسعار وجدتها. اشتريت 3 أشهر Prime والسعر كان لا يصدق. الموقع نظيف جداً. سأعود دائماً.', 3),
+(4, 'L', 'Lina R.', 'ChatGPT Plus', '2 weeks ago', 'The warranty is real — my account had an issue and they replaced it immediately. No questions asked. Very professional.', 4),
+(5, 'R', 'Rayan T.', 'Shahid VIP', '3 weeks ago', 'دفعت بـ Flexy وجاني الاشتراك في أقل من دقيقة. قلت لكل أصحابي. Strivio هو المتجر الأول في الجزائر.', 5),
+(6, 'H', 'Hana S.', 'Canva Pro', '1 month ago', 'Bought from Strivio 4 times now. Every single time it''s been perfect. The site is clean, everything just works.', 6)
+ON CONFLICT (id) DO UPDATE SET i=EXCLUDED.i, n=EXCLUDED.n, s=EXCLUDED.s, d=EXCLUDED.d, t=EXCLUDED.t, sort_order=EXCLUDED.sort_order;
+
+-- ====================================================================
+-- 7. جدول الأسئلة الشائعة (faq)
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS public.faq (
+  id TEXT PRIMARY KEY,
+  icon TEXT NOT NULL,
+  q JSONB NOT NULL,
+  a JSONB NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  active BOOLEAN DEFAULT true
+);
+ALTER TABLE public.faq ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read access on faq" ON public.faq;
+CREATE POLICY "Allow public read access on faq" ON public.faq FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow admin full access on faq" ON public.faq;
+CREATE POLICY "Allow admin full access on faq" ON public.faq FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+INSERT INTO public.faq (id, icon, q, a, sort_order) VALUES
+('buying', '🛒', '{"fr": "Comment passer une commande sur Strivio ?", "ar": "كيفية الشراء وإتمام الطلب من متجر Strivio؟", "en": "How do I place an order on Strivio?"}'::jsonb, '{"fr": "Sélectionnez simplement votre abonnement préféré, choisissez la durée et l''option souhaitée, puis cliquez sur \"Acheter Maintenant\" ou ajoutez-le au panier. Lors du paiement, vous serez redirigé automatiquement vers WhatsApp avec les détails pré-remplis pour valider immédiatement votre commande.", "ar": "اختر الخدمة والمدة المحددة، ثم اضغط على \"اشتر الآن\" أو اضفها للسلة. عند إتمام الطلب، سيتم نسخ التعديلات فوراً وتوجيهك إلى واتساب لإرسال الطلب والتأكيد الفوري مع فريق الدعم.", "en": "Select your preferred subscription, duration, and tier, then click \"Buy Now\" or add to cart. At checkout, click confirm to automatically copy your order details and redirect to WhatsApp for instant confirmation."}'::jsonb, 1),
+('delivery', '⚡', '{"fr": "Combien de temps prend la livraison de l''abonnement ?", "ar": "ما هي مدة تسليم الحساب بعد الدفع؟", "en": "How long does delivery take after payment?"}'::jsonb, '{"fr": "La livraison est instantanée ou prend en moyenne 5 à 15 minutes après la vérification de votre paiement par notre équipe sur WhatsApp.", "ar": "التسليم فوري ويستغرق في الغالب بين 5 إلى 15 دقيقة فور تأكيد عملية الدفع من قبل فريقنا عبر واتساب.", "en": "Delivery is instant or takes between 5 to 15 minutes average after payment confirmation on WhatsApp."}'::jsonb, 2),
+('warranty', '🛡️', '{"fr": "Quelle est la garantie proposée sur les abonnements ?", "ar": "ما هو الضمان المقدم على الاشتراكات والحسابات؟", "en": "What warranty is provided with the subscriptions?"}'::jsonb, '{"fr": "Tous nos abonnements bénéficient d''une garantie complète durant toute la période souscrite (Garantie 100%). En cas de problème, nous remplaçons le compte ou résolvons le souci sous 24h.", "ar": "جميع اشتراكاتنا مضمونة 100% طوال فترة الاشتراك الكاملة. في حال حدوث أي استفسار أو مشكلة، يتم التعويض أو إصلاح الحساب فوراً عبر الدعم الفني.", "en": "All our subscriptions come with a 100% full-term warranty. In case of any technical issue, we replace or fix the account immediately."}'::jsonb, 3),
+('payment', '💳', '{"fr": "Quels sont les modes de paiement acceptés ?", "ar": "ما هي طرق الدفع المتاحة في المتجر؟", "en": "What payment methods do you accept?"}'::jsonb, '{"fr": "Nous acceptons BariDi Mob, CCP, Wise (EUR) au taux de 1€ = 260 DZD, USDT (Crypto) au taux de 1$ = 250 DZD, ainsi que le paiement par Flexy (+19%).", "ar": "نوفر دفع عبر بريدي موب (BariDi Mob)، التحويل البريدي (CCP)، تحويل Wise باليورو (1€ = 260 دج)، تحويل USDT الكريبتو (1$ = 250 دج)، وبطاقات فليكسي Flexy (+19%).", "en": "We accept BariDi Mob, CCP, Wise (EUR rate: 1€ = 260 DZD), USDT Crypto (rate: 1$ = 250 DZD), and Flexy mobile recharge (+19%)."}'::jsonb, 4),
+('crypto_wise', '🌐', '{"fr": "Comment payer par Wise ou USDT Crypto ?", "ar": "كيف أتمم الدفع عبر Wise أو USDT؟", "en": "How to complete payment via Wise or USDT Crypto?"}'::jsonb, '{"fr": "Dans votre panier, choisissez \"Wise\" ou \"USDT\". Le montant sera automatiquement converti au taux officiel du store. Une fois la commande confirmée sur WhatsApp, nous vous transmettrons l''adresse USDT (TRC20) ou l''email Wise pour effectuer le virement.", "ar": "عند الوصول للسلة، اختر Wise أو USDT وسيتم احتساب التوتال تلقائياً باليورو أو USDT. بعد الضغط على تأكيد الطلب، سيرسل لك فريق الدعم عنوان المحفظة أو إيميل Wise لإتمام التحويل.", "en": "In your cart, select Wise or USDT. The total converts automatically. Upon order confirmation on WhatsApp, our support team will provide the USDT (TRC20) address or Wise email."}'::jsonb, 5)
+ON CONFLICT (id) DO UPDATE SET icon=EXCLUDED.icon, q=EXCLUDED.q, a=EXCLUDED.a, sort_order=EXCLUDED.sort_order;
+

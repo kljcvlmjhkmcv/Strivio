@@ -355,16 +355,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
    ║  ⚙️  CONFIGURATION — Edit your store details here           ║
    ╚══════════════════════════════════════════════════════════════╝ */
 
-var CONFIG = {
-  email:     'mailto:support@strivio.com',
-  phone:     'tel:+213XXXXXXXXX',
-  whatsapp:  'https://wa.me/213562961410',
-  telegram:  '',
-  instagram: 'https://instagram.com/strivio.store',
-  facebook:  'https://www.facebook.com/people/Strivio/61578300089117',
-  tiktok:    '',
-  youtube:   '',
-};
+var CONFIG = window.CONFIG || {};
 
 /* ═══════════════════════════════════════════════════════════════
    FLAGS
@@ -491,14 +482,7 @@ var SERVICES = window.SERVICES || [];
 /* ═══════════════════════════════════════════════════════════════
    REVIEWS
 ═══════════════════════════════════════════════════════════════ */
-var REVIEWS=[
-  {i:'A',n:'Amir K.',s:'Netflix Premium',d:'2 days ago',t:'Ordered Netflix at 2am, had credentials by 2:02am. Genuinely shocked. This is how all digital stores should work.'},
-  {i:'S',n:'Sara M.',s:'Spotify Premium',d:'5 days ago',t:'Support was insanely responsive. Had a small Spotify issue and they sorted it in under 5 minutes. 10/10.'},
-  {i:'Y',n:'Youssef B.',s:'Prime Video',d:'1 week ago',t:'أفضل أسعار وجدتها. اشتريت 3 أشهر Prime والسعر كان لا يصدق. الموقع نظيف جداً. سأعود دائماً.'},
-  {i:'L',n:'Lina R.',s:'ChatGPT Plus',d:'2 weeks ago',t:'The warranty is real — my account had an issue and they replaced it immediately. No questions asked. Very professional.'},
-  {i:'R',n:'Rayan T.',s:'Shahid VIP',d:'3 weeks ago',t:'دفعت بـ Flexy وجاني الاشتراك في أقل من دقيقة. قلت لكل أصحابي. Strivio هو المتجر الأول في الجزائر.'},
-  {i:'H',n:'Hana S.',s:'Canva Pro',d:'1 month ago',t:"Bought from Strivio 4 times now. Every single time it's been perfect. The site is clean, everything just works."},
-];
+var REVIEWS = window.REVIEWS || [];
 
 /* ═══════════════════════════════════════════════════════════════
    SOCIAL ICONS SVGs
@@ -877,6 +861,26 @@ if (typeof loadServicesFromDB === 'function') {
       window.SERVICES = dbServices;
       if (typeof buildFilters === 'function') buildFilters();
       if (typeof renderProducts === 'function') renderProducts(curFilt || 'all');
+    }
+  });
+}
+
+if (typeof loadSettingsFromDB === 'function') {
+  loadSettingsFromDB().then(function(dbSettings) {
+    if (dbSettings) {
+      CONFIG = dbSettings;
+      window.CONFIG = dbSettings;
+      if (typeof buildSocials === 'function') buildSocials();
+    }
+  });
+}
+
+if (typeof loadReviewsFromDB === 'function') {
+  loadReviewsFromDB().then(function(dbReviews) {
+    if (dbReviews && dbReviews.length > 0) {
+      REVIEWS = dbReviews;
+      window.REVIEWS = dbReviews;
+      if (typeof buildReviews === 'function') buildReviews();
     }
   });
 }

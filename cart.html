@@ -291,14 +291,12 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 
 <script src="supabase-client.js"></script>
 <script>
-/* ══════════════════════════════════════════════════════
-   CONFIG
-════════════════════════════════════════════════════════ */
-var CONFIG = {
-  whatsapp:  '213562961410',
-  instagram: 'https://instagram.com/strivio.store',
-  facebook:  'https://www.facebook.com/people/Strivio/61578300089117'
-};
+var CONFIG = window.CONFIG || { whatsapp: '213562961410', instagram: 'https://instagram.com/strivio.store', facebook: 'https://www.facebook.com/people/Strivio/61578300089117' };
+if (typeof loadSettingsFromDB === 'function') {
+  loadSettingsFromDB().then(function(cfg){
+    if (cfg) CONFIG = cfg;
+  });
+}
 
 /* ══════════════════════════════════════════════════════
    FLAGS
@@ -349,6 +347,10 @@ var TX={
     remove:'Remove',
     month:'mo',
     qty:'Qty:',
+    socModalTitle:'✨ Order Details Copied! 📋',
+    socModalDesc:'We have copied your complete order details to your clipboard. When you proceed to the chat, please <b>paste (Coller / Paste)</b> the text directly into the conversation to complete your order in seconds!',
+    socModalBtn:'🚀 Proceed to Chat on ',
+    socModalClose:'📋 Close / Copy Again',
     cpnHolder:'Enter coupon code'
   },
   fr:{
@@ -356,83 +358,84 @@ var TX={
     breadHome:'Accueil', breadCart:'Panier',
     pageTitle:'Votre Panier',
     emptyTitle:'Votre panier est vide',
-    emptyDesc:'Parcourez notre catalogue et ajoutez vos abonnements préférés.',
+    emptyDesc:'Parcourez notre catalogue et ajoutez les abonnements que vous aimez.',
     emptyBtn:'Voir les Offres',
-    waTitle:'⚡ Commande Instantanée & Copie Auto',
+    waTitle:'⚡ Commande Instantanée & Copie',
     waDesc:'En cliquant sur Confirmer, votre commande sera copiée et WhatsApp s\'ouvrira automatiquement !',
-    summaryTitle:'Récapitulatif',
+    summaryTitle:'Résumé de la Commande',
     total:'Total',
     payTitle:'Mode de Paiement',
-    confirmBtn:'Confirmer via WhatsApp',
-    selectPayFirst:'Choisissez un mode de paiement',
-    terms:'Vos détails de commande seront copiés et envoyés instantanément.',
-    flexyFee:'Frais Flexy (19%)',
+    confirmBtn:'Confirmer la Commande via WhatsApp',
+    selectPayFirst:'Sélectionnez un mode de paiement',
+    terms:'Les détails de votre commande seront copiés et envoyés instantanément.',
+    flexyFee:'Frais de service Flexy (19%)',
     cpnLabel:'Code Promo / Coupon :',
     cpnBtn:'Appliquer',
-    cpnOk:'✅ Code Promo Appliqué !',
-    cpnErr:'❌ Code Promo Invalide',
+    cpnOk:'✅ Coupon Appliqué !',
+    cpnErr:'❌ Coupon Invalide',
     discount:'Réduction',
     orCont:'Ou envoyez votre commande copiée directement via :',
     payMethods:[
-      {id:'cib',      label:'Dahabia / CIB',      desc:'Bientôt disponible', icon:'💳', disabled:true},
-      {id:'baridimob',label:'BariDi Mob',         desc:'Virement instantané', icon:'📱', disabled:false},
-      {id:'ccp',      label:'CCP',                desc:'Virement postal',    icon:'🏦', disabled:false},
-      {id:'wise',     label:'Wise',               desc:'International (1€=260 DZD)',icon:'💸',disabled:false},
-      {id:'usdt',     label:'USDT (Crypto)',      desc:'Transfert Crypto (1$=250 DZD)',icon:'₮',disabled:false},
-      {id:'flexy',    label:'Flexy',              desc:'+19% frais de service',icon:'⚡',disabled:false}
+      {id:'cib',      label:'Carte Dahabia / CIB', desc:'Bientôt Disponible', icon:'💳', disabled:true},
+      {id:'baridimob',label:'BariDi Mob',          desc:'Virement instantané',icon:'📱', disabled:false},
+      {id:'ccp',      label:'CCP',                 desc:'Virement postal',    icon:'🏦',disabled:false},
+      {id:'wise',     label:'Wise',                desc:'International (1€=260 DZD)',icon:'💸',disabled:false},
+      {id:'usdt',     label:'USDT (Crypto)',       desc:'Transfert Crypto (1$=250 DZD)',icon:'₮',disabled:false},
+      {id:'flexy',    label:'Flexy',               desc:'+19% frais de service',icon:'⚡', disabled:false}
     ],
     toastTitle:'✅ Commande Copiée & Ouverte !',
-    toastDesc:'Détails copiés dans le presse-papier ! Vous pouvez coller directement sur WhatsApp, Facebook ou Instagram.',
+    toastDesc:'Détails copiés dans le presse-papiers ! Vous pouvez les coller dans WhatsApp, Facebook ou Instagram.',
     dl:['1 Mois','2 Mois','3 Mois','6 Mois','1 An'],
     remove:'Supprimer',
     month:'mois',
     qty:'Qté :',
-    socModalTitle:'📋 Commande copiée avec succès !',
-    socModalDesc:'Dernière étape : Vous allez être redirigé vers notre page. Veuillez <span style="color:#39ff14;font-weight:bold">coller (Paste)</span> le message copié dans la discussion pour valider votre commande !',
-    socModalBtn:'🚀 Ouvrir & Coller dans ',
-    socModalClose:'Fermer',
+    socModalTitle:'✨ Commande Copiée ! 📋',
+    socModalDesc:'Nous avons copié tous les détails de votre commande dans votre presse-papiers. Une fois sur la discussion, veuillez <b>coller (Paste / Coller)</b> le texte directement dans le message pour valider votre commande en quelques secondes !',
+    socModalBtn:'🚀 Accéder à la discussion sur ',
+    socModalClose:'📋 Fermer / Recopier',
     cpnHolder:'Entrez le code promo'
   },
   ar:{
     home:'الرئيسية', subs:'الاشتراكات', trackOrder:'تتبع الطلب',
-    breadHome:'الرئيسية', breadCart:'السلة',
-    pageTitle:'سلة مشترياتك',
-    emptyTitle:'سلتك فارغة',
-    emptyDesc:'تصفح كتالوجنا وأضف الاشتراكات التي تحبها.',
+    breadHome:'الرئيسية', breadCart:'سلة المشتريات',
+    pageTitle:'سلة المشتريات',
+    emptyTitle:'سلة المشتريات فارغة',
+    emptyDesc:'تصفح قائمة خدماتنا وأضف الاشتراكات التي تفضلها إلى سلتك الآن.',
     emptyBtn:'تصفح العروض',
-    waTitle:'⚡ نسخ تلقائي وطلب فوري',
-    waDesc:'عند الضغط على تأكيد، يتم نسخ تفاصيل طلبك للحافظة وفتح واتساب تلقائياً!',
+    waTitle:'⚡ تأكيد فوري ونسخ تلقائي للطلب',
+    waDesc:'عند الضغط على تأكيد الطلب، سيتم نسخ تفاصيل طلبك بالكامل وتوجيهك إلى واتساب تلقائياً!',
     summaryTitle:'ملخص الطلب',
-    total:'المجموع',
-    payTitle:'طريقة الدفع',
+    total:'الإجمالي المستحق',
+    payTitle:'اختر طريقة الدفع',
     confirmBtn:'تأكيد الطلب عبر واتساب',
-    selectPayFirst:'اختر طريقة الدفع',
-    terms:'سيتم نسخ طلبك وتوجيهك لإرساله فوراً.',
-    flexyFee:'رسوم فليكسي (19%)',
-    cpnLabel:'كوبون الخصم / برومو كود:',
+    selectPayFirst:'يرجى اختيار طريقة الدفع أولاً',
+    terms:'سيتم نسخ تفاصيل طلبك تلقائياً لتسهيل إرسالها لفريق الدعم.',
+    flexyFee:'رسوم خدمة فليكسي (19%)',
+    cpnLabel:'ادخل الكوبون :',
+    cpnHolder:'ادخل الكوبون هنا...',
     cpnBtn:'تطبيق',
-    cpnOk:'✅ تم تطبيق الخصم!',
-    cpnErr:'❌ كوبون غير صالح',
+    cpnOk:'✅ تم تطبيق الخصم بنجاح!',
+    cpnErr:'❌ كود الخصم غير صحيح أو منتهي',
     discount:'قيمة الخصم',
     orCont:'أو أرسل طلبك المنسوخ مباشرة عبر:',
     payMethods:[
-      {id:'cib',      label:'بطاقة الذهبية / CIB', desc:'قريباً', icon:'💳', disabled:true},
-      {id:'baridimob',label:'بريدي موب',          desc:'تحويل فوري',  icon:'📱', disabled:false},
-      {id:'ccp',      label:'CCP',                desc:'تحويل بريدي', icon:'🏦', disabled:false},
-      {id:'wise',     label:'Wise',               desc:'تحويل دولي (1€=260 دج)',  icon:'💸', disabled:false},
-      {id:'usdt',     label:'USDT (كريبتو)',      desc:'تحويل رقمي (1$=250 دج)', icon:'₮', disabled:false},
-      {id:'flexy',    label:'فليكسي',             desc:'+19% رسوم الخدمة',icon:'⚡',disabled:false}
+      {id:'cib',      label:'البطاقة الذهبية / CIB',desc:'قريباً جداً',        icon:'💳', disabled:true},
+      {id:'baridimob',label:'بريدي موب BariDi Mob', desc:'تحويل فوري',        icon:'📱', disabled:false},
+      {id:'ccp',      label:'حساب بريد الجزائر CCP', desc:'تحويل بريدي',      icon:'🏦',disabled:false},
+      {id:'wise',     label:'تحويل Wise باليورو',    desc:'سعر الصرف (1€ = 260 دج)',icon:'💸',disabled:false},
+      {id:'usdt',     label:'تحويل كريبتو USDT',    desc:'سعر الصرف (1$ = 250 دج)',icon:'₮',disabled:false},
+      {id:'flexy',    label:'دفع فليكسي Flexy',     desc:'يضاف 19% رسوم خدمة',icon:'⚡', disabled:false}
     ],
-    toastTitle:'✅ تم النسخ والفتح!',
-    toastDesc:'تم نسخ تفاصيل طلبك للحافظة! يمكنك لصقها مباشرة في واتساب، فيسبوك أو إنستغرام.',
-    dl:['شهر واحد','شهرين','3 أشهر','6 أشهر','سنة كاملة'],
+    toastTitle:'✅ تم نسخ الطلب وفتح المحادثة!',
+    toastDesc:'تم نسخ تفاصيل طلبك في الحافظة! يمكنك لصقها مباشرة في محادثة واتساب، فيسبوك أو إنستغرام.',
+    dl:['1 شهر','2 أشهر','3 أشهر','6 أشهر','1 سنة'],
     remove:'حذف',
     month:'شهر',
     qty:'الكمية:',
-    socModalTitle:'📋 تم نسخ معلومات طلبك بنجاح!',
-    socModalDesc:'الخطوة الأخيرة: سيتم تحويلك الآن إلى صفحتنا. يرجى <span style="color:#39ff14;font-weight:bold">لصق (Paste)</span> الرسالة التي تم نسخها تلقائياً داخل المحادثة لنبدأ في تنفيذ طلبك فوراً!',
-    socModalBtn:'🚀 الانتقال ولصق الطلب في ',
-    socModalClose:'إغلاق',
+    socModalTitle:'✨ تم نسخ معلومات طلبك بنجاح! 📋',
+    socModalDesc:'لقد قمنا بنسخ تفاصيل طلبك بالكامل إلى حافظة جهازك. عند انتقالك الآن إلى المحادثة، يرجى <b>لصق (Paste / Coller)</b> النص مباشرة في المحادثة لإتمام طلبك في ثوانٍ!',
+    socModalBtn:'🚀 الانتقال إلى المحادثة على ',
+    socModalClose:'📋 إغلاق / إعادة النسخ',
     cpnHolder:'أدخل كود الخصم'
   }
 };
@@ -781,12 +784,13 @@ async function confirmOrder(){
   if(btn) { btn.disabled = false; btn.textContent = tx.confirmBtn; }
 
   if (!rpcData || !rpcData.success) {
-    alert(L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
+    var errMsg = L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
+    alert(errMsg);
     return;
   }
 
   var msg = buildMessage(rpcData);
-  var waUrl = 'https://wa.me/'+CONFIG.whatsapp+'?text='+encodeURIComponent(msg);
+  var waUrl = 'https://wa.me/'+(CONFIG.whatsapp||'213562961410')+'?text='+encodeURIComponent(msg);
 
   copyToClipboard(msg);
   window.open(waUrl, '_blank');
@@ -811,7 +815,8 @@ async function confirmOrderSocial(platform){
   }
 
   if (!rpcData || !rpcData.success) {
-    alert(L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
+    var errMsg = L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
+    alert(errMsg);
     return;
   }
 
@@ -825,7 +830,7 @@ async function confirmOrderSocial(platform){
   $('SM_CLOSE_BTN').textContent = tx.socModalClose;
   
   var platName = platform === 'ig' ? 'Instagram' : 'Facebook';
-  var targetUrl = platform === 'ig' ? CONFIG.instagram : CONFIG.facebook;
+  var targetUrl = platform === 'ig' ? (CONFIG.instagram||'https://instagram.com/strivio.store') : (CONFIG.facebook||'https://www.facebook.com/people/Strivio/61578300089117');
   $('SM_GO_BTN').textContent = tx.socModalBtn + platName;
   $('SM_GO_BTN').onclick = function(){
     window.open(targetUrl, '_blank');

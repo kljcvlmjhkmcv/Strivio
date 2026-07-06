@@ -604,6 +604,8 @@ async function saveServicePricing(serviceId, idx) {
   }
 
   if (window.supabaseClient) {
+    var promoData = s.promo || { active: false, badge: '', orig_p: [] };
+    var oosData = typeof s.out_of_stock === 'object' && s.out_of_stock !== null ? s.out_of_stock : { all: !!s.out_of_stock };
     var { error } = await window.supabaseClient
       .from('services')
       .update({
@@ -611,8 +613,8 @@ async function saveServicePricing(serviceId, idx) {
         types: s.types || null,
         type_prices: s.typePrices || null,
         show_types: s.showTypes,
-        promo: s.promo || null,
-        out_of_stock: s.out_of_stock || false,
+        promo: promoData,
+        out_of_stock: oosData,
         best_value: s.best_value
       })
       .eq('id', serviceId);
@@ -717,6 +719,8 @@ async function deleteOrder(id) {
   }
 }
 
+var currentPage = 0;
+var pageSize = 100;
 async function loadOrders() {
   var container = document.getElementById('orders-list');
   if (!window.supabaseClient) {
@@ -724,7 +728,9 @@ async function loadOrders() {
     return;
   }
   container.innerHTML = '<div class="text-center py-12 text-gray-400">⏳ جاري تحديث قائمة الطلبات...</div>';
-  var { data, error } = await window.supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
+  var from = currentPage * pageSize;
+  var to = from + pageSize - 1;
+  var { data, error } = await window.supabaseClient.from('orders').select('*').order('created_at', { ascending: false }).range(from, to);
   if (error || !data || data.length === 0) {
     container.innerHTML = '<div class="text-center py-12 text-gray-500">لا توجد طلبات مسجلة بعد.</div>';
     return;
