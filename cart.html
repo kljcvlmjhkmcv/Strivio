@@ -291,7 +291,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 
 <script src="supabase-client.js"></script>
 <script>
-var CONFIG = window.CONFIG || { whatsapp: '213562961410', instagram: 'https://instagram.com/strivio.store', facebook: 'https://www.facebook.com/people/Strivio/61578300089117' };
+var CONFIG = window.CONFIG || {};
 if (typeof loadSettingsFromDB === 'function') {
   loadSettingsFromDB().then(function(cfg){
     if (cfg) CONFIG = cfg;
@@ -469,21 +469,6 @@ function makeIcon(item, sz){
 }
 
 /* ══════════════════════════════════════════════════════
-   CART TOTALS & COUPONS
-════════════════════════════════════════════════════════ */
-function getSubtotal(){
-  return cart.reduce(function(s,i){ return s + (i.price || (i.unitPrice * (i.qty||1))); }, 0);
-}
-
-function calculateDiscount(sub){
-  return appliedCoupon ? (couponDiscount || 0) : 0;
-}
-
-function getFlexyFee(subAfterDisc){
-  return Math.round(subAfterDisc * 0.19);
-}
-
-/* ══════════════════════════════════════════════════════
    RENDER CART ITEMS
 ════════════════════════════════════════════════════════ */
 function renderItems(){
@@ -542,10 +527,10 @@ function changeQty(idx, delta){
 ════════════════════════════════════════════════════════ */
 function renderSummary(){
   var tx = t();
-  var sub = getSubtotal();
-  var disc = calculateDiscount(sub);
+  var sub = cart.reduce(function(s,i){ return s + (i.price || (i.unitPrice * (i.qty||1))); }, 0);
+  var disc = appliedCoupon ? (couponDiscount || 0) : 0;
   var subAfterDisc = Math.max(0, sub - disc);
-  var flexyFee = getFlexyFee(subAfterDisc);
+  var flexyFee = Math.round(subAfterDisc * 0.19);
   var total = subAfterDisc + (selPay === 'flexy' ? flexyFee : 0);
 
   // Item rows
@@ -635,7 +620,8 @@ $('CPN_BTN').addEventListener('click', async function(){
     return;
   }
   if (typeof validateCouponInDB === 'function') {
-    var res = await validateCouponInDB(val, getSubtotal());
+    var sub = cart.reduce(function(s,i){ return s + (i.price || (i.unitPrice * (i.qty||1))); }, 0);
+    var res = await validateCouponInDB(val, sub);
     if (res && res.valid) {
       appliedCoupon = val;
       couponDiscount = res.discount || 0;
@@ -732,10 +718,10 @@ function buildMessage(rpcData){
     lines.push('   • Quantity: x'+q);
     lines.push('   • Price: '+fmtP(itemTotal));
   });
-  var sub = rpcData ? rpcData.subtotal : getSubtotal();
-  var disc = rpcData ? rpcData.discount : calculateDiscount(sub);
-  var flexyFee = rpcData ? rpcData.flexy_fee : getFlexyFee(Math.max(0, sub - disc));
-  var total = rpcData ? rpcData.total_payable : (sub - disc + (selPay==='flexy'?flexyFee:0));
+  var sub = rpcData.subtotal;
+  var disc = rpcData.discount || 0;
+  var flexyFee = rpcData.flexy_fee || 0;
+  var total = rpcData.total_payable;
 
   lines.push('');
   lines.push('Subtotal: '+fmtP(sub));

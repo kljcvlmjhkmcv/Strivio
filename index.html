@@ -348,11 +348,10 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   </div>
 </footer>
 
-<script src="services.js"></script>
 <script src="supabase-client.js"></script>
 <script>
 /* ╔══════════════════════════════════════════════════════════════╗
-   ║  ⚙️  CONFIGURATION — Edit your store details here           ║
+   ║  ⚙️  CONFIGURATION — Loaded dynamically from Supabase           ║
    ╚══════════════════════════════════════════════════════════════╝ */
 
 var CONFIG = window.CONFIG || {};
@@ -608,7 +607,8 @@ function renderProducts(f){
   curFilt=f; var tx=t();
   var list=f==='all'?SERVICES:SERVICES.filter(function(s){return s.cat===f});
   if (!list || list.length === 0) {
-    $('PG').innerHTML = '<div class="col-span-full text-center py-12 text-gray-400 font-medium">⏳ جاري جلب أحدث العروض والأسعار من السيرفر...</div>';
+    var loadMsg = L === 'ar' ? '⏳ جاري جلب أحدث العروض والأسعار من السيرفر...' : (L === 'en' ? '⏳ Loading latest offers and prices from server...' : '⏳ Chargement des offres et tarifs depuis le serveur...');
+    $('PG').innerHTML = '<div class="col-span-full text-center py-12 text-gray-400 font-medium">' + loadMsg + '</div>';
     return;
   }
   $('PG').innerHTML=list.map(function(s){
@@ -651,6 +651,11 @@ function renderProducts(f){
 
 function buildReviews(){
   var tx=t();
+  if (!REVIEWS || REVIEWS.length === 0) {
+    var loadMsg = L === 'ar' ? '⏳ جاري جلب تقييمات العملاء من السيرفر...' : (L === 'en' ? '⏳ Loading customer reviews from server...' : '⏳ Chargement des avis clients depuis le serveur...');
+    $('RG').innerHTML = '<div class="col-span-full text-center py-12 text-gray-400 font-medium">' + loadMsg + '</div>';
+    return;
+  }
   $('RG').innerHTML=REVIEWS.map(function(r){
     return'<div class="RC"><div class="flex items-center justify-between mb-3"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm" style="background:rgba(57,255,20,.18);color:#39ff14;flex-shrink:0">'+r.i+'</div><div><div class="text-white font-semibold text-sm">'+r.n+'</div><div class="text-xs" style="color:rgba(224,224,224,.4)">'+tx.vfy+'</div></div></div><div class="STR text-sm">★★★★★</div></div><p class="text-sm leading-relaxed mb-4" style="color:rgba(224,224,224,.7)">'+r.t+'</p><div class="flex items-center gap-2 pt-3" style="border-top:1px solid #2A2A2A"><span class="BDG" style="font-size:.62rem;padding:.15rem .55rem">'+r.s+'</span><span class="text-xs" style="color:rgba(224,224,224,.35)">'+r.d+'</span></div></div>';
   }).join('');
