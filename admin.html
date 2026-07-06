@@ -489,8 +489,8 @@ function renderServicesEditor() {
       dynamicHtml += '</div></div>';
     }
 
-    // Toggles for Out of Stock, Promo, Show Types, Best Value
-    var optionsBar = '<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 my-4 bg-[#101010] p-3.5 rounded-2xl border border-brand-border">' +
+    // Toggles for Out of Stock, Promo, Show Types, Best Value, Pop Badge
+    var optionsBar = '<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 my-4 bg-[#101010] p-3.5 rounded-2xl border border-brand-border">' +
       // Show Types Toggle
       '<div class="flex items-center gap-2.5 p-2 rounded-xl bg-[#141414] border border-white/5">' +
         '<input type="checkbox" id="st-' + s.id + '" ' + (s.showTypes ? 'checked' : '') + ' class="w-5 h-5 accent-brand-neon cursor-pointer rounded" onchange="toggleShowTypes(\'' + s.id + '\', ' + idx + ', this.checked); renderServicesEditor();"/>' +
@@ -499,7 +499,7 @@ function renderServicesEditor() {
       // Out of Stock Toggle
       '<div class="flex items-center gap-2.5 p-2 rounded-xl bg-[#141414] border border-white/5">' +
         '<input type="checkbox" id="oos-' + s.id + '" ' + (isOutOfStock ? 'checked' : '') + ' class="w-5 h-5 accent-red-500 cursor-pointer rounded" onchange="toggleOutOfStock(\'' + s.id + '\', ' + idx + ', this.checked)"/>' +
-        '<label for="oos-' + s.id + '" class="text-xs font-bold text-red-400 cursor-pointer select-none">🚫 إيقاف (Out of Stock)</label>' +
+        '<label for="oos-' + s.id + '" class="text-xs font-bold text-red-400 cursor-pointer select-none">إيقاف المخزون (Out of Stock)</label>' +
       '</div>' +
       // Best Value Dropdown
       '<div class="flex items-center gap-2 p-2 rounded-xl bg-[#141414] border border-white/5">' +
@@ -517,6 +517,16 @@ function renderServicesEditor() {
       '<div class="flex items-center gap-2 p-2 rounded-xl bg-[#141414] border border-white/5">' +
         '<span class="text-xs font-bold text-yellow-400 whitespace-nowrap">🏷️ شارة العرض:</span>' +
         '<input type="text" id="pbadge-' + s.id + '" value="' + (promo.badge||'') + '" placeholder="مثال: -20%" class="input-box text-xs py-1 px-2 text-center text-yellow-300 border-yellow-500/30"/>' +
+      '</div>' +
+      // Popularity Badge Dropdown (s.pop)
+      '<div class="flex items-center gap-2 p-2 rounded-xl bg-[#141414] border border-white/5">' +
+        '<span class="text-xs font-bold text-cyan-400 whitespace-nowrap">🏷️ شارة البطاقة:</span>' +
+        '<select id="pop-' + s.id + '" class="input-box text-xs py-1 px-2 text-center text-cyan-300 border-cyan-500/30 bg-[#181818]" onchange="ADMIN_SERVICES[' + idx + '].pop = (this.value || null)">' +
+          '<option value="" ' + (!s.pop ? 'selected' : '') + '>بدون شارة</option>' +
+          '<option value="hot" ' + ((s.pop === 'hot') ? 'selected' : '') + '>🔥 الأكثر مبيعاً</option>' +
+          '<option value="popular" ' + ((s.pop === 'popular') ? 'selected' : '') + '>🏆 الأكثر طلباً</option>' +
+          '<option value="trending" ' + ((s.pop === 'trending') ? 'selected' : '') + '>⚡ رائج</option>' +
+        '</select>' +
       '</div>' +
     '</div>';
 
@@ -570,6 +580,8 @@ async function saveServicePricing(serviceId, idx) {
   s.best_value = bvInp ? parseInt(bvInp.value) : (typeof s.best_value !== 'undefined' ? s.best_value : 2);
 
   var badgeVal = document.getElementById('pbadge-' + s.id) ? document.getElementById('pbadge-' + s.id).value.trim() : '';
+  var popSel = document.getElementById('pop-' + s.id);
+  s.pop = popSel ? (popSel.value || null) : s.pop;
   s.promo = {
     active: badgeVal !== '' || origP.some(function(x){ return x > 0; }),
     badge: badgeVal,
@@ -615,13 +627,14 @@ async function saveServicePricing(serviceId, idx) {
         show_types: s.showTypes,
         promo: promoData,
         out_of_stock: oosData,
-        best_value: s.best_value
+        best_value: s.best_value,
+        pop: s.pop || null
       })
       .eq('id', serviceId);
 
     if (error) {
       if (error.message && error.message.indexOf('does not exist') !== -1) {
-        alert('تنبيه: لتفعيل حفظ الخصومات والمدة الأكثر شراءً، يجب تشغيل أمر SQL البسيط التالي مرة واحدة في حسابك على Supabase (SQL Editor):\n\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS promo JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS out_of_stock JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS best_value INTEGER DEFAULT 2;\n\nتم حفظ باقي الأسعار الأساسية بنجاح!');
+        alert('تنبيه: لتفعيل حفظ الخصومات والمدة الأكثر شراءً وشارات البطاقات، يجب تشغيل أمر SQL البسيط التالي مرة واحدة في حسابك على Supabase (SQL Editor):\n\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS promo JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS out_of_stock JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS best_value INTEGER DEFAULT 2;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS pop TEXT;\n\nتم حفظ باقي الأسعار الأساسية بنجاح!');
       } else {
         alert('خطأ أثناء حفظ التعديلات في Supabase: ' + error.message);
       }

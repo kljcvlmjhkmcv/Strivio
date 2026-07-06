@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS public.services (
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS promo JSONB;
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS out_of_stock JSONB;
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS best_value INTEGER DEFAULT 2;
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS pop TEXT;
 
 -- 2. إنشاء جدول أكواد الخصم (coupons)
 CREATE TABLE IF NOT EXISTS public.coupons (
