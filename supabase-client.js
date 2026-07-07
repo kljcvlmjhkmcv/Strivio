@@ -196,11 +196,33 @@ async function loadFaqsFromDB() {
   if (!supabaseClient) return [];
   try {
     const { data, error } = await supabaseClient.from('faq').select('*').eq('active', true).order('sort_order', { ascending: true });
-    if (!error && data) {
-      window.FAQS = data;
-      return data;
+    if (error) {
+      console.error('❌ Error loading faqs from Supabase:', error.message);
+      return [];
     }
-    return [];
+    if (!data || data.length === 0) return [];
+
+    var parseJ = function(v, def) {
+      if (!v) return def;
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch(e) { return def; }
+      }
+      return v;
+    };
+
+    const parsedFaqs = data.map(function(item) {
+      return {
+        id: item.id,
+        icon: item.icon || '❓',
+        q: parseJ(item.q, { fr: '', ar: '', en: '' }),
+        a: parseJ(item.a, { fr: '', ar: '', en: '' }),
+        sort_order: item.sort_order || 0,
+        active: item.active !== false
+      };
+    });
+
+    window.FAQS = parsedFaqs;
+    return parsedFaqs;
   } catch (e) {
     console.error('❌ Exception loading faqs:', e);
     return [];

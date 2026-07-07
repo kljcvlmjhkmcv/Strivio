@@ -172,15 +172,22 @@ function render(){
   // Render FAQs
   var container = $('FAQ_LIST');
   if(!container) return;
-  var faqs = window.FAQS || [];
+  var faqs = window.FAQS;
+  if (!faqs || faqs.length === 0) {
+    var loadMsg = L === 'ar' ? '⏳ جاري جلب الأسئلة الشائعة من قاعدة البيانات...' : (L === 'en' ? '⏳ Loading FAQs from server...' : '⏳ Chargement des questions depuis le serveur...');
+    container.innerHTML = '<div class="text-center py-16 text-gray-400 font-medium">' + loadMsg + '</div>';
+    return;
+  }
   container.innerHTML = faqs.map(function(item, index){
-    var q = item.q[L] || item.q.fr;
-    var a = item.a[L] || item.a.fr;
+    var qObj = (typeof item.q === 'string') ? (function(){ try{return JSON.parse(item.q);}catch(e){return {};} })() : (item.q || {});
+    var aObj = (typeof item.a === 'string') ? (function(){ try{return JSON.parse(item.a);}catch(e){return {};} })() : (item.a || {});
+    var q = qObj[L] || qObj.ar || qObj.fr || qObj.en || (typeof item.q === 'string' ? item.q : '');
+    var a = aObj[L] || aObj.ar || aObj.fr || aObj.en || (typeof item.a === 'string' ? item.a : '');
     return [
       '<div class="FAQ-ITEM" id="FAQ_'+index+'">',
         '<div class="FAQ-HEADER" onclick="toggleFaq('+index+')">',
           '<div class="flex items-center gap-3">',
-            '<span class="text-xl">'+item.icon+'</span>',
+            '<span class="text-xl">'+(item.icon||'❓')+'</span>',
             '<span class="font-display font-bold text-white text-base sm:text-lg">'+q+'</span>',
           '</div>',
           '<svg class="FAQ-ICON transition-transform duration-300 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>',
@@ -226,6 +233,12 @@ if (typeof loadFaqsFromDB === 'function') {
     if (dbFaqs && dbFaqs.length > 0) {
       window.FAQS = dbFaqs;
       if (typeof render === 'function') render();
+    } else {
+      var container = $('FAQ_LIST');
+      if (container && (!window.FAQS || window.FAQS.length === 0)) {
+        var errMsg = L === 'ar' ? '⚠️ لم يتم العثور على أسئلة شائعة في قاعدة البيانات (Supabase). تأكد من تشغيل كود SQL الخاص بجدول faq في لوحة Supabase.' : '⚠️ No FAQs found in Supabase database. Please run schema.sql in Supabase.';
+        container.innerHTML = '<div class="text-center py-16 text-yellow-400 font-medium">' + errMsg + '</div>';
+      }
     }
   });
 }
