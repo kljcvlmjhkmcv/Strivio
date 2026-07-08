@@ -743,7 +743,8 @@ async function confirmOrder(){
   if(!selPay || cart.length === 0) return;
   var tx = t();
   var btn = $('CFRMBTN');
-  if(btn) { btn.disabled = true; btn.textContent = '⏳ ...'; }
+  var loadTxt = L === 'ar' ? '⏳ جاري إنشاء فاتورة الدفع الآمنة...' : (L === 'fr' ? '⏳ Création de la facture sécurisée...' : '⏳ Creating secure invoice...');
+  if(btn) { btn.disabled = true; btn.textContent = loadTxt; }
 
   var rpcData = null;
   if (typeof saveOrderToDB === 'function') {
@@ -783,6 +784,11 @@ async function confirmOrderSocial(platform){
     return;
   }
   var tx = t();
+  var btnId = platform === 'ig' ? 'IG_BTN' : 'FB_BTN';
+  var btn = $(btnId);
+  var origTxt = btn ? btn.innerHTML : '';
+  var loadTxt = L === 'ar' ? '⏳ جاري إنشاء فاتورة الدفع الآمنة...' : (L === 'fr' ? '⏳ Création de la facture sécurisée...' : '⏳ Creating secure invoice...');
+  if(btn) { btn.disabled = true; btn.innerHTML = '<span>' + loadTxt + '</span>'; }
   
   var rpcData = null;
   if (typeof saveOrderToDB === 'function') {
@@ -793,6 +799,8 @@ async function confirmOrderSocial(platform){
       customer_info: { lang: L, platform: platform }
     });
   }
+
+  if(btn) { btn.disabled = false; btn.innerHTML = origTxt; }
 
   if (!rpcData || !rpcData.success) {
     var errMsg = L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
