@@ -144,24 +144,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   }
 })();
 </script>
-<script>
-(function(){
-  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
-  document.addEventListener('keydown', function(e){
-    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) || (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's'))) {
-      e.preventDefault();
-    }
-  });
-  setInterval(function(){
-    var before = new Date().getTime();
-    debugger;
-    var after = new Date().getTime();
-    if (after - before > 100) {
-      document.body.innerHTML = '<div style="background:#121212;color:#ff3333;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:bold;font-size:24px">Protected Code — Access Denied</div>';
-    }
-  }, 1000);
-})();
-</script>
+
 </head>
 <body class="overflow-x-hidden" style="background:#121212">
 
@@ -1009,39 +992,7 @@ if (typeof loadReviewsFromDB === 'function') {
   });
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   DOM PROTECTION & DECOY SCRAMBLER
-   يجعل محاولة نسخ الكود أو سحب الـ HTML عبر F12 مليئة بالفخاخ والأكواد الملخبطة والناقصة دون تغيير أي بكسل في المتجر
-═══════════════════════════════════════════════════════════════ */
-(function(){
-  try {
-    var decoyHTML = [
-      '<div class="strivio-decoy-layer-x99 clone-trap" style="display:none !important;opacity:0 !important;position:absolute;left:-9999px;width:0;height:0;z-index:-1000;pointer-events:none" aria-hidden="true">',
-      '<header class="gn-fake-header"><h1>ERROR 403: PROTECTED STRIVIO DOM STRUCTURE</h1><div class="fake-grid-container"><div class="fake-card-item">Null Reference Exception in UI Render</div></div></header>',
-      '<section class="decoy-pricing-matrix"><table><tr><td>Corrupted Token</td><td>0x00000</td></tr></table></section>',
-      '</div>'
-    ].join('');
-    
-    var targets = [document.body, document.getElementById('home'), document.getElementById('why'), document.getElementById('NAV'), document.getElementById('PG')];
-    targets.forEach(function(t){
-      if(t){
-        var d1 = document.createElement('div');
-        d1.innerHTML = decoyHTML;
-        t.appendChild(d1);
-        var d2 = document.createElement('div');
-        d2.innerHTML = '<span style="display:none !important" class="scrambled-token-998">-- STRIVIO ANTI-CLONE TRAP: MISSING REQUIRED SHADOW ROOT --</span>';
-        t.insertBefore(d2, t.firstChild);
-      }
-    });
 
-    setInterval(function(){
-      var decoys = document.querySelectorAll('.clone-trap');
-      decoys.forEach(function(el){
-        el.setAttribute('data-sec-hash', Math.random().toString(36).substring(2));
-      });
-    }, 4000);
-  } catch(e){}
-})();
 </script>
 </body>
 </html>
