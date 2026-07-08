@@ -215,10 +215,13 @@
   </div>
 
   <!-- TABS -->
-  <div class="flex flex-wrap gap-3 mb-8 border-b border-brand-border/60 pb-4">
-    <button class="tab-btn active" onclick="switchTab('prices')"><span>💰</span> <span>الأسعار، المخزون، والخصومات</span></button>
-    <button class="tab-btn" onclick="switchTab('coupons')"><span>🎟️</span> <span>كوبونات الخصم</span></button>
-    <button class="tab-btn" onclick="switchTab('orders')"><span>📦</span> <span>سجل الطلبات وإدارة العملاء</span></button>
+  <div class="flex flex-wrap gap-2.5 mb-8 border-b border-brand-border/60 pb-4">
+    <button class="tab-btn active" onclick="switchTab('prices')"><span>💰</span> <span>الأسعار والمخزون</span></button>
+    <button class="tab-btn" onclick="switchTab('coupons')"><span>🎟️</span> <span>الكوبونات</span></button>
+    <button class="tab-btn" onclick="switchTab('orders')"><span>📦</span> <span>الطلبات والعملاء</span></button>
+    <button class="tab-btn" onclick="switchTab('reviews')"><span>⭐</span> <span>التقييمات</span></button>
+    <button class="tab-btn" onclick="switchTab('faq')"><span>❓</span> <span>الأسئلة الشائعة</span></button>
+    <button class="tab-btn" onclick="switchTab('settings')"><span>⚙️</span> <span>الإعدادات والتليجرام</span></button>
   </div>
 
   <!-- TAB 1: PRICES, STOCK & DISCOUNTS MANAGEMENT -->
@@ -292,6 +295,151 @@
     </div>
     <div id="orders-list" class="space-y-4">
       <div class="text-center py-12 text-gray-500 font-medium">جاري تحميل الطلبات...</div>
+    </div>
+  </div>
+
+  <!-- TAB 4: REVIEWS MANAGEMENT -->
+  <div id="tab-reviews" class="space-y-6 hidden">
+    <div class="glass-card p-6 rounded-2xl border-brand-border">
+      <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2"><span class="text-brand-neon">⭐</span> إضافة تقييم عميل جديد للمتجر</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+        <div>
+          <label class="block text-xs font-bold text-gray-400 mb-1.5">الحرف الأولي (مثال: A)</label>
+          <input type="text" id="rev-init" class="input-box text-center uppercase" placeholder="A" maxlength="2"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 mb-1.5">اسم العميل</label>
+          <input type="text" id="rev-name" class="input-box text-center" placeholder="Amir K."/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 mb-1.5">الخدمة المشتراة</label>
+          <input type="text" id="rev-srv" class="input-box text-center" placeholder="Netflix Premium"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 mb-1.5">التاريخ</label>
+          <input type="text" id="rev-date" class="input-box text-center" placeholder="منذ يومين"/>
+        </div>
+        <div>
+          <button onclick="addReviewAdmin()" class="save-btn w-full py-2.5 text-xs">➕ إضافة التقييم</button>
+        </div>
+      </div>
+      <div class="mt-3">
+        <label class="block text-xs font-bold text-gray-400 mb-1.5">نص التقييم</label>
+        <textarea id="rev-txt" class="input-box w-full text-xs h-16" placeholder="خدمة ممتازة وسرعة تسليم خيالية في أقل من دقيقتين..."></textarea>
+      </div>
+    </div>
+    <div class="glass-card rounded-2xl p-4">
+      <div class="border-b border-brand-border pb-3 mb-4 font-bold text-white flex items-center justify-between">
+        <span>⭐ التقييمات المعروضة في الصفحة الرئيسية</span>
+        <button onclick="loadReviewsAdmin()" class="text-xs text-brand-neon hover:underline">🔄 تحديث</button>
+      </div>
+      <div id="reviews-admin-list" class="space-y-3">
+        <div class="text-center py-6 text-gray-500">جاري تحميل التقييمات...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 5: FAQ MANAGEMENT -->
+  <div id="tab-faq" class="space-y-6 hidden">
+    <div class="glass-card p-6 rounded-2xl border-brand-border">
+      <h3 class="text-white font-bold text-lg mb-4 flex items-center gap-2"><span class="text-brand-neon">❓</span> إضافة سؤال شائب جديد</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-bold text-gray-400 mb-1">معرف السؤال (ID: english_only)</label>
+          <input type="text" id="faq-id" class="input-box text-center text-xs" placeholder="delivery_speed"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 mb-1">الأيقونة (مثال: ⚡)</label>
+          <input type="text" id="faq-icon" class="input-box text-center text-xs" placeholder="⚡"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 mb-1">الترتيب</label>
+          <input type="number" id="faq-order" class="input-box text-center text-xs" value="10"/>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-bold text-brand-neon mb-1">السؤال (ar)</label>
+          <input type="text" id="faq-q-ar" class="input-box text-xs w-full" placeholder="كيفية الدفع والاستلام؟"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1">السؤال (en)</label>
+          <input type="text" id="faq-q-en" class="input-box text-xs w-full" placeholder="How to pay and receive?"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1">السؤال (fr)</label>
+          <input type="text" id="faq-q-fr" class="input-box text-xs w-full" placeholder="Comment payer et recevoir ?"/>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div>
+          <label class="block text-xs font-bold text-brand-neon mb-1">الجواب (ar)</label>
+          <textarea id="faq-a-ar" class="input-box text-xs w-full h-16" placeholder="التسليم فوري..."></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1">الجواب (en)</label>
+          <textarea id="faq-a-en" class="input-box text-xs w-full h-16" placeholder="Delivery is instant..."></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1">الجواب (fr)</label>
+          <textarea id="faq-a-fr" class="input-box text-xs w-full h-16" placeholder="La livraison est instantanée..."></textarea>
+        </div>
+      </div>
+      <button onclick="addFaqAdmin()" class="save-btn w-full py-2.5 text-xs font-bold">➕ حفظ السؤال في قاعدة البيانات</button>
+    </div>
+    <div class="glass-card rounded-2xl p-4">
+      <div class="border-b border-brand-border pb-3 mb-4 font-bold text-white flex items-center justify-between">
+        <span>❓ قائمة الأسئلة الشائعة في الموقع</span>
+        <button onclick="loadFaqAdmin()" class="text-xs text-brand-neon hover:underline">🔄 تحديث</button>
+      </div>
+      <div id="faq-admin-list" class="space-y-3">
+        <div class="text-center py-6 text-gray-500">جاري تحميل الأسئلة...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 6: SETTINGS & TELEGRAM BOT MANAGEMENT -->
+  <div id="tab-settings" class="space-y-6 hidden">
+    <div class="glass-card p-6 rounded-3xl border-brand-border space-y-5">
+      <div class="border-b border-brand-border pb-3 flex items-center justify-between">
+        <h3 class="text-white font-bold text-lg flex items-center gap-2"><span class="text-brand-neon">⚙️</span> إعدادات المتجر وروابط التواصل وإشعارات Telegram</h3>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1.5">رقم الواتساب (الدعم والطلبات):</label>
+          <input type="text" id="set-whatsapp" class="input-box text-sm text-center font-mono text-brand-neon" placeholder="213562961410"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1.5">رقم الهاتف العادي:</label>
+          <input type="text" id="set-phone" class="input-box text-sm text-center font-mono" placeholder="tel:+213XXXXXXXXX"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1.5">رابط حساب Instagram:</label>
+          <input type="text" id="set-instagram" class="input-box text-xs text-left font-mono text-gray-300" placeholder="https://instagram.com/strivio.store"/>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-300 mb-1.5">رابط صفحة Facebook:</label>
+          <input type="text" id="set-facebook" class="input-box text-xs text-left font-mono text-gray-300" placeholder="https://www.facebook.com/..."/>
+        </div>
+      </div>
+      <div class="bg-[#141414] p-5 rounded-2xl border border-brand-neon/30 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-bold text-brand-neon flex items-center gap-2">🤖 إعدادات التنبيه الفوري على Telegram Bot</span>
+          <span class="text-[10px] text-gray-400">تلقي إشعارات الطلبات على موبايلك</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-400 mb-1">Telegram Bot Token (من @BotFather):</label>
+            <input type="text" id="set-tg-token" class="input-box text-xs text-left font-mono text-yellow-300" placeholder="123456789:AAF..."/>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-400 mb-1">Telegram Chat ID (معرف حسابك / الجروب):</label>
+            <input type="text" id="set-tg-chatid" class="input-box text-xs text-center font-mono text-yellow-300" placeholder="987654321"/>
+          </div>
+        </div>
+        <p class="text-[11px] text-gray-500 leading-relaxed">💡 بعد إدخال التوكن ومعرف الشات وحفظ الإعدادات، سيقوم المتجر تلقائياً بإرسال إشعار فوري لموبايلك عند استلام أي طلب جديد مع تفاصيل الفاتورة ورقم الهاتف.</p>
+      </div>
+      <button onclick="saveSettingsAdmin()" class="save-btn w-full py-3.5 text-sm shadow-[0_0_20px_rgba(57,255,20,0.3)]">💾 حفظ جميع إعدادات المتجر في Supabase</button>
     </div>
   </div>
 </div>
@@ -377,15 +525,19 @@ async function handleLogout() {
 }
 
 function switchTab(tab) {
+  var tabs = ['prices', 'coupons', 'orders', 'reviews', 'faq', 'settings'];
   document.querySelectorAll('.tab-btn').forEach(function(btn, i){
-    var isActive = (tab === 'prices' && i===0) || (tab === 'coupons' && i===1) || (tab === 'orders' && i===2);
-    btn.classList.toggle('active', isActive);
+    btn.classList.toggle('active', tabs[i] === tab);
   });
-  document.getElementById('tab-prices').classList.toggle('hidden', tab !== 'prices');
-  document.getElementById('tab-coupons').classList.toggle('hidden', tab !== 'coupons');
-  document.getElementById('tab-orders').classList.toggle('hidden', tab !== 'orders');
+  tabs.forEach(function(t) {
+    var el = document.getElementById('tab-' + t);
+    if (el) el.classList.toggle('hidden', tab !== t);
+  });
   if(tab === 'orders') loadOrders();
   if(tab === 'coupons') loadCoupons();
+  if(tab === 'reviews') loadReviewsAdmin();
+  if(tab === 'faq') loadFaqAdmin();
+  if(tab === 'settings') loadSettingsAdmin();
 }
 
 /* ─── LIVE STATS ANALYTICS ─── */
@@ -828,6 +980,162 @@ function renderOrdersList(data) {
       '</div>' +
     '</div>';
   }).join('');
+}
+
+/* ─── REVIEWS ADMIN MANAGEMENT ─── */
+async function loadReviewsAdmin() {
+  if (!window.supabaseClient) return;
+  var { data, error } = await window.supabaseClient.from('reviews').select('*').order('sort_order', { ascending: true });
+  var container = document.getElementById('reviews-admin-list');
+  if (error || !data || data.length === 0) {
+    container.innerHTML = '<div class="text-center py-6 text-gray-500">لا توجد تقييمات معروضة حالياً.</div>';
+    return;
+  }
+  container.innerHTML = data.map(function(r) {
+    return '<div class="p-4 bg-[#101010] rounded-2xl border border-brand-border flex items-center justify-between gap-4">' +
+      '<div class="flex items-center gap-3.5">' +
+        '<div class="w-10 h-10 rounded-full bg-brand-neon/10 border border-brand-neon text-brand-neon flex items-center justify-center font-bold text-sm">' + (r.i || '★') + '</div>' +
+        '<div>' +
+          '<div class="font-bold text-white text-sm">' + r.n + ' <span class="text-xs text-brand-neon">[' + r.s + ']</span> <span class="text-[10px] text-gray-500">(' + r.d + ')</span></div>' +
+          '<div class="text-xs text-gray-400 mt-1 leading-relaxed">' + r.t + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button onclick="deleteReviewAdmin(' + r.id + ')" class="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1">🗑️ حذف</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function addReviewAdmin() {
+  var init = document.getElementById('rev-init').value.trim() || 'A';
+  var name = document.getElementById('rev-name').value.trim();
+  var srv = document.getElementById('rev-srv').value.trim() || 'Subscription';
+  var date = document.getElementById('rev-date').value.trim() || 'اليوم';
+  var txt = document.getElementById('rev-txt').value.trim();
+  if (!name || !txt) { alert('يرجى إدخال اسم العميل ونص التقييم'); return; }
+
+  if (window.supabaseClient) {
+    var { error } = await window.supabaseClient.from('reviews').insert([{
+      i: init, n: name, s: srv, d: date, t: txt, active: true
+    }]);
+    if (error) alert('خطأ أثناء إضافة التقييم: ' + error.message);
+    else {
+      showToast('تمت إضافة التقييم بنجاح!');
+      document.getElementById('rev-name').value = '';
+      document.getElementById('rev-txt').value = '';
+      loadReviewsAdmin();
+    }
+  }
+}
+
+async function deleteReviewAdmin(id) {
+  if (!confirm('هل أنت متأكد من حذف هذا التقييم؟')) return;
+  var { error } = await window.supabaseClient.from('reviews').delete().eq('id', id);
+  if (error) alert('خطأ أثناء الحذف: ' + error.message);
+  else {
+    showToast('تم حذف التقييم بنجاح');
+    loadReviewsAdmin();
+  }
+}
+
+/* ─── FAQ ADMIN MANAGEMENT ─── */
+async function loadFaqAdmin() {
+  if (!window.supabaseClient) return;
+  var { data, error } = await window.supabaseClient.from('faq').select('*').order('sort_order', { ascending: true });
+  var container = document.getElementById('faq-admin-list');
+  if (error || !data || data.length === 0) {
+    container.innerHTML = '<div class="text-center py-6 text-gray-500">لا توجد أسئلة شائعة حالياً.</div>';
+    return;
+  }
+  container.innerHTML = data.map(function(f) {
+    var qAr = (f.q && f.q.ar) ? f.q.ar : (typeof f.q === 'string' ? f.q : '');
+    var aAr = (f.a && f.a.ar) ? f.a.ar : (typeof f.a === 'string' ? f.a : '');
+    return '<div class="p-4 bg-[#101010] rounded-2xl border border-brand-border flex items-center justify-between gap-4">' +
+      '<div class="flex items-start gap-3">' +
+        '<span class="text-xl mt-0.5">' + (f.icon || '❓') + '</span>' +
+        '<div>' +
+          '<div class="font-bold text-white text-sm">' + qAr + ' <span class="text-[10px] text-gray-500 font-mono">(' + f.id + ')</span></div>' +
+          '<div class="text-xs text-gray-400 mt-1">' + aAr + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button onclick="deleteFaqAdmin(\'' + f.id + '\')" class="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all">🗑️ حذف</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function addFaqAdmin() {
+  var id = document.getElementById('faq-id').value.trim();
+  var icon = document.getElementById('faq-icon').value.trim() || '❓';
+  var order = parseInt(document.getElementById('faq-order').value) || 10;
+  var qAr = document.getElementById('faq-q-ar').value.trim();
+  var qEn = document.getElementById('faq-q-en').value.trim() || qAr;
+  var qFr = document.getElementById('faq-q-fr').value.trim() || qAr;
+  var aAr = document.getElementById('faq-a-ar').value.trim();
+  var aEn = document.getElementById('faq-a-en').value.trim() || aAr;
+  var aFr = document.getElementById('faq-a-fr').value.trim() || aAr;
+
+  if (!id || !qAr || !aAr) { alert('يرجى إدخال معرف السؤال (ID) والسؤال والجواب بالعربية على الأقل'); return; }
+
+  var qObj = { ar: qAr, en: qEn, fr: qFr };
+  var aObj = { ar: aAr, en: aEn, fr: aFr };
+
+  if (window.supabaseClient) {
+    var { error } = await window.supabaseClient.from('faq').insert([{
+      id: id, icon: icon, q: qObj, a: aObj, sort_order: order, active: true
+    }]);
+    if (error) alert('خطأ أثناء حفظ السؤال: ' + error.message);
+    else {
+      showToast('تمت إضافة السؤال بنجاح!');
+      document.getElementById('faq-id').value = '';
+      document.getElementById('faq-q-ar').value = '';
+      document.getElementById('faq-a-ar').value = '';
+      loadFaqAdmin();
+    }
+  }
+}
+
+async function deleteFaqAdmin(id) {
+  if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
+  var { error } = await window.supabaseClient.from('faq').delete().eq('id', id);
+  if (error) alert('خطأ أثناء الحذف: ' + error.message);
+  else {
+    showToast('تم حذف السؤال بنجاح');
+    loadFaqAdmin();
+  }
+}
+
+/* ─── SETTINGS & TELEGRAM ADMIN MANAGEMENT ─── */
+async function loadSettingsAdmin() {
+  if (!window.supabaseClient) return;
+  var { data, error } = await window.supabaseClient.from('settings').select('config').eq('id', 1).single();
+  if (!error && data && data.config) {
+    var c = data.config;
+    document.getElementById('set-whatsapp').value = c.whatsapp || '';
+    document.getElementById('set-phone').value = c.phone || '';
+    document.getElementById('set-instagram').value = c.instagram || '';
+    document.getElementById('set-facebook').value = c.facebook || '';
+    document.getElementById('set-tg-token').value = c.telegram_bot_token || '';
+    document.getElementById('set-tg-chatid').value = c.telegram_chat_id || '';
+  }
+}
+
+async function saveSettingsAdmin() {
+  if (!window.supabaseClient) return;
+  var { data: oldData } = await window.supabaseClient.from('settings').select('config').eq('id', 1).single();
+  var c = (oldData && oldData.config) ? oldData.config : {};
+
+  c.whatsapp = document.getElementById('set-whatsapp').value.trim();
+  c.phone = document.getElementById('set-phone').value.trim();
+  c.instagram = document.getElementById('set-instagram').value.trim();
+  c.facebook = document.getElementById('set-facebook').value.trim();
+  c.telegram_bot_token = document.getElementById('set-tg-token').value.trim();
+  c.telegram_chat_id = document.getElementById('set-tg-chatid').value.trim();
+
+  var { error } = await window.supabaseClient.from('settings').update({ config: c }).eq('id', 1);
+  if (error) alert('خطأ أثناء حفظ الإعدادات: ' + error.message);
+  else {
+    showToast('تم حفظ إعدادات التواصل والتليجرام بنجاح! 🎉');
+    if (window.CONFIG) window.CONFIG = c;
+  }
 }
 
 window.addEventListener('DOMContentLoaded', checkAuth);

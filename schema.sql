@@ -60,6 +60,25 @@ CREATE TABLE IF NOT EXISTS public.orders (
 -- ====================================================================
 -- تفعيل سياسات الأمان (Row Level Security - RLS) و الدوال الآمنة (RPC)
 -- ====================================================================
+-- ⚠️ تنبيه أمني حاسم: تأكد من الدخول للوحة تحكم Supabase -> Authentication -> Settings
+-- وإلغاء تفعيل "Enable Signups" (Disable User Signups) حتى لا يتمكن أحد من إنشاء حساب جديد.
+
+-- دالة التحقق من أن المستخدم مدير معتمد في المتجر
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN (
+    auth.role() = 'authenticated' AND
+    (
+      (auth.jwt() ->> 'email') IN ('admin@striviodz.store', 'support@striviodz.store', 'jeepl@striviodz.store')
+      OR (auth.jwt() ->> 'email') LIKE '%@striviodz.store'
+    )
+  );
+END;
+$$;
 
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read access on services" ON public.services;
@@ -76,25 +95,25 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public insert on orders" ON public.orders;
 
 -- ====================================================================
--- صلاحيات المدير (الذي يسجل دخوله بحساب Supabase Auth)
+-- صلاحيات المدير (الذي يسجل دخوله بحساب Supabase Auth المعتمد فقط)
 -- ====================================================================
 DROP POLICY IF EXISTS "Allow admin full access on services" ON public.services;
 CREATE POLICY "Allow admin full access on services"
   ON public.services FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 DROP POLICY IF EXISTS "Allow admin full access on coupons" ON public.coupons;
 CREATE POLICY "Allow admin full access on coupons"
   ON public.coupons FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 DROP POLICY IF EXISTS "Allow admin full access on orders" ON public.orders;
 CREATE POLICY "Allow admin full access on orders"
   ON public.orders FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 -- ====================================================================
 -- دوال السيرفر الآمنة (Backend RPC Functions) - حماية 100% ضد التلاعب
@@ -184,6 +203,11 @@ BEGIN
       RAISE EXCEPTION 'Service % not found', v_service_id;
     END IF;
 
+    -- التحقق أولاً من أن المنتج غير موقوف بالكامل (Out of Stock)
+    IF COALESCE((v_service_record.out_of_stock->>'all')::boolean, false) = true THEN
+      RAISE EXCEPTION 'عذراً، المنتج (%) غير متوفر حالياً في المخزون', COALESCE(v_service_record.n->>'ar', v_service_id);
+    END IF;
+
     -- تحديد سعر الوحدة المعتمد في السيرفر
     IF v_service_record.type_prices IS NOT NULL AND jsonb_array_length(v_service_record.type_prices) > v_type_idx THEN
       v_unit_price := ((v_service_record.type_prices->v_type_idx)->>v_dur_idx)::numeric;
@@ -191,8 +215,9 @@ BEGIN
       v_unit_price := (v_service_record.p->>v_dur_idx)::numeric;
     END IF;
 
-    IF v_unit_price IS NULL THEN
-      v_unit_price := 0;
+    -- رفض أي محاولة طلب لمنتج أو مدة سعرها 0 أو أقل (سواء غير متوفرة أو تلاعب برقم المؤشر)
+    IF v_unit_price IS NULL OR v_unit_price <= 0 THEN
+      RAISE EXCEPTION 'المدة أو الباقة المحددة للمنتج (%) غير متوفرة حالياً في المتجر', COALESCE(v_service_record.n->>'ar', v_service_id);
     END IF;
 
     v_subtotal := v_subtotal + (v_unit_price * v_qty);
@@ -268,6 +293,63 @@ BEGIN
     'flexy_fee', v_flexy_fee,
     'total_payable', v_total_payable
   );
+END;
+$$;
+
+-- 3. دالة السيرفر الآمنة لتحديث الفاتورة ورابط الدفع دون انتهاك سياسات RLS
+CREATE OR REPLACE FUNCTION public.update_order_payment(
+  p_order_id UUID,
+  p_payment_id TEXT,
+  p_payment_url TEXT
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_order RECORD;
+BEGIN
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Order not found');
+  END IF;
+
+  UPDATE public.orders
+  SET payment_id = p_payment_id,
+      payment_url = p_payment_url,
+      status = 'pending_payment'
+  WHERE id = p_order_id;
+
+  RETURN jsonb_build_object('success', true, 'order_id', p_order_id);
+END;
+$$;
+
+-- 4. دالة تأكيد الدفع التلقائي عند استلام ويب هوك أو تحقق ناجح (Webhook / Auto Confirm)
+CREATE OR REPLACE FUNCTION public.confirm_order_payment(
+  p_payment_id TEXT DEFAULT NULL,
+  p_order_id UUID DEFAULT NULL
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_order RECORD;
+BEGIN
+  IF p_order_id IS NOT NULL THEN
+    SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
+  ELSIF p_payment_id IS NOT NULL THEN
+    SELECT * INTO v_order FROM public.orders WHERE payment_id = p_payment_id;
+  END IF;
+
+  IF NOT FOUND OR v_order IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Order not found');
+  END IF;
+
+  UPDATE public.orders
+  SET status = 'paid',
+      updated_at = now()
+  WHERE id = v_order.id;
+
+  RETURN jsonb_build_object('success', true, 'order_id', v_order.id, 'status', 'paid', 'total_payable', v_order.total_payable);
 END;
 $$;
 
@@ -478,7 +560,7 @@ ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read access on settings" ON public.settings;
 CREATE POLICY "Allow public read access on settings" ON public.settings FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow admin full access on settings" ON public.settings;
-CREATE POLICY "Allow admin full access on settings" ON public.settings FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow admin full access on settings" ON public.settings FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 INSERT INTO public.settings (id, config) VALUES (1, '{
   "email": "mailto:support@strivio.com",
@@ -508,7 +590,7 @@ ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read access on reviews" ON public.reviews;
 CREATE POLICY "Allow public read access on reviews" ON public.reviews FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow admin full access on reviews" ON public.reviews;
-CREATE POLICY "Allow admin full access on reviews" ON public.reviews FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow admin full access on reviews" ON public.reviews FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 INSERT INTO public.reviews (id, i, n, s, d, t, sort_order) VALUES
 (1, 'A', 'Amir K.', 'Netflix Premium', '2 days ago', 'Ordered Netflix at 2am, had credentials by 2:02am. Genuinely shocked. This is how all digital stores should work.', 1),
@@ -534,7 +616,7 @@ ALTER TABLE public.faq ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read access on faq" ON public.faq;
 CREATE POLICY "Allow public read access on faq" ON public.faq FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow admin full access on faq" ON public.faq;
-CREATE POLICY "Allow admin full access on faq" ON public.faq FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow admin full access on faq" ON public.faq FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 INSERT INTO public.faq (id, icon, q, a, sort_order) VALUES
 ('buying', '🛒', '{"fr": "Comment passer une commande sur Strivio ?", "ar": "كيفية الشراء وإتمام الطلب من متجر Strivio؟", "en": "How do I place an order on Strivio?"}'::jsonb, '{"fr": "Sélectionnez simplement votre abonnement préféré, choisissez la durée et l''option souhaitée, puis cliquez sur \"Acheter Maintenant\" ou ajoutez-le au panier. Lors du paiement, vous serez redirigé automatiquement vers WhatsApp avec les détails pré-remplis pour valider immédiatement votre commande.", "ar": "اختر الخدمة والمدة المحددة، ثم اضغط على \"اشتر الآن\" أو اضفها للسلة. عند إتمام الطلب، سيتم نسخ التعديلات فوراً وتوجيهك إلى واتساب لإرسال الطلب والتأكيد الفوري مع فريق الدعم.", "en": "Select your preferred subscription, duration, and tier, then click \"Buy Now\" or add to cart. At checkout, click confirm to automatically copy your order details and redirect to WhatsApp for instant confirmation."}'::jsonb, 1),

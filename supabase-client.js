@@ -161,9 +161,9 @@ async function saveOrderToDB(orderData) {
 
     const slickPayload = {
       amount: Number(rpcData.total_payable),
-      url: "https://striviodz.store/thank-you.html",
-      return_url: "https://striviodz.store/thank-you.html",
-      success_url: "https://striviodz.store/thank-you.html",
+      url: "https://striviodz.store/thank-you.html?order_id=" + rpcData.order_id,
+      return_url: "https://striviodz.store/thank-you.html?order_id=" + rpcData.order_id,
+      success_url: "https://striviodz.store/thank-you.html?order_id=" + rpcData.order_id,
       firstname: orderData.customer_info?.firstname || "Strivio",
       lastname: orderData.customer_info?.lastname || "Client",
       email: orderData.customer_info?.email || "client@striviodz.store",
@@ -207,24 +207,33 @@ async function saveOrderToDB(orderData) {
         return rpcData;
       }
 
-      // 4. تحديث سجل الطلب في جدول orders بـ payment_id و payment_url
+      // 4. تحديث سجل الطلب في جدول orders بأمان عبر دالة الـ RPC (لتجاوز حظر RLS للعملاء)
       if (rpcData.order_id && paymentId) {
-        const { error: updateErr } = await supabaseClient
-          .from('orders')
-          .update({
-            payment_id: paymentId,
-            payment_url: paymentUrl
-          })
-          .eq('id', rpcData.order_id);
+        const { error: updateErr } = await supabaseClient.rpc('update_order_payment', {
+          p_order_id: rpcData.order_id,
+          p_payment_id: paymentId,
+          p_payment_url: paymentUrl
+        });
 
         if (updateErr) {
-          console.warn('⚠️ Could not update order with SlickPay info:', updateErr.message);
+          console.warn('⚠️ Could not update order with SlickPay info via RPC:', updateErr.message);
         } else {
-          console.log('✅ Order updated in DB with SlickPay payment ID and URL.');
+          console.log('✅ Order updated securely via RPC with SlickPay payment ID and URL.');
         }
       }
 
-      // 5. إضافة payment_url إلى rpcData وإرجاعه
+      // 5. إرسال إشعار فوري على تليجرام للمدير (إذا تم إعداد التوكن في الإعدادات)
+      if (window.CONFIG && window.CONFIG.telegram_bot_token && window.CONFIG.telegram_chat_id) {
+        try {
+          const tgText = `🚨 *طلب جديد عبر CIB / SATIM*\n🏷️ *رقم الطلب:* \`${rpcData.order_id}\`\n💰 *الإجمالي:* ${rpcData.total_payable} دج\n⚡ *حالة الدفع:* بانتظار إتمام الدفع في SATIM\n📱 *هاتف العميل:* ${orderData.customer_info?.phone || 'غير محدد'}`;
+          fetch(`https://api.telegram.org/bot${window.CONFIG.telegram_bot_token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: window.CONFIG.telegram_chat_id, text: tgText, parse_mode: 'Markdown' })
+          });
+        } catch(tgE) { console.warn('TG Alert failed:', tgE); }
+      }
+
       rpcData.payment_url = paymentUrl;
       return rpcData;
 

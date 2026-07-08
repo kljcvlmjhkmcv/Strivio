@@ -203,7 +203,15 @@ html[dir="ltr"] .order-info-box { text-align: left; }
   <h1 id="T_TITLE">تم الدفع وإتمام الطلب بنجاح!</h1>
   <p class="subtitle" id="T_DESC">شكراً لثقتك في Strivio. لقد تم تأكيد دفعتك الإلكترونية عبر بوابة SATIM بأمان. نقوم الآن بمعالجة اشتراكك وسيصلك التفعيل في أقرب وقت.</p>
   
-  <div class="order-info-box">
+  <div class="order-info-box" id="ORDER_INFO_BOX">
+    <div class="info-row" id="ROW_ORDER_ID" style="display:none">
+      <span class="info-label" id="T_OID_LBL">رقم الطلب:</span>
+      <span class="info-val highlight font-mono text-sm" id="T_OID_VAL">--</span>
+    </div>
+    <div class="info-row font-bold" id="ROW_ORDER_TOTAL" style="display:none">
+      <span class="info-label" id="T_TOTAL_LBL">المبلغ الإجمالي:</span>
+      <span class="info-val text-brand-neon" id="T_TOTAL_VAL">--</span>
+    </div>
     <div class="info-row">
       <span class="info-label" id="T_STATUS_LBL">حالة الطلب:</span>
       <span class="info-val highlight" id="T_STATUS_VAL">مكتمل ومؤكد</span>
@@ -284,7 +292,7 @@ function setLang(lang) {
   document.getElementById('T_HOME_TXT').textContent = t.homeTxt;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const savedLang = localStorage.getItem('strivio_lang') || 'ar';
   setLang(savedLang);
 
@@ -293,6 +301,30 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Clear any leftover cart item
   localStorage.removeItem("strivio_cart");
+
+  // التحقق من وجود رقم الطلب في الرابط وتخصيص الواجهة ورسالة الواتساب
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get('order_id') || params.get('id') || params.get('invoice_id');
+  
+  if (orderId) {
+    const rowOid = document.getElementById('ROW_ORDER_ID');
+    const oidVal = document.getElementById('T_OID_VAL');
+    if (rowOid && oidVal) {
+      rowOid.style.display = 'flex';
+      oidVal.textContent = orderId;
+    }
+
+    // تخصيص رابط واتساب ليحتوي على رقم الطلب
+    const waBtn = document.getElementById('T_WA_BTN');
+    if (waBtn) {
+      const waMsg = savedLang === 'ar'
+        ? `مرحباً الدعم الفني، قمت بإتمام عملية الدفع عبر SATIM لطلبي رقم (${orderId}) وأرغب باستلام الحساب الآن، شكراً!`
+        : (savedLang === 'fr'
+          ? `Bonjour le support, j'ai effectué le paiement SATIM pour ma commande (${orderId}). Je souhaite recevoir mon abonnement, merci !`
+          : `Hello Support, I completed SATIM payment for order (${orderId}). I would like to receive my subscription now, thanks!`);
+      waBtn.href = `https://wa.me/213562961410?text=${encodeURIComponent(waMsg)}`;
+    }
+  }
 });
 
 /* ═══════════════════════════════════════════════════════════════
