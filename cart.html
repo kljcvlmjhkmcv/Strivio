@@ -372,7 +372,7 @@ var TX={
       {id:'flexy',    label:'Flexy',               desc:'+19% frais de service',icon:'⚡', disabled:false}
     ],
     toastTitle:'✅ Commande Copiée & Ouverte !',
-    toastDesc:'Détails copied dans le presse-papiers ! Vous pouvez les coller dans WhatsApp, Facebook ou Instagram.',
+    toastDesc:'Détails copiés dans le presse-papiers ! Vous pouvez les coller dans WhatsApp, Facebook ou Instagram.',
     dl:['1 Mois','2 Mois','3 Mois','6 Mois','1 An'],
     remove:'Supprimer',
     month:'mois',
@@ -451,7 +451,7 @@ function makeIcon(item, sz){
     return '<img src="'+item.iconSrc+'" style="width:'+sz+';height:'+sz+';object-fit:contain" alt=""/>';
   }
   if(item.iconType === 'text'){
-    return '<div style="width:'+sz+';height:'+sz+';display:flex;align-items:center;justify-content:center;font-family:Space Grotesk,sans-serif;font-weight:900;font-size:'+Math.round(parseInt(sz)*0.55)+'px;color:'+(item.iconColor||#fff')+'">'+item.iconSrc+'</div>';
+    return '<div style="width:'+sz+';height:'+sz+';display:flex;align-items:center;justify-content:center;font-family:Space Grotesk,sans-serif;font-weight:900;font-size:'+Math.round(parseInt(sz)*0.55)+'px;color:'+(item.iconColor||'#fff')+'">'+item.iconSrc+'</div>';
   }
   return '<div style="width:'+sz+';height:'+sz+'">'+item.iconSrc+'</div>';
 }
@@ -557,7 +557,7 @@ function renderSummary(){
     }
   }
 
-  // Wise rate row
+  // Wise row
   var wiseRow = $('WISEROW');
   if(wiseRow){
     if(selPay === 'wise'){
@@ -569,7 +569,7 @@ function renderSummary(){
     }
   }
 
-  // USDT rate row
+  // USDT row
   var usdtRow = $('USDTROW');
   if(usdtRow){
     if(selPay === 'usdt'){
@@ -675,9 +675,8 @@ function updateConfirmBtn(){
   if(!btn) return;
   if(selPay && cart.length > 0){
     btn.disabled = false;
-    // تحديث نص الزر فورياً بناءً على اختيار البوابة الإلكترونية أو اليدوية منعا للتعليق
     if (selPay === 'cib') {
-      btn.textContent = L === 'ar' ? 'الانتقال إلى الدفع الآمن عبر SATIM 💳' : (L === 'fr' ? 'Procéder au paiement sécurisé via SATIM 💳' : 'Proceed to Secure Payment via SATIM 💳');
+      btn.textContent = L === 'ar' ? '💳 الانتقال للدفع الفوري الآمن (SATIM)' : (L === 'fr' ? '💳 Payer instantanément via SATIM' : '💳 Pay Instant & Secure via SATIM');
     } else {
       btn.textContent = tx.confirmBtn;
     }
@@ -764,9 +763,9 @@ async function confirmOrder(){
   if(btn) { 
     btn.disabled = false; 
     if (selPay === 'cib') {
-      btn.textContent = L === 'ar' ? 'الانتقال إلى الدفع الآمن عبر SATIM 💳' : (L === 'fr' ? 'Procéder au paiement sécurisé via SATIM 💳' : 'Proceed to Secure Payment via SATIM 💳');
+      btn.textContent = L === 'ar' ? '💳 الانتقال للدفع الفوري الآمن (SATIM)' : (L === 'fr' ? '💳 Payer instantanément via SATIM' : '💳 Pay Instant & Secure via SATIM');
     } else {
-      btn.textContent = tx.confirmBtn;
+      btn.textContent = tx.confirmBtn; 
     }
   }
 
@@ -776,11 +775,14 @@ async function confirmOrder(){
     return;
   }
 
-  // [توجيه الدفع لـ SATIM]: التحقق الصارم والتوجيه الفوري
   if (selPay === 'cib' && rpcData.payment_url) {
     localStorage.removeItem("strivio_cart");
     window.location.href = rpcData.payment_url;
     return;
+  }
+
+  if (selPay === 'cib' && !rpcData.payment_url) {
+    alert(L === 'ar' ? '⚠️ تعذر الاتصال ببوابة الدفع الإلكتروني حالياً. سيتم توجيهك إلى واتساب لإتمام الدفع مباشرة مع الدعم الفني.' : (L === 'fr' ? '⚠️ Impossible de contacter la passerelle de paiement. Redirection vers WhatsApp...' : '⚠️ Could not reach payment gateway. Redirecting to WhatsApp...'));
   }
 
   var msg = buildMessage(rpcData);

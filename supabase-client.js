@@ -161,9 +161,9 @@ async function saveOrderToDB(orderData) {
 
     const slickPayload = {
       amount: Number(rpcData.total_payable),
-      url: "https://striviodz.store/thank-you",
-      return_url: "https://striviodz.store/thank-you",
-      success_url: "https://striviodz.store/thank-you",
+      url: "https://striviodz.store/thank-you.html",
+      return_url: "https://striviodz.store/thank-you.html",
+      success_url: "https://striviodz.store/thank-you.html",
       firstname: orderData.customer_info?.firstname || "Strivio",
       lastname: orderData.customer_info?.lastname || "Client",
       email: orderData.customer_info?.email || "client@striviodz.store",
@@ -180,18 +180,27 @@ async function saveOrderToDB(orderData) {
     };
 
     try {
-      const slickResponse = await fetch("https://api.slick-pay.com/api/v2/users/invoices", {
+      let slickResponse = await fetch("https://prodapi.slick-pay.com/api/v2/users/invoices", {
         method: 'POST',
         headers: slickHeaders,
         body: JSON.stringify(slickPayload)
       });
 
+      if (!slickResponse.ok) {
+        console.warn('⚠️ prodapi failed with status', slickResponse.status, '- trying api.slick-pay.com...');
+        slickResponse = await fetch("https://api.slick-pay.com/api/v2/users/invoices", {
+          method: 'POST',
+          headers: slickHeaders,
+          body: JSON.stringify(slickPayload)
+        });
+      }
+
       const slickResult = await slickResponse.json();
       console.log('📦 SlickPay API response:', slickResult);
 
       const invoiceData = slickResult.data || slickResult;
-      const paymentId = invoiceData.id ? String(invoiceData.id) : null;
-      const paymentUrl = invoiceData.url || invoiceData.payment_url || null;
+      const paymentId = invoiceData.id ? String(invoiceData.id) : (invoiceData.invoice_id ? String(invoiceData.invoice_id) : null);
+      const paymentUrl = invoiceData.url || invoiceData.payment_url || invoiceData.redirect_url || invoiceData.link || null;
 
       if (!paymentUrl) {
         console.error('❌ SlickPay did not return a valid payment_url:', slickResult);
