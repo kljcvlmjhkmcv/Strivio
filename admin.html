@@ -756,7 +756,7 @@ async function saveServicePricing(serviceId, idx) {
     dur_notes: durNotes
   };
 
-  if (s.types && s.types.ar) {
+  if (s.showTypes && s.types && s.types.ar) {
     var newTypePrices = [];
     var newTypesAr = [];
     var newTypesEn = [];
@@ -781,6 +781,9 @@ async function saveServicePricing(serviceId, idx) {
     s.types.en = newTypesEn;
     s.types.fr = newTypesFr;
     s.typePrices = newTypePrices;
+  } else if (s.typePrices && Array.isArray(s.typePrices)) {
+    // If showTypes is disabled, sync existing typePrices with base prices s.p
+    s.typePrices = s.typePrices.map(function(){ return s.p.slice(); });
   }
 
   if (window.supabaseClient) {

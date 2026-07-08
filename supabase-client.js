@@ -162,7 +162,7 @@ async function saveOrderToDB(orderData) {
     const slickPayload = {
       amount: Number(rpcData.total_payable),
       url: "https://striviodz.store/thank-you.html?order_id=" + rpcData.order_id,
-      return_url: "https://striviodz.store/thank-you.html?order_id=" + rpcData.order_id,
+      return_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
       success_url: "https://striviodz.store/thank-you.html?order_id=" + rpcData.order_id,
       firstname: orderData.customer_info?.firstname || "Strivio",
       lastname: orderData.customer_info?.lastname || "Client",

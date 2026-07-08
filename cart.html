@@ -964,6 +964,28 @@ document.querySelectorAll('.FAR').forEach(function(el){ el.innerHTML = FL.ar; })
 cart = JSON.parse(localStorage.getItem('strivio_cart') || '[]');
 applyLang(L);
 
+// Check if returned from cancelled payment
+(async function checkCancelledPayment() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('payment_cancelled') || params.get('cancelled')) {
+    showToast(
+      L === 'ar' ? '⚠️ تم إلغاء عملية الدفع' : (L === 'fr' ? '⚠️ Paiement annulé' : '⚠️ Payment cancelled'),
+      L === 'ar' ? 'لم يتم خصم أي مبلغ. يمكنك المحاولة مرة أخرى أو اختيار طريقة دفع أخرى.' : (L === 'fr' ? 'Aucun montant n\'a été débité. Vous pouvez réessayer.' : 'No funds were charged. You can try again.')
+    );
+    var orderId = params.get('order_id');
+    if (orderId && cart.length === 0 && window.supabaseClient) {
+      try {
+        var { data } = await window.supabaseClient.from('orders').select('items').eq('id', orderId).single();
+        if (data && data.items && Array.isArray(data.items) && data.items.length > 0) {
+          cart = data.items;
+          localStorage.setItem('strivio_cart', JSON.stringify(cart));
+          applyLang(L);
+        }
+      } catch(e) {}
+    }
+  }
+})();
+
 /* ═══════════════════════════════════════════════════════════════
    DOM PROTECTION & DECOY SCRAMBLER
    يجعل محاولة نسخ الكود أو سحب الـ HTML عبر F12 مليئة بالفخاخ والأكواد الملخبطة والناقصة دون تغيير أي بكسل في المتجر

@@ -208,8 +208,8 @@ BEGIN
       RAISE EXCEPTION 'عذراً، المنتج (%) غير متوفر حالياً في المخزون', COALESCE(v_service_record.n->>'ar', v_service_id);
     END IF;
 
-    -- تحديد سعر الوحدة المعتمد في السيرفر
-    IF v_service_record.type_prices IS NOT NULL AND jsonb_array_length(v_service_record.type_prices) > v_type_idx THEN
+    -- تحديد سعر الوحدة المعتمد في السيرفر بناءً على تفعيل خيار الباقات للمنتج
+    IF COALESCE(v_service_record.show_types, false) = true AND v_service_record.type_prices IS NOT NULL AND jsonb_array_length(v_service_record.type_prices) > v_type_idx THEN
       v_unit_price := ((v_service_record.type_prices->v_type_idx)->>v_dur_idx)::numeric;
     ELSE
       v_unit_price := (v_service_record.p->>v_dur_idx)::numeric;
@@ -366,8 +366,8 @@ VALUES
   '{"en": "Spotify Premium", "fr": "Spotify Premium", "ar": "سبوتيفاي بريميوم"}',
   '{"en": ["Offline Downloads", "No Ads", "Full Warranty"], "fr": ["Télécharg. Hors Ligne", "Sans Publicités", "Garantie Complète"], "ar": ["تحميل بدون إنترنت", "بدون إعلانات", "ضمان كامل"]}',
   '{"en": ["Individual Account", "Family Plan (6 Accs)", "Duo Plan"], "fr": ["Compte Individuel", "Plan Famille (6 Comptes)", "Plan Duo"], "ar": ["حساب فردي", "باقة العائلة (6 حسابات)", "باقة ثنائية"]}',
-  '[700, 1300, 1900, 3500, 6500]',
-  '[[700, 1300, 1900, 3500, 6500], [1200, 2200, 3200, 6000, 11000], [900, 1700, 2500, 4500, 8500]]',
+  '[700, 1300, 1900, 3500, 3900]',
+  '[[700, 1300, 1900, 3500, 3900], [1200, 2200, 3200, 6000, 11000], [900, 1700, 2500, 4500, 8500]]',
   1
 ),
 (
