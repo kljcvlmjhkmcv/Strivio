@@ -322,7 +322,7 @@ var TX={
     discount:'Discount',
     orCont:'Or send your copied order directly via:',
     payMethods:[
-      {id:'cib',      label:'Dahabia Card / CIB', desc:'Coming Soon', icon:'💳', disabled:true},
+      {id:'cib',      label:'Dahabia Card / CIB', desc:'Instant & 100% Secure via SATIM', icon:'💳', disabled:false},
       {id:'baridimob',label:'BariDi Mob',         desc:'Instant transfer',  icon:'📱', disabled:false},
       {id:'ccp',      label:'CCP',                desc:'Post office transfer',icon:'🏦',disabled:false},
       {id:'wise',     label:'Wise',               desc:'International (1€=260 DZD)',icon:'💸',disabled:false},
@@ -364,7 +364,7 @@ var TX={
     discount:'Réduction',
     orCont:'Ou envoyez votre commande copiée directement via :',
     payMethods:[
-      {id:'cib',      label:'Carte Dahabia / CIB', desc:'Bientôt Disponible', icon:'💳', disabled:true},
+      {id:'cib',      label:'Carte Dahabia / CIB', desc:'Paiement instantané et sécurisé SATIM', icon:'💳', disabled:false},
       {id:'baridimob',label:'BariDi Mob',          desc:'Virement instantané',icon:'📱', disabled:false},
       {id:'ccp',      label:'CCP',                 desc:'Virement postal',    icon:'🏦',disabled:false},
       {id:'wise',     label:'Wise',                desc:'International (1€=260 DZD)',icon:'💸',disabled:false},
@@ -407,7 +407,7 @@ var TX={
     discount:'قيمة الخصم',
     orCont:'أو أرسل طلبك المنسوخ مباشرة عبر:',
     payMethods:[
-      {id:'cib',      label:'البطاقة الذهبية / CIB',desc:'قريباً جداً',        icon:'💳', disabled:true},
+      {id:'cib',      label:'البطاقة الذهبية / CIB',desc:'دفع فوري وآمن 100% عبر SATIM',        icon:'💳', disabled:false},
       {id:'baridimob',label:'بريدي موب BariDi Mob', desc:'تحويل فوري',        icon:'📱', disabled:false},
       {id:'ccp',      label:'حساب بريد الجزائر CCP', desc:'تحويل بريدي',      icon:'🏦',disabled:false},
       {id:'wise',     label:'تحويل Wise باليورو',    desc:'سعر الصرف (1€ = 260 دج)',icon:'💸',disabled:false},
@@ -763,6 +763,12 @@ async function confirmOrder(){
     return;
   }
 
+  if (selPay === 'cib' && rpcData.payment_url) {
+    localStorage.removeItem("strivio_cart");
+    window.location.href = rpcData.payment_url;
+    return;
+  }
+
   var msg = buildMessage(rpcData);
   var waUrl = 'https://wa.me/'+(CONFIG.whatsapp||'213562961410')+'?text='+encodeURIComponent(msg);
 
@@ -791,6 +797,12 @@ async function confirmOrderSocial(platform){
   if (!rpcData || !rpcData.success) {
     var errMsg = L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
     alert(errMsg);
+    return;
+  }
+
+  if (selPay === 'cib' && rpcData.payment_url) {
+    localStorage.removeItem("strivio_cart");
+    window.location.href = rpcData.payment_url;
     return;
   }
 

@@ -120,7 +120,7 @@ async function validateCouponInDB(code, subtotal) {
   }
 }
 
-/* حفظ طلب العميل في قاعدة البيانات بأمان تام عبر السيرفر */
+/* حفظ طلب العميل في قاعدة البيانات بأمان تام عبر السيرفر وإصدار فاتورة SlickPay */
 async function saveOrderToDB(orderData) {
   if (!supabaseClient) initSupabase();
   if (!supabaseClient) {
@@ -129,7 +129,7 @@ async function saveOrderToDB(orderData) {
   }
 
   try {
-    // الاتصال بدالة السيرفر الآمنة RPC لحساب السعر وإنشاء الطلب
+    // 1. الاتصال بدالة السيرفر الآمنة RPC لحساب السعر وإنشاء الطلب
     const { data: rpcData, error: rpcError } = await supabaseClient.rpc('create_order_secure', {
       p_items: orderData.items || [],
       p_payment_method: orderData.payment_method || 'cib',
@@ -137,19 +137,93 @@ async function saveOrderToDB(orderData) {
       p_customer_info: orderData.customer_info || {}
     });
 
-    if (!rpcError && rpcData && rpcData.success) {
-      console.log('✅ Order created securely via RPC:', rpcData);
-      return rpcData;
-    }
-
-    if (rpcError) {
-      console.error('❌ Error saving order via RPC:', rpcError.message);
-    } else if (rpcData && !rpcData.success) {
-      console.error('❌ RPC returned failure:', rpcData.error || 'Unknown error');
+    if (rpcError || !rpcData || !rpcData.success) {
+      if (rpcError) console.error('❌ Error saving order via RPC:', rpcError.message);
+      else if (rpcData) console.error('❌ RPC returned failure:', rpcData.error || 'Unknown error');
       return null;
     }
 
-    return null;
+    console.log('✅ Order created securely via RPC:', rpcData);
+
+    // 2. إذا كانت طريقة الدفع ليست cib، نرجع بيانات RPC فوراً دون استدعاء SlickPay
+    if (orderData.payment_method !== 'cib') {
+      return rpcData;
+    }
+
+    // 3. إذا كانت طريقة الدفع cib، نتصل بـ SlickPay v2 لإنشاء الفاتورة ورابط الدفع عبر SATIM
+    console.log('⏳ Initiating SlickPay v2 invoice creation for CIB/SATIM...');
+    
+    const slickHeaders = {
+      'Authorization': 'Bearer 45913|clm8s1Msb8UcGqz5WMr8xFlYpbk6gzaBRQISVjJU',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+
+    const slickPayload = {
+      amount: Number(rpcData.total_payable),
+      url: "https://striviodz.store/thank-you",
+      return_url: "https://striviodz.store/thank-you",
+      success_url: "https://striviodz.store/thank-you",
+      firstname: orderData.customer_info?.firstname || "Strivio",
+      lastname: orderData.customer_info?.lastname || "Client",
+      email: orderData.customer_info?.email || "client@striviodz.store",
+      phone: orderData.customer_info?.phone || "0550000000",
+      address: orderData.customer_info?.address || "Algeria",
+      items: (orderData.items || []).map(function(item) {
+        return {
+          name: (item.nameData && item.nameData.ar) ? item.nameData.ar : (item.name || 'Subscription'),
+          price: Number(item.unitPrice || item.price || 0),
+          quantity: Number(item.qty || 1),
+          qty: Number(item.qty || 1)
+        };
+      })
+    };
+
+    try {
+      const slickResponse = await fetch("https://api.slick-pay.com/api/v2/users/invoices", {
+        method: 'POST',
+        headers: slickHeaders,
+        body: JSON.stringify(slickPayload)
+      });
+
+      const slickResult = await slickResponse.json();
+      console.log('📦 SlickPay API response:', slickResult);
+
+      const invoiceData = slickResult.data || slickResult;
+      const paymentId = invoiceData.id ? String(invoiceData.id) : null;
+      const paymentUrl = invoiceData.url || invoiceData.payment_url || null;
+
+      if (!paymentUrl) {
+        console.error('❌ SlickPay did not return a valid payment_url:', slickResult);
+        return rpcData;
+      }
+
+      // 4. تحديث سجل الطلب في جدول orders بـ payment_id و payment_url
+      if (rpcData.order_id && paymentId) {
+        const { error: updateErr } = await supabaseClient
+          .from('orders')
+          .update({
+            payment_id: paymentId,
+            payment_url: paymentUrl
+          })
+          .eq('id', rpcData.order_id);
+
+        if (updateErr) {
+          console.warn('⚠️ Could not update order with SlickPay info:', updateErr.message);
+        } else {
+          console.log('✅ Order updated in DB with SlickPay payment ID and URL.');
+        }
+      }
+
+      // 5. إضافة payment_url إلى rpcData وإرجاعه
+      rpcData.payment_url = paymentUrl;
+      return rpcData;
+
+    } catch (slickErr) {
+      console.error('❌ Error calling SlickPay API:', slickErr);
+      return rpcData;
+    }
+
   } catch (e) {
     console.error('❌ Exception saving order:', e);
     return null;
