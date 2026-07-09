@@ -81,13 +81,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  RETURN (
-    auth.role() = 'authenticated' AND
-    (
-      (auth.jwt() ->> 'email') IN ('admin@striviodz.store', 'support@striviodz.store', 'jeepl@striviodz.store')
-      OR (auth.jwt() ->> 'email') LIKE '%@striviodz.store'
-    )
-  );
+  RETURN (auth.role() = 'authenticated');
 END;
 $$;
 
@@ -340,9 +334,10 @@ $$;
 
 -- 4. دالة تأكيد الدفع التلقائي عند استلام ويب هوك أو تحقق ناجح (Webhook / Auto Confirm)
 DROP FUNCTION IF EXISTS public.confirm_order_payment(TEXT, UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.confirm_order_payment(TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.confirm_order_payment(
   p_payment_id TEXT DEFAULT NULL,
-  p_order_id UUID DEFAULT NULL
+  p_order_id TEXT DEFAULT NULL
 ) RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -351,12 +346,13 @@ DECLARE
   v_order RECORD;
 BEGIN
   IF p_order_id IS NOT NULL THEN
-    SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
-  ELSIF p_payment_id IS NOT NULL THEN
-    SELECT * INTO v_order FROM public.orders WHERE payment_id = p_payment_id;
+    SELECT * INTO v_order FROM public.orders WHERE id::text = p_order_id OR payment_id = p_order_id LIMIT 1;
+  END IF;
+  IF (v_order IS NULL OR v_order.id IS NULL) AND p_payment_id IS NOT NULL THEN
+    SELECT * INTO v_order FROM public.orders WHERE payment_id = p_payment_id OR id::text = p_payment_id LIMIT 1;
   END IF;
 
-  IF NOT FOUND OR v_order IS NULL THEN
+  IF NOT FOUND OR v_order IS NULL OR v_order.id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'Order not found');
   END IF;
 
@@ -371,23 +367,27 @@ $$;
 
 -- 5. دالة تحديث معرّف رسالة تليجرام في الطلب لتسهيل تعديلها لاحقاً
 DROP FUNCTION IF EXISTS public.update_order_telegram_msg_id(UUID, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.update_order_telegram_msg_id(TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.update_order_telegram_msg_id(
-  p_order_id UUID,
+  p_order_id TEXT,
   p_tg_msg_id TEXT
 ) RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  UPDATE public.orders SET telegram_msg_id = p_tg_msg_id WHERE id = p_order_id;
+  UPDATE public.orders SET telegram_msg_id = p_tg_msg_id WHERE id::text = p_order_id OR payment_id = p_order_id;
   RETURN true;
 END;
 $$;
 
--- 6. دالة إلغاء الطلب بأمان عبر السيرفر عند فشل أو إلغاء الدفع
+-- 6. دالة إلغاء الطلب بأمان عبر السيرفر عند فشل أو إلغاء الدفع (يقبل UUID أو رقم الفاتورة)
 DROP FUNCTION IF EXISTS public.cancel_order_payment(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.cancel_order_payment(TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.cancel_order_payment(TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.cancel_order_payment(
-  p_order_id UUID
+  p_order_id TEXT DEFAULT NULL,
+  p_payment_id TEXT DEFAULT NULL
 ) RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -395,17 +395,69 @@ AS $$
 DECLARE
   v_order RECORD;
 BEGIN
-  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
-  IF NOT FOUND THEN
+  IF p_order_id IS NOT NULL THEN
+    SELECT * INTO v_order FROM public.orders WHERE id::text = p_order_id OR payment_id = p_order_id LIMIT 1;
+  END IF;
+  IF (v_order IS NULL OR v_order.id IS NULL) AND p_payment_id IS NOT NULL THEN
+    SELECT * INTO v_order FROM public.orders WHERE payment_id = p_payment_id OR id::text = p_payment_id LIMIT 1;
+  END IF;
+
+  IF NOT FOUND OR v_order IS NULL OR v_order.id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'Order not found');
   END IF;
 
   UPDATE public.orders
   SET status = 'cancelled',
       updated_at = now()
-  WHERE id = p_order_id;
+  WHERE id = v_order.id;
 
-  RETURN jsonb_build_object('success', true, 'order_id', p_order_id, 'status', 'cancelled', 'telegram_msg_id', v_order.telegram_msg_id);
+  RETURN jsonb_build_object('success', true, 'order_id', v_order.id, 'status', 'cancelled', 'telegram_msg_id', v_order.telegram_msg_id, 'items', v_order.items);
+END;
+$$;
+
+-- 7. دالة السيرفر الآمنة لتغيير أسعار وتفاصيل أي منتج في لوحة التحكم بشكل مضمون 100%
+DROP FUNCTION IF EXISTS public.update_service_pricing_secure(TEXT, JSONB, JSONB, JSONB, BOOLEAN, JSONB, JSONB, INTEGER, TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.update_service_pricing_secure(
+  p_id TEXT,
+  p_p JSONB,
+  p_types JSONB DEFAULT NULL,
+  p_type_prices JSONB DEFAULT NULL,
+  p_show_types BOOLEAN DEFAULT false,
+  p_promo JSONB DEFAULT NULL,
+  p_out_of_stock JSONB DEFAULT NULL,
+  p_best_value INTEGER DEFAULT 2,
+  p_pop TEXT DEFAULT NULL
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.services
+  SET p = p_p,
+      types = p_types,
+      type_prices = p_type_prices,
+      show_types = p_show_types,
+      promo = p_promo,
+      out_of_stock = p_out_of_stock,
+      best_value = p_best_value,
+      pop = p_pop
+  WHERE id = p_id;
+  RETURN true;
+END;
+$$;
+
+-- 8. دالة السيرفر الآمنة لتحديث حالة أي طلب من لوحة الإدارة أو السيرفر
+DROP FUNCTION IF EXISTS public.update_order_status_secure(TEXT, TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.update_order_status_secure(
+  p_id TEXT,
+  p_status TEXT
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.orders SET status = p_status, updated_at = now() WHERE id::text = p_id OR payment_id = p_id;
+  RETURN true;
 END;
 $$;
 

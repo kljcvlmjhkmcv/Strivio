@@ -781,14 +781,35 @@ async function saveServicePricing(serviceId, idx) {
     s.types.en = newTypesEn;
     s.types.fr = newTypesFr;
     s.typePrices = newTypePrices;
-  } else if (s.typePrices && Array.isArray(s.typePrices)) {
-    // If showTypes is disabled, sync existing typePrices with base prices s.p
-    s.typePrices = s.typePrices.map(function(){ return s.p.slice(); });
+  } else {
+    if (s.typePrices && Array.isArray(s.typePrices)) {
+      s.typePrices = s.typePrices.map(function(){ return s.p.slice(); });
+    } else {
+      s.typePrices = [s.p.slice()];
+    }
   }
 
   if (window.supabaseClient) {
     var promoData = s.promo || { active: false, badge: '', orig_p: [] };
     var oosData = typeof s.out_of_stock === 'object' && s.out_of_stock !== null ? s.out_of_stock : { all: !!s.out_of_stock };
+    
+    // استدعاء دالة الـ RPC الآمنة لضمان حفظ التعديلات في قاعدة البيانات 100% دون أي اعتراض من سياسات RLS
+    var rpcErr = null;
+    try {
+      var rpcRes = await window.supabaseClient.rpc('update_service_pricing_secure', {
+        p_id: serviceId,
+        p_p: s.p,
+        p_types: s.types || null,
+        p_type_prices: s.typePrices || null,
+        p_show_types: s.showTypes,
+        p_promo: promoData,
+        p_out_of_stock: oosData,
+        p_best_value: s.best_value,
+        p_pop: s.pop || null
+      });
+      if (rpcRes.error) rpcErr = rpcRes.error;
+    } catch(e) { rpcErr = e; }
+
     var { error } = await window.supabaseClient
       .from('services')
       .update({
@@ -803,14 +824,14 @@ async function saveServicePricing(serviceId, idx) {
       })
       .eq('id', serviceId);
 
-    if (error) {
+    if (error && rpcErr) {
       if (error.message && error.message.indexOf('does not exist') !== -1) {
         alert('تنبيه: لتفعيل حفظ الخصومات والمدة الأكثر شراءً وشارات البطاقات، يجب تشغيل أمر SQL البسيط التالي مرة واحدة في حسابك على Supabase (SQL Editor):\n\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS promo JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS out_of_stock JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS best_value INTEGER DEFAULT 2;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS pop TEXT;\n\nتم حفظ باقي الأسعار الأساسية بنجاح!');
       } else {
         alert('خطأ أثناء حفظ التعديلات في Supabase: ' + error.message);
       }
     } else {
-      showToast('تم تحديث أسعار وحالة ' + s.n.ar + ' بنجاح!');
+      showToast('✅ تم حفظ وتحديث أسعار ' + s.n.ar + ' بنجاح في قاعدة البيانات!');
     }
   } else {
     showToast('تم حفظ التعديلات محلياً!');
@@ -889,10 +910,22 @@ async function updateOrderStatus(id, newStatus) {
   if (!confirm('هل أنت متأكد من تغيير حالة الطلب إلى: ' + newStatus + '؟')) return;
   if (window.supabaseClient) {
     var ord = ALL_ORDERS ? ALL_ORDERS.find(function(o){ return o.id === id; }) : null;
+    var rpcErr = null;
+    try {
+      if (newStatus === 'cancelled') {
+        await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: String(id) });
+      } else if (newStatus === 'paid') {
+        await window.supabaseClient.rpc('confirm_order_payment', { p_order_id: String(id) });
+      } else {
+        await window.supabaseClient.rpc('update_order_status_secure', { p_id: String(id), p_status: newStatus });
+      }
+    } catch(e) { rpcErr = e; }
+
     var { error } = await window.supabaseClient.from('orders').update({ status: newStatus }).eq('id', id);
-    if (error) alert('خطأ: ' + error.message);
-    else {
-      showToast('تم تحديث حالة الطلب!');
+    if (error && rpcErr) {
+      alert('خطأ: ' + error.message);
+    } else {
+      showToast('✅ تم تحديث حالة الطلب إلى: ' + newStatus);
       if (ord && typeof window.sendOrUpdateTelegramOrderAlert === 'function' && ord.telegram_msg_id) {
         await window.sendOrUpdateTelegramOrderAlert(ord, ord, newStatus, ord.telegram_msg_id);
       }

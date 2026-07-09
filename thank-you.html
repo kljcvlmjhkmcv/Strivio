@@ -330,7 +330,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const { data } = await window.supabaseClient.from('orders').select('*').eq('id', orderId).single();
+      let { data } = await window.supabaseClient.from('orders').select('*').eq('id', orderId).single();
+      if (!data) {
+        let alt = await window.supabaseClient.from('orders').select('*').eq('payment_id', orderId).single();
+        data = alt.data;
+      }
       if (data) {
         const rowTotal = document.getElementById('ROW_ORDER_TOTAL');
         const totalVal = document.getElementById('T_TOTAL_VAL');
@@ -360,9 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               if (invData && (invData.status === 1 || invData.status === 'paid' || invData.status === 'completed' || invData.paid === true || invData.paid === 1)) {
                 isOrderPaid = true;
               } else if (invData && (invData.status === 0 || invData.status === 'unpaid' || invData.status === 'cancelled')) {
-                // الفاتورة ما زالت غير مدفوعة أو ملغية في SlickPay
                 if (isSuccessParam) {
-                  // إذا تم توجيه المستخدم بـ success=1 وتأكدنا أن SlickPay دفع فعلاً
                   isOrderPaid = true;
                 } else {
                   isOrderCancelled = true;
@@ -380,7 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (isOrderPaid) {
           try {
-            await window.supabaseClient.rpc('confirm_order_payment', { p_order_id: orderId });
+            await window.supabaseClient.rpc('confirm_order_payment', { p_order_id: String(data.id) });
             document.getElementById('T_STATUS_VAL').textContent = savedLang === 'ar' ? "مكتمل ومؤكد ✅" : "Verified & Paid ✅";
             document.getElementById('T_STATUS_VAL').style.color = "#39ff14";
             if (typeof window.sendOrUpdateTelegramOrderAlert === 'function' && data.telegram_msg_id) {
@@ -389,13 +391,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           } catch(e) {}
         } else if (isOrderCancelled) {
           try {
-            await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: orderId });
+            await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: String(data.id) });
             if (typeof window.sendOrUpdateTelegramOrderAlert === 'function' && data.telegram_msg_id) {
               await window.sendOrUpdateTelegramOrderAlert(data, data, 'cancelled', data.telegram_msg_id);
             }
           } catch(e) {}
           // توجيه العميل فوراً إلى سلة المشتريات عند الإلغاء مع الحفاظ على منتجاته في السلة والطلب في قاعدة البيانات
-          window.location.replace(`cart.html?payment_cancelled=1&order_id=${orderId}`);
+          window.location.replace(`cart.html?payment_cancelled=1&order_id=${data.id}`);
           return;
         }
       }
