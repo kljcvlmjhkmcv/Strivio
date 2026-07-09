@@ -170,7 +170,7 @@ async function saveOrderToDB(orderData) {
 
     const slickPayload = {
       amount: Number(rpcData.total_payable),
-      url: "https://striviodz.store/thank-you.html?order_id=" + rpcData.order_id,
+      url: "https://striviodz.store/payment-redirect.html?order_id=" + rpcData.order_id,
       success_url: "https://striviodz.store/thank-you.html?success=1&order_id=" + rpcData.order_id,
       return_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
       cancel_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
@@ -315,30 +315,6 @@ async function sendOrUpdateTelegramOrderAlert(rpcData, orderData, status, existi
         const editJson = await editRes.json();
         if (editJson.ok) {
           console.log('✅ Telegram message updated successfully (Message ID:', existingMsgId, ')');
-          // إرسال رسالة تنبيه سريعة (Ping/Alert) عند إتمام أو إلغاء الدفع لكي يصل إشعار مباشر وبصوت لهاتف المدير
-          if (status === 'paid' || status === 'completed') {
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: chatId,
-                text: `✅ *تنبيه فوري:* تم إتمام دفع الطلب رقم \`${orderId}\` بنجاح!\n💰 *المبلغ المدفوع:* *${total} دج* (${methodLabel})\n🎉 العميل ينتظر تسليم اشتراكه الآن.`,
-                parse_mode: 'Markdown',
-                reply_to_message_id: Number(existingMsgId)
-              })
-            }).catch(e=>{});
-          } else if (status === 'cancelled') {
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: chatId,
-                text: `❌ *تنبيه فوري:* تم إلغاء الطلب رقم \`${orderId}\` (أو عدم اكتمال الدفع الإلكتروني).\n💰 *المبلغ:* ${total} دج (${methodLabel})`,
-                parse_mode: 'Markdown',
-                reply_to_message_id: Number(existingMsgId)
-              })
-            }).catch(e=>{});
-          }
           return existingMsgId;
         }
         console.warn('⚠️ Could not edit Telegram message, sending new one...', editJson);
