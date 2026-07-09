@@ -730,7 +730,7 @@ function renderProducts(f){
     var periodText = (startIdx >= 0 && periodLabels[startIdx]) ? periodLabels[startIdx] : tx.pm;
     
     return[
-      '<div class="PC'+(s.pop?' POP':'')+'" style="'+(oos?'opacity:.65;border-color:#2a2a2a;':'')+'">',
+      '<div class="PC'+(s.pop?' POP':'')+'" '+(oos?'':'data-sid="'+s.id+'"')+' style="'+(oos?'opacity:.65;border-color:#2a2a2a;cursor:not-allowed;':'cursor:pointer;transition:all 0.2s;')+'">',
         pop?'<div class="absolute top-3 right-3 z-10 BDG BDG-RIGHT" style="font-size:.62rem;padding:.15rem .55rem">'+pop+'</div>':'',
         (promo.badge && !oos ? '<div class="absolute top-3 left-3 z-10 BDG BDG-LEFT" style="font-size:.62rem;padding:.15rem .55rem;background:rgba(234,179,8,.15);border-color:rgba(234,179,8,.4);color:#facc15">'+promo.badge+'</div>' : ''),
         (oos ? '<div class="absolute top-3 left-3 z-10 BDG BDG-LEFT" style="font-size:.62rem;padding:.15rem .55rem;background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#ef4444">' + (tx.oosBadge || 'نفد المخزون') + '</div>' : ''),
@@ -850,7 +850,7 @@ function updateConfirm(){
    EVENTS
 ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('click',function(e){
-  var bc=e.target.closest('.BC[data-sid]');
+  var bc=e.target.closest('.BC[data-sid]') || e.target.closest('.PC[data-sid]');
   if(bc){openModal(bc.dataset.sid);return;}
   
   var typBtn=e.target.closest('.TYP-BTN[data-t]');

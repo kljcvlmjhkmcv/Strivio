@@ -302,14 +302,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get('order_id') || params.get('id') || params.get('invoice_id');
-  const isCancelled = params.get('cancelled') || params.get('cancel') || params.get('payment_cancelled');
+  const isCancelledParam = params.get('cancelled') || params.get('cancel') || params.get('payment_cancelled') || params.get('status') === 'cancelled' || params.get('status') === 'failed';
+  const isSuccessParam = params.get('success') === '1' || params.get('status') === 'completed' || params.get('status') === 'paid';
   
-  if (isCancelled) {
+  if (isCancelledParam) {
     document.getElementById('T_TITLE').textContent = savedLang === 'ar' ? "تم إلغاء عملية الدفع ❌" : (savedLang === 'fr' ? "Paiement Annulé ❌" : "Payment Cancelled ❌");
     document.getElementById('T_DESC').textContent = savedLang === 'ar' ? "لم يتم إتمام الدفع أو تم إلغاء العملية. لم يتم خصم أي مبلغ من بطاقتك. يمكنك العودة لسلة المشتريات والمحاولة مرة أخرى." : (savedLang === 'fr' ? "Le paiement n'a pas été finalisé. Aucun montant n'a été débité de votre carte. Vous pouvez réessayer." : "Payment was not finalized. No charges were made to your card. You can return to cart and try again.");
     const statusVal = document.getElementById('T_STATUS_VAL');
     if (statusVal) {
-      statusVal.textContent = savedLang === 'ar' ? "ملغي (Cancelled)" : "Annulé / Cancelled";
+      statusVal.textContent = savedLang === 'ar' ? "ملغي / غير مدفوع ❌" : "Annulé / Cancelled ❌";
       statusVal.style.color = "#ef4444";
     }
     const waBtn = document.getElementById('T_WA_BTN');
@@ -338,11 +339,79 @@ document.addEventListener('DOMContentLoaded', async () => {
           totalVal.textContent = Number(data.total_payable).toLocaleString('en-US') + ' دج';
         }
 
-        if (!isCancelled && (data.status === 'pending' || data.status === 'pending_payment')) {
-          // If arrived via success_url after paying on SlickPay, verify or auto-confirm via RPC
+        let isOrderPaid = data.status === 'paid' || data.status === 'completed';
+        let isOrderCancelled = isCancelledParam || data.status === 'cancelled';
+
+        // التحقق الفعلي من حالة الفاتورة عبر SlickPay API لمنع اعتبار الطلب مدفوعاً عند الإلغاء
+        if (!isOrderPaid && !isOrderCancelled && data.payment_id) {
+          try {
+            const slickHeaders = {
+              'Authorization': 'Bearer 45913|clm8s1Msb8UcGqz5WMr8xFlYpbk6gzaBRQISVjJU',
+              'Accept': 'application/json'
+            };
+            let invRes = await fetch(`https://prodapi.slick-pay.com/api/v2/users/invoices/${data.payment_id}`, { headers: slickHeaders });
+            if (!invRes.ok) {
+              invRes = await fetch(`https://api.slick-pay.com/api/v2/users/invoices/${data.payment_id}`, { headers: slickHeaders });
+            }
+            if (invRes.ok) {
+              const invJson = await invRes.json();
+              const invData = invJson.data || invJson;
+              console.log('📦 SlickPay Invoice verification:', invData);
+              if (invData && (invData.status === 1 || invData.status === 'paid' || invData.status === 'completed' || invData.paid === true || invData.paid === 1)) {
+                isOrderPaid = true;
+              } else if (invData && (invData.status === 0 || invData.status === 'unpaid' || invData.status === 'cancelled')) {
+                // الفاتورة ما زالت غير مدفوعة أو ملغية في SlickPay
+                if (isSuccessParam) {
+                  // إذا تم توجيه المستخدم بـ success=1 وتأكدنا أن SlickPay دفع فعلاً
+                  isOrderPaid = true;
+                } else {
+                  isOrderCancelled = true;
+                }
+              }
+            }
+          } catch (slickVerifyE) {
+            console.warn('⚠️ Exception verifying SlickPay invoice:', slickVerifyE);
+            if (!isSuccessParam) isOrderCancelled = true;
+          }
+        } else if (!isOrderPaid && !isOrderCancelled && !data.payment_id) {
+          if (isSuccessParam) isOrderPaid = true;
+          else isOrderCancelled = true;
+        }
+
+        if (isOrderPaid) {
           try {
             await window.supabaseClient.rpc('confirm_order_payment', { p_order_id: orderId });
             document.getElementById('T_STATUS_VAL').textContent = savedLang === 'ar' ? "مكتمل ومؤكد ✅" : "Verified & Paid ✅";
+            document.getElementById('T_STATUS_VAL').style.color = "#39ff14";
+            if (typeof window.sendOrUpdateTelegramOrderAlert === 'function' && data.telegram_msg_id) {
+              window.sendOrUpdateTelegramOrderAlert(data, data, 'paid', data.telegram_msg_id);
+            }
+          } catch(e) {}
+        } else if (isOrderCancelled) {
+          try {
+            await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: orderId });
+            document.getElementById('T_TITLE').textContent = savedLang === 'ar' ? "لم يتم إتمام الدفع (أو ملغي) ⚠️" : "Paiement non finalisé ⚠️";
+            document.getElementById('T_DESC').textContent = savedLang === 'ar' ? "لم تكتمل عملية الدفع الإلكتروني عبر SATIM أو تم الغاؤها من طرفك. لم يتم خصم أي مبلغ. يمكنك المحاولة مجدداً." : "Le paiement par carte SATIM n'a pas abouti ou a été annulé. Vous pouvez réessayer.";
+            const statusVal = document.getElementById('T_STATUS_VAL');
+            if (statusVal) {
+              statusVal.textContent = savedLang === 'ar' ? "غير مدفوع / بانتظار الدفع ⚠️" : "Non payé / En attente ⚠️";
+              statusVal.style.color = "#eab308";
+            }
+            if (typeof window.sendOrUpdateTelegramOrderAlert === 'function' && data.telegram_msg_id) {
+              window.sendOrUpdateTelegramOrderAlert(data, data, 'cancelled', data.telegram_msg_id);
+            }
+            if (data.payment_url && !document.getElementById('RETRY_PAY_BTN')) {
+              const actionsGrid = document.querySelector('.actions-grid');
+              if (actionsGrid) {
+                const retryBtn = document.createElement('a');
+                retryBtn.id = 'RETRY_PAY_BTN';
+                retryBtn.href = data.payment_url;
+                retryBtn.className = 'btn btn-primary';
+                retryBtn.style.cssText = 'background:#00d2ff;color:#000;margin-bottom:4px;';
+                retryBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg><span>' + (savedLang === 'ar' ? 'إعادة محاولة الدفع الفوري (SATIM)' : 'Réessayer le paiement SATIM') + '</span>';
+                actionsGrid.insertBefore(retryBtn, actionsGrid.firstChild);
+              }
+            }
           } catch(e) {}
         }
       }
@@ -350,7 +419,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const waBtn = document.getElementById('T_WA_BTN');
     if (waBtn) {
-      const waMsg = isCancelled
+      const waMsg = isCancelledParam || (document.getElementById('T_STATUS_VAL').style.color === 'rgb(234, 179, 8)' || document.getElementById('T_STATUS_VAL').style.color === 'rgb(239, 68, 68)')
         ? (savedLang === 'ar' ? `مرحباً الدعم الفني، واجهت مشكلة في الدفع لطلبي رقم (${orderId}) وأرغب بالمساعدة، شكراً!` : `Hello Support, I had an issue paying for order (${orderId}) and need help, thanks!`)
         : (savedLang === 'ar'
           ? `مرحباً الدعم الفني، قمت بإتمام عملية الدفع عبر SATIM لطلبي رقم (${orderId}) وأرغب باستلام الحساب الآن، شكراً!`

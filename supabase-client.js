@@ -145,6 +145,15 @@ async function saveOrderToDB(orderData) {
 
     console.log('✅ Order created securely via RPC:', rpcData);
 
+    // إرسال إشعار تليجرام الشامل للطلب الجديد وحفظ معرّف الرسالة لتعديلها لاحقاً
+    const tgMsgId = await sendOrUpdateTelegramOrderAlert(rpcData, orderData, orderData.payment_method === 'cib' ? 'pending_payment' : 'pending');
+    if (tgMsgId && rpcData.order_id && supabaseClient) {
+      try {
+        await supabaseClient.rpc('update_order_telegram_msg_id', { p_order_id: rpcData.order_id, p_tg_msg_id: tgMsgId });
+        rpcData.telegram_msg_id = tgMsgId;
+      } catch(e) {}
+    }
+
     // 2. إذا كانت طريقة الدفع ليست cib، نرجع بيانات RPC فوراً دون استدعاء SlickPay
     if (orderData.payment_method !== 'cib') {
       return rpcData;
@@ -162,8 +171,10 @@ async function saveOrderToDB(orderData) {
     const slickPayload = {
       amount: Number(rpcData.total_payable),
       url: "https://striviodz.store/thank-you.html?order_id=" + rpcData.order_id,
+      success_url: "https://striviodz.store/thank-you.html?success=1&order_id=" + rpcData.order_id,
       return_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
-      success_url: "https://striviodz.store/thank-you.html?order_id=" + rpcData.order_id,
+      cancel_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
+      failed_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
       firstname: orderData.customer_info?.firstname || "Strivio",
       lastname: orderData.customer_info?.lastname || "Client",
       email: orderData.customer_info?.email || "client@striviodz.store",
@@ -209,7 +220,7 @@ async function saveOrderToDB(orderData) {
 
       // 4. تحديث سجل الطلب في جدول orders بأمان عبر دالة الـ RPC (لتجاوز حظر RLS للعملاء)
       if (rpcData.order_id && paymentId) {
-        const { error: updateErr } = await supabaseClient.rpc('update_order_payment', {
+        const { data: updateRes, error: updateErr } = await supabaseClient.rpc('update_order_payment', {
           p_order_id: rpcData.order_id,
           p_payment_id: paymentId,
           p_payment_url: paymentUrl
@@ -219,19 +230,10 @@ async function saveOrderToDB(orderData) {
           console.warn('⚠️ Could not update order with SlickPay info via RPC:', updateErr.message);
         } else {
           console.log('✅ Order updated securely via RPC with SlickPay payment ID and URL.');
+          if (updateRes && updateRes.telegram_msg_id) {
+            rpcData.telegram_msg_id = updateRes.telegram_msg_id;
+          }
         }
-      }
-
-      // 5. إرسال إشعار فوري على تليجرام للمدير (إذا تم إعداد التوكن في الإعدادات)
-      if (window.CONFIG && window.CONFIG.telegram_bot_token && window.CONFIG.telegram_chat_id) {
-        try {
-          const tgText = `🚨 *طلب جديد عبر CIB / SATIM*\n🏷️ *رقم الطلب:* \`${rpcData.order_id}\`\n💰 *الإجمالي:* ${rpcData.total_payable} دج\n⚡ *حالة الدفع:* بانتظار إتمام الدفع في SATIM\n📱 *هاتف العميل:* ${orderData.customer_info?.phone || 'غير محدد'}`;
-          fetch(`https://api.telegram.org/bot${window.CONFIG.telegram_bot_token}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: window.CONFIG.telegram_chat_id, text: tgText, parse_mode: 'Markdown' })
-          });
-        } catch(tgE) { console.warn('TG Alert failed:', tgE); }
       }
 
       rpcData.payment_url = paymentUrl;
@@ -246,6 +248,97 @@ async function saveOrderToDB(orderData) {
     console.error('❌ Exception saving order:', e);
     return null;
   }
+}
+
+/* إرسال أو تعديل إشعار تليجرام الشامل لمعلومات الطلب وتحديث الحالة دون تكرار */
+async function sendOrUpdateTelegramOrderAlert(rpcData, orderData, status, existingMsgId = null) {
+  if (!window.CONFIG || !window.CONFIG.telegram_bot_token || !window.CONFIG.telegram_chat_id) {
+    if (typeof loadSettingsFromDB === 'function') {
+      await loadSettingsFromDB();
+    }
+  }
+  if (!window.CONFIG || !window.CONFIG.telegram_bot_token || !window.CONFIG.telegram_chat_id) return null;
+
+  try {
+    const token = window.CONFIG.telegram_bot_token;
+    const chatId = window.CONFIG.telegram_chat_id;
+    const orderId = rpcData.order_id || rpcData.id || 'غير محدد';
+    const total = rpcData.total_payable || rpcData.subtotal || 0;
+    const items = orderData.items || rpcData.items || [];
+    const cust = orderData.customer_info || rpcData.customer_info || {};
+    const method = orderData.payment_method || rpcData.payment_method || 'cib';
+    const methodLabel = method === 'cib' ? 'البطاقة الذهبية / CIB (SATIM)' : (method === 'baridimob' ? 'بريدي موب (BaridiMob)' : (method === 'ccp' ? 'حساب بريدي CCP' : (method === 'binance' ? 'Binance Pay' : method)));
+
+    let statusHeader = `🚨 *طلب جديد عبر ${methodLabel}*`;
+    if (status === 'paid' || status === 'completed') {
+      statusHeader = `✅ *تم إتمام الدفع بنجاح (${methodLabel})* 🎉`;
+    } else if (status === 'cancelled') {
+      statusHeader = `❌ *تم إلغاء عملية الدفع (${methodLabel})*`;
+    } else if (status === 'pending_payment') {
+      statusHeader = `⏳ *بانتظار الدفع الفوري SATIM (${methodLabel})*`;
+    }
+
+    let itemsText = '';
+    if (items && items.length > 0) {
+      items.forEach((it, idx) => {
+        const name = (it.nameData && it.nameData.ar) ? it.nameData.ar : (it.name || it.title || 'منتج');
+        const dur = it.durLabel || '';
+        const qty = it.qty || 1;
+        const pr = it.unitPrice || it.price || 0;
+        itemsText += `\n🔸 *${idx + 1}.* ${name} ${dur ? ('| ' + dur) : ''} (العدد: ${qty} | السعر: ${pr} دج)`;
+      });
+    } else {
+      itemsText = '\n🔸 تفاصيل المنتجات في لوحة التحكم';
+    }
+
+    const phone = cust.phone ? `\`${cust.phone}\`` : 'غير محدد';
+    const platform = cust.platform ? `*عبر منصة:* ${cust.platform.toUpperCase()}` : '';
+    const couponText = rpcData.coupon_code ? `\n🏷️ *كود الخصم:* \`${rpcData.coupon_code}\`` : '';
+
+    const tgText = `${statusHeader}\n━━━━━━━━━━━━━━━━━━━━\n🏷️ *رقم الطلب:* \`${orderId}\`${couponText}\n💰 *المبلغ الإجمالي:* *${total} دج*\n📱 *هاتف العميل:* ${phone}\n${platform ? platform + '\n' : ''}🛍️ *المنتجات المطلوبة:*${itemsText}\n━━━━━━━━━━━━━━━━━━━━\n🌐 *المتجر:* https://striviodz.store/admin.html`;
+
+    if (existingMsgId) {
+      try {
+        const editRes = await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            message_id: Number(existingMsgId),
+            text: tgText,
+            parse_mode: 'Markdown'
+          })
+        });
+        const editJson = await editRes.json();
+        if (editJson.ok) {
+          console.log('✅ Telegram message updated successfully (Message ID:', existingMsgId, ')');
+          return existingMsgId;
+        }
+        console.warn('⚠️ Could not edit Telegram message, sending new one...', editJson);
+      } catch (editE) {
+        console.warn('⚠️ Exception editing Telegram message:', editE);
+      }
+    }
+
+    const sendRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: tgText,
+        parse_mode: 'Markdown'
+      })
+    });
+    const sendJson = await sendRes.json();
+    if (sendJson.ok && sendJson.result && sendJson.result.message_id) {
+      const newMsgId = String(sendJson.result.message_id);
+      console.log('✅ Telegram notification sent (Message ID:', newMsgId, ')');
+      return newMsgId;
+    }
+  } catch (tgE) {
+    console.warn('❌ TG Alert exception:', tgE);
+  }
+  return null;
 }
 
 /* جلب الإعدادات (روابط التواصل وأرقام الهاتف) من قاعدة البيانات */
@@ -323,4 +416,6 @@ async function loadFaqsFromDB() {
 
 // تهيئة الاتصال عند تحميل الملف
 initSupabase();
+
+window.sendOrUpdateTelegramOrderAlert = sendOrUpdateTelegramOrderAlert;
 

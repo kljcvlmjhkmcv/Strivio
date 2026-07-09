@@ -53,9 +53,19 @@ CREATE TABLE IF NOT EXISTS public.orders (
   flexy_fee NUMERIC DEFAULT 0,
   total_payable NUMERIC NOT NULL,
   payment_method TEXT NOT NULL,
-  status TEXT DEFAULT 'pending', -- 'pending', 'paid', 'completed', 'cancelled'
-  customer_info JSONB
+  status TEXT DEFAULT 'pending', -- 'pending', 'pending_payment', 'paid', 'completed', 'cancelled'
+  customer_info JSONB,
+  payment_id TEXT,
+  payment_url TEXT,
+  telegram_msg_id TEXT,
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- التحديث التلقائي لجدول الطلبات إذا كان موجوداً مسبقاً (Migration)
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_id TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_url TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS telegram_msg_id TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 -- ====================================================================
 -- تفعيل سياسات الأمان (Row Level Security - RLS) و الدوال الآمنة (RPC)
@@ -64,6 +74,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 -- وإلغاء تفعيل "Enable Signups" (Disable User Signups) حتى لا يتمكن أحد من إنشاء حساب جديد.
 
 -- دالة التحقق من أن المستخدم مدير معتمد في المتجر
+DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -120,6 +131,8 @@ CREATE POLICY "Allow admin full access on orders"
 -- ====================================================================
 
 -- 1. دالة التحقق الآمن من الكوبون في الباك اند دون كشف القائمة للعامة
+DROP FUNCTION IF EXISTS public.validate_coupon(TEXT, NUMERIC) CASCADE;
+DROP FUNCTION IF EXISTS public.validate_coupon(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.validate_coupon(
   p_code TEXT,
   p_subtotal NUMERIC DEFAULT 0
@@ -161,6 +174,7 @@ END;
 $$;
 
 -- 2. دالة إتمام الطلب وحساب السعر الحقيقي في الباك اند (منع التلاعب بالأسعار)
+DROP FUNCTION IF EXISTS public.create_order_secure(JSONB, TEXT, TEXT, JSONB) CASCADE;
 CREATE OR REPLACE FUNCTION public.create_order_secure(
   p_items JSONB,
   p_payment_method TEXT,
@@ -297,6 +311,7 @@ END;
 $$;
 
 -- 3. دالة السيرفر الآمنة لتحديث الفاتورة ورابط الدفع دون انتهاك سياسات RLS
+DROP FUNCTION IF EXISTS public.update_order_payment(UUID, TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.update_order_payment(
   p_order_id UUID,
   p_payment_id TEXT,
@@ -319,11 +334,12 @@ BEGIN
       status = 'pending_payment'
   WHERE id = p_order_id;
 
-  RETURN jsonb_build_object('success', true, 'order_id', p_order_id);
+  RETURN jsonb_build_object('success', true, 'order_id', p_order_id, 'telegram_msg_id', v_order.telegram_msg_id);
 END;
 $$;
 
 -- 4. دالة تأكيد الدفع التلقائي عند استلام ويب هوك أو تحقق ناجح (Webhook / Auto Confirm)
+DROP FUNCTION IF EXISTS public.confirm_order_payment(TEXT, UUID) CASCADE;
 CREATE OR REPLACE FUNCTION public.confirm_order_payment(
   p_payment_id TEXT DEFAULT NULL,
   p_order_id UUID DEFAULT NULL
@@ -349,7 +365,47 @@ BEGIN
       updated_at = now()
   WHERE id = v_order.id;
 
-  RETURN jsonb_build_object('success', true, 'order_id', v_order.id, 'status', 'paid', 'total_payable', v_order.total_payable);
+  RETURN jsonb_build_object('success', true, 'order_id', v_order.id, 'status', 'paid', 'total_payable', v_order.total_payable, 'telegram_msg_id', v_order.telegram_msg_id);
+END;
+$$;
+
+-- 5. دالة تحديث معرّف رسالة تليجرام في الطلب لتسهيل تعديلها لاحقاً
+DROP FUNCTION IF EXISTS public.update_order_telegram_msg_id(UUID, TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.update_order_telegram_msg_id(
+  p_order_id UUID,
+  p_tg_msg_id TEXT
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.orders SET telegram_msg_id = p_tg_msg_id WHERE id = p_order_id;
+  RETURN true;
+END;
+$$;
+
+-- 6. دالة إلغاء الطلب بأمان عبر السيرفر عند فشل أو إلغاء الدفع
+DROP FUNCTION IF EXISTS public.cancel_order_payment(UUID) CASCADE;
+CREATE OR REPLACE FUNCTION public.cancel_order_payment(
+  p_order_id UUID
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_order RECORD;
+BEGIN
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Order not found');
+  END IF;
+
+  UPDATE public.orders
+  SET status = 'cancelled',
+      updated_at = now()
+  WHERE id = p_order_id;
+
+  RETURN jsonb_build_object('success', true, 'order_id', p_order_id, 'status', 'cancelled', 'telegram_msg_id', v_order.telegram_msg_id);
 END;
 $$;
 
