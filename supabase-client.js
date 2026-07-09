@@ -175,6 +175,8 @@ async function saveOrderToDB(orderData) {
       return_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
       cancel_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
       failed_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
+      back_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
+      webhook_url: "https://striviodz.store/thank-you.html?webhook=1&order_id=" + rpcData.order_id,
       firstname: orderData.customer_info?.firstname || "Strivio",
       lastname: orderData.customer_info?.lastname || "Client",
       email: orderData.customer_info?.email || "client@striviodz.store",
