@@ -471,9 +471,13 @@ function renderItems(){
     return;
   }
   el.innerHTML = cart.map(function(item, idx){
-    var durLabel = item.durLabelData ? (item.durLabelData[L] || item.durLabel) : item.durLabel;
-    var itemName = item.nameData ? (item.nameData[L] || item.name) : item.name;
-    var typeLabel = item.typeLabelData && item.typeLabelData[L] ? item.typeLabelData[L][item.typeIdx||0] : (item.typeLabel || '');
+    var svc = (window.SERVICES || []).find(function(s){ return s.id === item.id; }) || {};
+    var itemName = (item.nameData && item.nameData[L]) ? item.nameData[L] : (item.name || item.title || (svc.n && svc.n[L]) || item.id || 'Product');
+    var durLabel = (item.durLabelData && item.durLabelData[L]) ? item.durLabelData[L] : (item.durLabel || (tx.dl && tx.dl[item.durIdx||0]) || '1 Month');
+    var typeLabel = (item.typeLabelData && item.typeLabelData[L]) ? item.typeLabelData[L][item.typeIdx||0] : (item.typeLabel || '');
+    if (!item.bg) item.bg = svc.bg || '#1a1a1a';
+    if (!item.iconSrc && svc.iconSrc) item.iconSrc = svc.iconSrc;
+    if (!item.iconType && svc.iconType) item.iconType = svc.iconType;
     var q = item.qty || 1;
     var itemTotal = (item.unitPrice || item.price) * q;
     
@@ -528,8 +532,9 @@ function renderSummary(){
   var rowsEl = $('SMROWS');
   if(rowsEl){
     rowsEl.innerHTML = cart.map(function(item){
-      var itemName = item.nameData ? (item.nameData[L] || item.name) : item.name;
-      var durLabel = item.durLabelData ? (item.durLabelData[L] || item.durLabel) : item.durLabel;
+      var svc = (window.SERVICES || []).find(function(s){ return s.id === item.id; }) || {};
+      var itemName = (item.nameData && item.nameData[L]) ? item.nameData[L] : (item.name || item.title || (svc.n && svc.n[L]) || item.id || 'Product');
+      var durLabel = (item.durLabelData && item.durLabelData[L]) ? item.durLabelData[L] : (item.durLabel || (tx.dl && tx.dl[item.durIdx||0]) || '1 Month');
       var q = item.qty || 1;
       var itemTotal = (item.unitPrice || item.price) * q;
       return '<div class="flex items-center justify-between text-sm"><span style="color:rgba(224,224,224,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">'+itemName+' x'+q+'</span><span class="font-medium text-white ml-2 flex-shrink-0">'+fmtP(itemTotal)+'</span></div>';
