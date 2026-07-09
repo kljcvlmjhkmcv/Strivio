@@ -888,9 +888,16 @@ function searchOrdersById() {
 async function updateOrderStatus(id, newStatus) {
   if (!confirm('هل أنت متأكد من تغيير حالة الطلب إلى: ' + newStatus + '؟')) return;
   if (window.supabaseClient) {
+    var ord = ALL_ORDERS ? ALL_ORDERS.find(function(o){ return o.id === id; }) : null;
     var { error } = await window.supabaseClient.from('orders').update({ status: newStatus }).eq('id', id);
     if (error) alert('خطأ: ' + error.message);
-    else { showToast('تم تحديث حالة الطلب!'); loadOrders(); }
+    else {
+      showToast('تم تحديث حالة الطلب!');
+      if (ord && typeof window.sendOrUpdateTelegramOrderAlert === 'function' && ord.telegram_msg_id) {
+        await window.sendOrUpdateTelegramOrderAlert(ord, ord, newStatus, ord.telegram_msg_id);
+      }
+      loadOrders();
+    }
   }
 }
 
