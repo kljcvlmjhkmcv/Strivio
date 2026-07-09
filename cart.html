@@ -164,6 +164,9 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
     <a href="./#subs" class="BN" style="max-width:220px;animation:P2 3s ease-in-out infinite" id="EMBTN"></a>
   </div>
 
+  <!-- Banner Container for Cancelled Payments -->
+  <div id="CANCEL_BANNER_CONTAINER" class="mb-6"></div>
+
   <!-- Cart Content (shown when items exist) -->
   <div id="CRT" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
@@ -972,14 +975,41 @@ applyLang(L);
       L === 'ar' ? '⚠️ تم إلغاء عملية الدفع' : (L === 'fr' ? '⚠️ Paiement annulé' : '⚠️ Payment cancelled'),
       L === 'ar' ? 'لم يتم خصم أي مبلغ. يمكنك المحاولة مرة أخرى أو اختيار طريقة دفع أخرى.' : (L === 'fr' ? 'Aucun montant n\'a été débité. Vous pouvez réessayer.' : 'No funds were charged. You can try again.')
     );
-    var orderId = params.get('order_id');
-    if (orderId && cart.length === 0 && window.supabaseClient) {
+    var orderId = params.get('order_id') || '---';
+    var bannerContainer = document.getElementById('CANCEL_BANNER_CONTAINER');
+    if (bannerContainer) {
+      var titleText = L === 'ar' ? 'تم إلغاء أو عدم اكتمال عملية الدفع الفوري (SATIM) ⚠️' : (L === 'fr' ? 'Paiement SATIM annulé ou non finalisé ⚠️' : 'SATIM Payment Cancelled or Unfinished ⚠️');
+      var descText = L === 'ar'
+        ? `لم يتم خصم أي مبلغ مالي من بطاقتك أو حسابك. لقد قمنا بإرجاع منتجاتك إلى السلة بأمان (ولم يتم حذف طلبك رقم <span class="font-mono font-bold text-brand-neon">${orderId}</span>)، حيث يمكنك إعادة محاولة الدفع الفوري بالبطاقة الذهبية الآن أو اختيار طريقة دفع أخرى بسهولة.`
+        : (L === 'fr'
+          ? `Aucun montant n'a été débité. Vos articles ont été remis dans le panier (commande <span class="font-mono font-bold text-brand-neon">${orderId}</span> conservée). Vous pouvez réessayer le paiement SATIM ou choisir une autre méthode.`
+          : `No charges were made. Your items are restored to your cart (order <span class="font-mono font-bold text-brand-neon">${orderId}</span> kept safe). You can try SATIM payment again or pick another method.`);
+      bannerContainer.innerHTML = `
+        <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.45); border-radius: 18px; padding: 20px 24px; display: flex; align-items: flex-start; gap: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 20px rgba(239, 68, 68, 0.15); animation: popIn 0.5s ease;">
+          <div style="font-size: 32px; flex-shrink: 0; line-height: 1;">⚠️</div>
+          <div>
+            <div style="font-weight: 800; font-size: 16px; color: #f87171; margin-bottom: 6px;">${titleText}</div>
+            <div style="font-size: 14px; color: #e5e7eb; line-height: 1.6;">${descText}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (orderId && orderId !== '---' && window.supabaseClient) {
       try {
-        var { data } = await window.supabaseClient.from('orders').select('items').eq('id', orderId).single();
-        if (data && data.items && Array.isArray(data.items) && data.items.length > 0) {
-          cart = data.items;
-          localStorage.setItem('strivio_cart', JSON.stringify(cart));
-          applyLang(L);
+        var { data } = await window.supabaseClient.from('orders').select('*').eq('id', orderId).single();
+        if (data) {
+          if (cart.length === 0 && data.items && Array.isArray(data.items) && data.items.length > 0) {
+            cart = data.items;
+            localStorage.setItem('strivio_cart', JSON.stringify(cart));
+            applyLang(L);
+          }
+          if (data.status !== 'cancelled') {
+            await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: orderId });
+            if (typeof window.sendOrUpdateTelegramOrderAlert === 'function' && data.telegram_msg_id) {
+              window.sendOrUpdateTelegramOrderAlert(data, data, 'cancelled', data.telegram_msg_id);
+            }
+          }
         }
       } catch(e) {}
     }

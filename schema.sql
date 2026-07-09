@@ -623,6 +623,8 @@ INSERT INTO public.settings (id, config) VALUES (1, '{
   "phone": "tel:+213XXXXXXXXX",
   "whatsapp": "213562961410",
   "telegram": "",
+  "telegram_bot_token": "8861214693:AAHddszeT3JUILS2acEfuxt0FGMevTZBLuw",
+  "telegram_chat_id": "5038091659",
   "instagram": "https://instagram.com/strivio.store",
   "facebook": "https://www.facebook.com/people/Strivio/61578300089117",
   "tiktok": "",

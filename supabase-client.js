@@ -257,13 +257,14 @@ async function sendOrUpdateTelegramOrderAlert(rpcData, orderData, status, existi
       await loadSettingsFromDB();
     }
   }
-  if (!window.CONFIG || !window.CONFIG.telegram_bot_token || !window.CONFIG.telegram_chat_id) return null;
+
+  window.CONFIG = window.CONFIG || {};
+  const token = window.CONFIG.telegram_bot_token || '8861214693:AAHddszeT3JUILS2acEfuxt0FGMevTZBLuw';
+  const chatId = window.CONFIG.telegram_chat_id || '5038091659';
 
   try {
-    const token = window.CONFIG.telegram_bot_token;
-    const chatId = window.CONFIG.telegram_chat_id;
-    const orderId = rpcData.order_id || rpcData.id || 'غير محدد';
-    const total = rpcData.total_payable || rpcData.subtotal || 0;
+    const orderId = rpcData.order_id || rpcData.id || orderData.id || 'غير محدد';
+    const total = rpcData.total_payable || rpcData.subtotal || orderData.total_payable || 0;
     const items = orderData.items || rpcData.items || [];
     const cust = orderData.customer_info || rpcData.customer_info || {};
     const method = orderData.payment_method || rpcData.payment_method || 'cib';
@@ -333,7 +334,14 @@ async function sendOrUpdateTelegramOrderAlert(rpcData, orderData, status, existi
     if (sendJson.ok && sendJson.result && sendJson.result.message_id) {
       const newMsgId = String(sendJson.result.message_id);
       console.log('✅ Telegram notification sent (Message ID:', newMsgId, ')');
+      if (orderId && orderId !== 'غير محدد' && window.supabaseClient) {
+        try {
+          await window.supabaseClient.rpc('update_order_telegram_msg_id', { p_order_id: orderId, p_tg_msg_id: newMsgId });
+        } catch(rpcE) {}
+      }
       return newMsgId;
+    } else {
+      console.error('❌ Telegram API error:', sendJson);
     }
   } catch (tgE) {
     console.warn('❌ TG Alert exception:', tgE);
@@ -344,18 +352,23 @@ async function sendOrUpdateTelegramOrderAlert(rpcData, orderData, status, existi
 /* جلب الإعدادات (روابط التواصل وأرقام الهاتف) من قاعدة البيانات */
 async function loadSettingsFromDB() {
   if (!supabaseClient) initSupabase();
-  if (!supabaseClient) return null;
+  window.CONFIG = window.CONFIG || {};
+  if (!supabaseClient) {
+    window.CONFIG.telegram_bot_token = window.CONFIG.telegram_bot_token || '8861214693:AAHddszeT3JUILS2acEfuxt0FGMevTZBLuw';
+    window.CONFIG.telegram_chat_id = window.CONFIG.telegram_chat_id || '5038091659';
+    return window.CONFIG;
+  }
   try {
     const { data, error } = await supabaseClient.from('settings').select('config').eq('id', 1).single();
     if (!error && data && data.config) {
       window.CONFIG = data.config;
-      return data.config;
     }
-    return null;
   } catch (e) {
     console.error('❌ Exception loading settings:', e);
-    return null;
   }
+  window.CONFIG.telegram_bot_token = window.CONFIG.telegram_bot_token || '8861214693:AAHddszeT3JUILS2acEfuxt0FGMevTZBLuw';
+  window.CONFIG.telegram_chat_id = window.CONFIG.telegram_chat_id || '5038091659';
+  return window.CONFIG;
 }
 
 /* جلب التقييمات من قاعدة البيانات */
