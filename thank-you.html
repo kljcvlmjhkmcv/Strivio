@@ -302,21 +302,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get('order_id') || params.get('id') || params.get('invoice_id');
-  const isCancelledParam = params.get('cancelled') || params.get('cancel') || params.get('payment_cancelled') || params.get('status') === 'cancelled' || params.get('status') === 'failed';
+  const msgParam = (params.get('message') || '').toLowerCase();
+  const isCancelledParam = params.get('cancelled') || params.get('cancel') || params.get('payment_cancelled') || params.get('status') === 'cancelled' || params.get('status') === 'failed' || params.get('error') === '1' || params.has('error') || msgParam.includes('annul') || msgParam.includes('cancel') || msgParam.includes('error');
   const isSuccessParam = params.get('success') === '1' || params.get('status') === 'completed' || params.get('status') === 'paid';
   
   if (isCancelledParam) {
-    document.getElementById('T_TITLE').textContent = savedLang === 'ar' ? "تم إلغاء عملية الدفع ❌" : (savedLang === 'fr' ? "Paiement Annulé ❌" : "Payment Cancelled ❌");
-    document.getElementById('T_DESC').textContent = savedLang === 'ar' ? "لم يتم إتمام الدفع أو تم إلغاء العملية. لم يتم خصم أي مبلغ من بطاقتك. يمكنك العودة لسلة المشتريات والمحاولة مرة أخرى." : (savedLang === 'fr' ? "Le paiement n'a pas été finalisé. Aucun montant n'a été débité de votre carte. Vous pouvez réessayer." : "Payment was not finalized. No charges were made to your card. You can return to cart and try again.");
-    const statusVal = document.getElementById('T_STATUS_VAL');
-    if (statusVal) {
-      statusVal.textContent = savedLang === 'ar' ? "ملغي / غير مدفوع ❌" : "Annulé / Cancelled ❌";
-      statusVal.style.color = "#ef4444";
+    if (orderId && window.supabaseClient) {
+      try {
+        await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: String(orderId) });
+      } catch(e) {}
     }
-    const waBtn = document.getElementById('T_WA_BTN');
-    if (waBtn) {
-      document.getElementById('T_WA_TXT').textContent = savedLang === 'ar' ? "تواصل مع الدعم للمساعدة في الدفع" : "Contact Support for assistance";
-    }
+    window.location.replace(`cart.html?payment_cancelled=1&order_id=${orderId || ''}`);
+    return;
   } else {
     localStorage.removeItem("strivio_cart");
   }
