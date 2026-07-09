@@ -4,7 +4,7 @@
 <script>
 (function(){
   var s = window.location.search.toLowerCase();
-  if (s.indexOf('error=1') !== -1 || s.indexOf('cancelled') !== -1 || s.indexOf('cancel') !== -1 || s.indexOf('annul') !== -1 || s.indexOf('payment_cancelled') !== -1 || s.indexOf('status=cancelled') !== -1 || s.indexOf('status=failed') !== -1) {
+  if (s.indexOf('error') !== -1 || s.indexOf('expired') !== -1 || s.indexOf('timeout') !== -1 || s.indexOf('cancelled') !== -1 || s.indexOf('cancel') !== -1 || s.indexOf('annul') !== -1 || s.indexOf('payment_cancelled') !== -1 || s.indexOf('status=cancelled') !== -1 || s.indexOf('status=failed') !== -1) {
     var oid = '';
     var m = s.match(/[?&](?:order_id|id|invoice_id)=([^&]+)/);
     if (m) oid = m[1];

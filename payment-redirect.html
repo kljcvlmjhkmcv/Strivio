@@ -10,7 +10,7 @@
   var m = window.location.search.match(/[?&](?:order_id|id|invoice_id)=([^&]+)/i);
   if (m) oid = decodeURIComponent(m[1]);
 
-  if (s.indexOf('error=1') !== -1 || s.indexOf('cancelled') !== -1 || s.indexOf('cancel') !== -1 || s.indexOf('annul') !== -1 || s.indexOf('payment_cancelled') !== -1 || s.indexOf('status=cancelled') !== -1 || s.indexOf('status=failed') !== -1) {
+  if (s.indexOf('error') !== -1 || s.indexOf('expired') !== -1 || s.indexOf('timeout') !== -1 || s.indexOf('cancelled') !== -1 || s.indexOf('cancel') !== -1 || s.indexOf('annul') !== -1 || s.indexOf('payment_cancelled') !== -1 || s.indexOf('status=cancelled') !== -1 || s.indexOf('status=failed') !== -1) {
     window.location.replace('cart.html?payment_cancelled=1&order_id=' + oid);
   } else {
     window.location.replace('thank-you.html?success=1&order_id=' + oid);
