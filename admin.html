@@ -293,6 +293,17 @@
     <div class="glass-card p-3.5 rounded-2xl">
       <input type="text" id="order-search-id" oninput="searchOrdersById()" class="input-box text-sm py-2 px-4" placeholder="🔍 ابحث برقم الطلب (ID)... مثال: a1b2c3 أو جزء من المعرف"/>
     </div>
+    <div id="orders-bulk-bar" class="glass-card p-3.5 rounded-2xl border border-brand-border/80 bg-[#121212] flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <input type="checkbox" id="select-all-orders" class="w-5 h-5 accent-brand-neon cursor-pointer rounded" onchange="toggleSelectAllOrders(this.checked)"/>
+        <label for="select-all-orders" class="text-xs font-bold text-white cursor-pointer select-none">تحديد الكل (<span id="bulk-selected-count" class="text-brand-neon font-display font-black text-sm">0</span> محدد)</label>
+      </div>
+      <div id="bulk-actions-buttons" class="flex flex-wrap items-center gap-2 opacity-40 pointer-events-none transition-all">
+        <button onclick="bulkUpdateOrdersStatus('completed')" class="px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500 hover:text-black rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-sm">✅ إكمال المحدد</button>
+        <button onclick="bulkUpdateOrdersStatus('cancelled')" class="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500 hover:text-black rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-sm">❌ إلغاء المحدد</button>
+        <button onclick="bulkDeleteOrders()" class="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 shadow-sm">🗑️ حذف المحدد نهائياً</button>
+      </div>
+    </div>
     <div id="orders-list" class="space-y-4">
       <div class="text-center py-12 text-gray-500 font-medium">جاري تحميل الطلبات...</div>
     </div>
@@ -943,6 +954,74 @@ async function deleteOrder(id) {
   }
 }
 
+/* ─── BULK ORDERS SELECTION & ACTIONS ─── */
+function toggleSelectAllOrders(checked) {
+  document.querySelectorAll('.order-chk').forEach(function(chk){
+    chk.checked = checked;
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  var checkedList = document.querySelectorAll('.order-chk:checked');
+  var count = checkedList.length;
+  var countSpan = document.getElementById('bulk-selected-count');
+  if (countSpan) countSpan.textContent = count;
+  
+  var selectAllChk = document.getElementById('select-all-orders');
+  var totalChk = document.querySelectorAll('.order-chk').length;
+  if (selectAllChk && totalChk > 0) {
+    selectAllChk.checked = (count === totalChk && totalChk > 0);
+  }
+  
+  var actionsBox = document.getElementById('bulk-actions-buttons');
+  if (actionsBox) {
+    if (count > 0) {
+      actionsBox.className = 'flex flex-wrap items-center gap-2 opacity-100 transition-all pointer-events-auto';
+    } else {
+      actionsBox.className = 'flex flex-wrap items-center gap-2 opacity-40 pointer-events-none transition-all';
+    }
+  }
+}
+
+async function bulkDeleteOrders() {
+  var checkedList = document.querySelectorAll('.order-chk:checked');
+  if (checkedList.length === 0) return;
+  if (!confirm('هل أنت متأكد من حذف (' + checkedList.length + ') طلب محدد نهائياً؟')) return;
+  
+  var ids = [];
+  checkedList.forEach(function(chk){ ids.push(chk.value); });
+  
+  if (window.supabaseClient) {
+    var { error } = await window.supabaseClient.from('orders').delete().in('id', ids);
+    if (error) {
+      alert('خطأ أثناء الحذف الجماعي: ' + error.message);
+    } else {
+      showToast('✅ تم حذف (' + ids.length + ') طلب بنجاح!');
+      loadOrders();
+    }
+  }
+}
+
+async function bulkUpdateOrdersStatus(newStatus) {
+  var checkedList = document.querySelectorAll('.order-chk:checked');
+  if (checkedList.length === 0) return;
+  if (!confirm('هل أنت متأكد من تغيير حالة (' + checkedList.length + ') طلب محدد إلى: ' + newStatus + '؟')) return;
+  
+  var ids = [];
+  checkedList.forEach(function(chk){ ids.push(chk.value); });
+  
+  if (window.supabaseClient) {
+    var { error } = await window.supabaseClient.from('orders').update({ status: newStatus }).in('id', ids);
+    if (error) {
+      alert('خطأ أثناء تحديث الحالة: ' + error.message);
+    } else {
+      showToast('✅ تم تحديث حالة (' + ids.length + ') طلب إلى: ' + newStatus + ' بنجاح!');
+      loadOrders();
+    }
+  }
+}
+
 var currentPage = 0;
 var pageSize = 100;
 async function loadOrders() {
@@ -983,6 +1062,7 @@ function renderOrdersList(data) {
 
   if (filtered.length === 0) {
     container.innerHTML = '<div class="text-center py-12 text-gray-500">لا توجد طلبات تطابق معايير البحث/الفلتر.</div>';
+    updateBulkBar();
     return;
   }
 
@@ -998,17 +1078,20 @@ function renderOrdersList(data) {
     var statusText = o.status === 'completed' ? '✅ مكتمل' : (o.status === 'pending' ? '⏳ بانتظار التأكيد' : o.status);
     
     return '<div class="p-5 glass-card rounded-2xl border border-brand-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-brand-neon/30 transition-all">' +
-      '<div class="space-y-2">' +
-        '<div class="flex flex-wrap items-center gap-2">' +
-          '<span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-brand-neon/10 text-brand-neon border border-brand-neon/30 font-display"># ' + o.id + '</span>' +
-          '<span class="text-xs text-gray-400">📅 ' + dateStr + '</span>' +
-          '<span class="text-[11px] px-2.5 py-0.5 rounded-full border font-bold ' + badgeClass + '">' + statusText + '</span>' +
-        '</div>' +
-        '<div class="text-sm text-gray-200 leading-relaxed pl-2 border-r-2 border-brand-neon/40 pr-2">' + itemsStr + '</div>' +
-        '<div class="text-xs text-gray-400 flex flex-wrap gap-4 pt-1">' +
-          '<span>طريقة الدفع: <b class="text-white">' + o.payment_method + '</b></span>' +
-          (o.coupon_code ? '<span>الكوبون: <b class="text-brand-neon">' + o.coupon_code + '</b></span>' : '') +
-          (o.discount > 0 ? '<span>الخصم: <b class="text-yellow-400">-' + Number(o.discount).toLocaleString('ar-DZ') + ' دج</b></span>' : '') +
+      '<div class="flex items-start md:items-center gap-3.5 w-full md:w-auto">' +
+        '<input type="checkbox" class="order-chk w-5 h-5 mt-1 md:mt-0 accent-brand-neon rounded cursor-pointer shrink-0" value="' + o.id + '" onchange="updateBulkBar()"/>' +
+        '<div class="space-y-2 w-full">' +
+          '<div class="flex flex-wrap items-center gap-2">' +
+            '<span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-brand-neon/10 text-brand-neon border border-brand-neon/30 font-display"># ' + o.id + '</span>' +
+            '<span class="text-xs text-gray-400">📅 ' + dateStr + '</span>' +
+            '<span class="text-[11px] px-2.5 py-0.5 rounded-full border font-bold ' + badgeClass + '">' + statusText + '</span>' +
+          '</div>' +
+          '<div class="text-sm text-gray-200 leading-relaxed pl-2 border-r-2 border-brand-neon/40 pr-2">' + itemsStr + '</div>' +
+          '<div class="text-xs text-gray-400 flex flex-wrap gap-4 pt-1">' +
+            '<span>طريقة الدفع: <b class="text-white">' + o.payment_method + '</b></span>' +
+            (o.coupon_code ? '<span>الكوبون: <b class="text-brand-neon">' + o.coupon_code + '</b></span>' : '') +
+            (o.discount > 0 ? '<span>الخصم: <b class="text-yellow-400">-' + Number(o.discount).toLocaleString('ar-DZ') + ' دج</b></span>' : '') +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="text-right flex md:flex-col items-center md:items-end justify-between w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-brand-border/60 gap-3">' +
@@ -1023,6 +1106,8 @@ function renderOrdersList(data) {
       '</div>' +
     '</div>';
   }).join('');
+  
+  updateBulkBar();
 }
 
 /* ─── REVIEWS ADMIN MANAGEMENT ─── */

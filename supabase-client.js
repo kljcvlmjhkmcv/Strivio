@@ -313,14 +313,11 @@ async function sendOrUpdateTelegramOrderAlert(rpcData, orderData, status, existi
           })
         });
         const editJson = await editRes.json();
-        if (editJson.ok) {
-          console.log('✅ Telegram message updated successfully (Message ID:', existingMsgId, ')');
-          return existingMsgId;
-        }
-        console.warn('⚠️ Could not edit Telegram message, sending new one...', editJson);
+        console.log('📦 Telegram editMessageText response:', editJson);
       } catch (editE) {
         console.warn('⚠️ Exception editing Telegram message:', editE);
       }
+      return existingMsgId;
     }
 
     const sendRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
