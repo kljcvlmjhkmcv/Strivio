@@ -321,7 +321,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (isCancelledParam) {
     if (orderId && window.supabaseClient) {
       try {
-        await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: String(orderId) });
+        await window.supabaseClient.functions.invoke('verify-payment', {
+          body: { order_id: orderId, action: 'cancel' }
+        });
       } catch(e) {}
     }
     window.location.replace(`cart.html?payment_cancelled=1&order_id=${orderId || ''}`);
@@ -355,8 +357,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         let isOrderPaid = data.status === 'paid' || data.status === 'completed';
         let isOrderCancelled = isCancelledParam || data.status === 'cancelled';
 
-        // التحقق الفعلي والآمن لحالة الفاتورة عبر Supabase Edge Function دون كشف أي أسرار
-        if (!isOrderPaid && !isOrderCancelled && data.payment_id) {
+        // التحقق الآمن عبر السيرفر فقط (verify-payment Edge Function) دون أي صلاحيات تعديل من جهة العميل
+        if (data.payment_id || data.id) {
           try {
             const verifyRes = await window.supabaseClient.functions.invoke('verify-payment', {
               body: { order_id: data.id, payment_id: data.payment_id, action: isCancelledParam ? 'cancel' : 'check' }
@@ -365,27 +367,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (vData.status === 'paid' || vData.status === 'completed') {
               isOrderPaid = true;
             } else if (vData.status === 'cancelled' || vData.status === 'unpaid') {
-              if (isSuccessParam) isOrderPaid = true;
-              else isOrderCancelled = true;
+              isOrderCancelled = true;
             }
-          } catch (slickVerifyE) {
-            if (!isSuccessParam) isOrderCancelled = true;
-          }
-        } else if (!isOrderPaid && !isOrderCancelled && !data.payment_id) {
-          if (isSuccessParam) isOrderPaid = true;
-          else isOrderCancelled = true;
+          } catch (slickVerifyE) {}
         }
 
         if (isOrderPaid) {
-          try {
-            await window.supabaseClient.rpc('confirm_order_payment', { p_order_id: String(data.id) });
-            document.getElementById('T_STATUS_VAL').textContent = savedLang === 'ar' ? "مكتمل ومؤكد ✅" : "Verified & Paid ✅";
-            document.getElementById('T_STATUS_VAL').style.color = "#39ff14";
-          } catch(e) {}
+          document.getElementById('T_STATUS_VAL').textContent = savedLang === 'ar' ? "مكتمل ومؤكد ✅" : "Verified & Paid ✅";
+          document.getElementById('T_STATUS_VAL').style.color = "#39ff14";
         } else if (isOrderCancelled) {
-          try {
-            await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: String(data.id) });
-          } catch(e) {}
           window.location.replace(`cart.html?payment_cancelled=1&order_id=${data.id}`);
           return;
         }

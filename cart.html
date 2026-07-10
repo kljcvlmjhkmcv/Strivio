@@ -1016,21 +1016,11 @@ applyLang(L);
 
     if (orderId && orderId !== '---' && window.supabaseClient) {
       try {
-        var rpcRes = await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: String(orderId) });
-        var cData = rpcRes.data;
-        var fullData = null;
-        if (cData && cData.order_id) {
-          var { data } = await window.supabaseClient.from('orders').select('*').eq('id', cData.order_id).single();
-          fullData = data || { id: cData.order_id, status: 'cancelled', items: cData.items, telegram_msg_id: cData.telegram_msg_id };
-        } else {
-          var { data: altData } = await window.supabaseClient.from('orders').select('*').or('id.eq.' + orderId + ',payment_id.eq.' + orderId).single();
-          fullData = altData;
-          if (fullData) {
-            await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: String(fullData.id) });
-            fullData.status = 'cancelled';
-          }
-        }
+        await window.supabaseClient.functions.invoke('verify-payment', {
+          body: { order_id: orderId, action: 'cancel' }
+        });
 
+        var { data: fullData } = await window.supabaseClient.from('orders').select('*').or('id.eq.' + orderId + ',payment_id.eq.' + orderId).single();
         if (fullData) {
           if (cart.length === 0 && fullData.items && Array.isArray(fullData.items) && fullData.items.length > 0) {
             cart = fullData.items;
@@ -1038,12 +1028,9 @@ applyLang(L);
             applyLang(L);
             if (typeof render === 'function') render();
           }
-          if (typeof window.sendOrUpdateTelegramOrderAlert === 'function') {
-            window.sendOrUpdateTelegramOrderAlert(fullData, fullData, 'cancelled', fullData.telegram_msg_id);
-          }
         }
       } catch(e) {
-        console.error('Error cancelling order:', e);
+        console.error('Error handling cancelled order redirect:', e);
       }
     }
   }
