@@ -2,6 +2,7 @@
 <html lang="fr" dir="ltr" id="HR" class="scroll-smooth">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>Strivio — Questions Fréquentes (FAQ)</title>
 <meta name="description" content="Trouvez les réponses à toutes vos questions concernant vos abonnements Strivio, la livraison, la garantie et les paiements."/>
@@ -122,6 +123,16 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 </main>
 
 <script>
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 var FL={
   en:'<svg width="22" height="15" viewBox="0 0 22 15" style="border-radius:2px;display:block"><rect width="22" height="15" fill="#B22234"/><rect y="1.15" width="22" height="1.15" fill="#fff"/><rect y="3.46" width="22" height="1.15" fill="#fff"/><rect y="5.77" width="22" height="1.15" fill="#fff"/><rect y="8.08" width="22" height="1.15" fill="#fff"/><rect y="10.38" width="22" height="1.15" fill="#fff"/><rect y="12.69" width="22" height="1.15" fill="#fff"/><rect width="9" height="8.08" fill="#3C3B6E"/></svg>',
   fr:'<svg width="22" height="15" viewBox="0 0 22 15" style="border-radius:2px;display:block"><rect width="7.33" height="15" fill="#002395"/><rect x="7.33" width="7.34" height="15" fill="#fff"/><rect x="14.67" width="7.33" height="15" fill="#ED2939"/></svg>',
@@ -179,13 +190,13 @@ function render(){
       '<div class="FAQ-ITEM" id="FAQ_'+index+'">',
         '<div class="FAQ-HEADER" onclick="toggleFaq('+index+')">',
           '<div class="flex items-center gap-3">',
-            '<span class="text-xl">'+(item.icon||'❓')+'</span>',
-            '<span class="font-display font-bold text-white text-base sm:text-lg">'+q+'</span>',
+            '<span class="text-xl">'+escapeHtml(item.icon||'❓')+'</span>',
+            '<span class="font-display font-bold text-white text-base sm:text-lg">'+escapeHtml(q)+'</span>',
           '</div>',
           '<svg class="FAQ-ICON transition-transform duration-300 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>',
         '</div>',
         '<div class="FAQ-BODY">',
-          '<p>'+a+'</p>',
+          '<p>'+escapeHtml(a)+'</p>',
         '</div>',
       '</div>'
     ].join('');

@@ -12,9 +12,6 @@ function initSupabase() {
   if (window.supabase && typeof window.supabase.createClient === 'function') {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window.supabaseClient = supabaseClient;
-    console.log('✅ Supabase connected successfully.');
-  } else {
-    console.warn('⚠️ Supabase SDK not found in window.');
   }
 }
 
@@ -30,7 +27,6 @@ async function loadServicesFromDB() {
       .order('sort_order', { ascending: true });
 
     if (error) {
-      console.error('❌ Error loading services from Supabase:', error.message);
       return null;
     }
 
@@ -66,7 +62,6 @@ async function loadServicesFromDB() {
       };
     });
   } catch (e) {
-    console.error('❌ Exception loading services:', e);
     return null;
   }
 }
@@ -83,7 +78,6 @@ async function loadCouponsFromDB() {
       .eq('active', true);
 
     if (error) {
-      console.error('❌ Error loading coupons from Supabase:', error.message);
       return null;
     }
 
@@ -95,7 +89,6 @@ async function loadCouponsFromDB() {
     }
     return couponsObj;
   } catch (e) {
-    console.error('❌ Exception loading coupons:', e);
     return null;
   }
 }
@@ -110,12 +103,10 @@ async function validateCouponInDB(code, subtotal) {
       p_subtotal: subtotal || 0
     });
     if (error) {
-      console.error('❌ Error validating coupon via RPC:', error.message);
       return null;
     }
     return data;
   } catch (e) {
-    console.error('❌ Exception in validateCouponInDB:', e);
     return null;
   }
 }
@@ -124,7 +115,6 @@ async function validateCouponInDB(code, subtotal) {
 async function saveOrderToDB(orderData) {
   if (!supabaseClient) initSupabase();
   if (!supabaseClient) {
-    console.warn('⚠️ Cannot save order to DB: Supabase client not initialized.');
     return null;
   }
 
@@ -138,12 +128,8 @@ async function saveOrderToDB(orderData) {
     });
 
     if (rpcError || !rpcData || !rpcData.success) {
-      if (rpcError) console.error('❌ Error saving order via RPC:', rpcError.message);
-      else if (rpcData) console.error('❌ RPC returned failure:', rpcData.error || 'Unknown error');
       return null;
     }
-
-    console.log('✅ Order created securely via RPC:', rpcData);
 
     // إرسال إشعار تليجرام الشامل للطلب الجديد وحفظ معرّف الرسالة لتعديلها لاحقاً
     const tgMsgId = await sendOrUpdateTelegramOrderAlert(rpcData, orderData, orderData.payment_method === 'cib' ? 'pending_payment' : 'pending');
@@ -159,193 +145,64 @@ async function saveOrderToDB(orderData) {
       return rpcData;
     }
 
-    // 3. إذا كانت طريقة الدفع cib، نتصل بـ SlickPay v2 لإنشاء الفاتورة ورابط الدفع عبر SATIM
-    console.log('⏳ Initiating SlickPay v2 invoice creation for CIB/SATIM...');
-    
-    const slickHeaders = {
-      'Authorization': 'Bearer 45913|clm8s1Msb8UcGqz5WMr8xFlYpbk6gzaBRQISVjJU',
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    };
-
-    const slickPayload = {
-      amount: Number(rpcData.total_payable),
-      url: "https://striviodz.store/payment-redirect.html?order_id=" + rpcData.order_id,
-      success_url: "https://striviodz.store/thank-you.html?success=1&order_id=" + rpcData.order_id,
-      return_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
-      cancel_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
-      failed_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
-      back_url: "https://striviodz.store/cart.html?payment_cancelled=1&order_id=" + rpcData.order_id,
-      webhook_url: "https://striviodz.store/thank-you.html?webhook=1&order_id=" + rpcData.order_id,
-      firstname: orderData.customer_info?.firstname || "Strivio",
-      lastname: orderData.customer_info?.lastname || "Client",
-      email: orderData.customer_info?.email || "client@striviodz.store",
-      phone: orderData.customer_info?.phone || "0550000000",
-      address: orderData.customer_info?.address || "Algeria",
-      items: (orderData.items || []).map(function(item) {
-        return {
-          name: (item.nameData && item.nameData.ar) ? item.nameData.ar : (item.name || 'Subscription'),
-          price: Number(item.unitPrice || item.price || 0),
-          quantity: Number(item.qty || 1),
-          qty: Number(item.qty || 1)
-        };
-      })
-    };
-
+    // 3. إذا كانت طريقة الدفع cib، نتصل بـ Edge Function لإنشاء الفاتورة ورابط الدفع دون كشف المفاتيح
     try {
-      let slickResponse = await fetch("https://prodapi.slick-pay.com/api/v2/users/invoices", {
+      const edgeUrl = `${supabaseClient.supabaseUrl}/functions/v1/create-payment`;
+      const edgeRes = await fetch(edgeUrl, {
         method: 'POST',
-        headers: slickHeaders,
-        body: JSON.stringify(slickPayload)
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          order_id: rpcData.order_id,
+          origin_url: window.location.origin
+        })
       });
 
-      if (!slickResponse.ok) {
-        console.warn('⚠️ prodapi failed with status', slickResponse.status, '- trying api.slick-pay.com...');
-        slickResponse = await fetch("https://api.slick-pay.com/api/v2/users/invoices", {
-          method: 'POST',
-          headers: slickHeaders,
-          body: JSON.stringify(slickPayload)
-        });
-      }
-
-      const slickResult = await slickResponse.json();
-      console.log('📦 SlickPay API response:', slickResult);
-
-      const invoiceData = slickResult.data || slickResult;
-      const paymentId = invoiceData.id ? String(invoiceData.id) : (invoiceData.invoice_id ? String(invoiceData.invoice_id) : null);
-      const paymentUrl = invoiceData.url || invoiceData.payment_url || invoiceData.redirect_url || invoiceData.link || null;
-
-      if (!paymentUrl) {
-        console.error('❌ SlickPay did not return a valid payment_url:', slickResult);
-        return rpcData;
-      }
-
-      // 4. تحديث سجل الطلب في جدول orders بأمان عبر دالة الـ RPC (لتجاوز حظر RLS للعملاء)
-      if (rpcData.order_id && paymentId) {
-        const { data: updateRes, error: updateErr } = await supabaseClient.rpc('update_order_payment', {
-          p_order_id: rpcData.order_id,
-          p_payment_id: paymentId,
-          p_payment_url: paymentUrl
-        });
-
-        if (updateErr) {
-          console.warn('⚠️ Could not update order with SlickPay info via RPC:', updateErr.message);
-        } else {
-          console.log('✅ Order updated securely via RPC with SlickPay payment ID and URL.');
-          if (updateRes && updateRes.telegram_msg_id) {
-            rpcData.telegram_msg_id = updateRes.telegram_msg_id;
-          }
+      if (edgeRes.ok) {
+        const edgeJson = await edgeRes.json();
+        if (edgeJson.success && edgeJson.payment_url) {
+          rpcData.payment_url = edgeJson.payment_url;
+          if (edgeJson.telegram_msg_id) rpcData.telegram_msg_id = edgeJson.telegram_msg_id;
+          return rpcData;
         }
       }
-
-      rpcData.payment_url = paymentUrl;
-      return rpcData;
-
-    } catch (slickErr) {
-      console.error('❌ Error calling SlickPay API:', slickErr);
-      return rpcData;
+    } catch (edgeErr) {
+      // إذا فشل الاتصال بالـ Edge Function يتم إرجاع بيانات الطلب
     }
 
+    return rpcData;
+
   } catch (e) {
-    console.error('❌ Exception saving order:', e);
     return null;
   }
 }
 
-/* إرسال أو تعديل إشعار تليجرام الشامل لمعلومات الطلب وتحديث الحالة دون تكرار */
+/* إرسال أو تعديل إشعار تليجرام عبر Edge Function لضمان عدم كشف التوكن في المتصفح */
 async function sendOrUpdateTelegramOrderAlert(rpcData, orderData, status, existingMsgId = null) {
-  if (!window.CONFIG || !window.CONFIG.telegram_bot_token || !window.CONFIG.telegram_chat_id) {
-    if (typeof loadSettingsFromDB === 'function') {
-      await loadSettingsFromDB();
-    }
-  }
-
-  window.CONFIG = window.CONFIG || {};
-  const token = window.CONFIG.telegram_bot_token || '8861214693:AAHddszeT3JUILS2acEfuxt0FGMevTZBLuw';
-  const chatId = window.CONFIG.telegram_chat_id || '5038091659';
-
+  if (!window.supabaseClient) return null;
   try {
-    const orderId = rpcData.order_id || rpcData.id || orderData.id || 'غير محدد';
-    const total = rpcData.total_payable || rpcData.subtotal || orderData.total_payable || 0;
-    const items = orderData.items || rpcData.items || [];
-    const cust = orderData.customer_info || rpcData.customer_info || {};
-    const method = orderData.payment_method || rpcData.payment_method || 'cib';
-    const methodLabel = method === 'cib' ? 'البطاقة الذهبية / CIB (SATIM)' : (method === 'baridimob' ? 'بريدي موب (BaridiMob)' : (method === 'ccp' ? 'حساب بريدي CCP' : (method === 'binance' ? 'Binance Pay' : method)));
-
-    let statusHeader = `🚨 *طلب جديد عبر ${methodLabel}*`;
-    if (status === 'paid' || status === 'completed') {
-      statusHeader = `✅ *تم إتمام الدفع بنجاح (${methodLabel})* 🎉`;
-    } else if (status === 'cancelled') {
-      statusHeader = `❌ *تم إلغاء عملية الدفع (${methodLabel})*`;
-    } else if (status === 'pending_payment') {
-      statusHeader = `⏳ *بانتظار الدفع الفوري SATIM (${methodLabel})*`;
-    }
-
-    let itemsText = '';
-    if (items && items.length > 0) {
-      items.forEach((it, idx) => {
-        const name = (it.nameData && it.nameData.ar) ? it.nameData.ar : (it.name || it.title || 'منتج');
-        const dur = it.durLabel || '';
-        const qty = it.qty || 1;
-        const pr = it.unitPrice || it.price || 0;
-        itemsText += `\n🔸 *${idx + 1}.* ${name} ${dur ? ('| ' + dur) : ''} (العدد: ${qty} | السعر: ${pr} دج)`;
-      });
-    } else {
-      itemsText = '\n🔸 تفاصيل المنتجات في لوحة التحكم';
-    }
-
-    const phone = cust.phone ? `\`${cust.phone}\`` : 'غير محدد';
-    const platform = cust.platform ? `*عبر منصة:* ${cust.platform.toUpperCase()}` : '';
-    const couponText = rpcData.coupon_code ? `\n🏷️ *كود الخصم:* \`${rpcData.coupon_code}\`` : '';
-
-    const tgText = `${statusHeader}\n━━━━━━━━━━━━━━━━━━━━\n🏷️ *رقم الطلب:* \`${orderId}\`${couponText}\n💰 *المبلغ الإجمالي:* *${total} دج*\n📱 *هاتف العميل:* ${phone}\n${platform ? platform + '\n' : ''}🛍️ *المنتجات المطلوبة:*${itemsText}\n━━━━━━━━━━━━━━━━━━━━\n🌐 *المتجر:* https://striviodz.store/admin.html`;
-
-    if (existingMsgId) {
-      try {
-        const editRes = await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            message_id: Number(existingMsgId),
-            text: tgText,
-            parse_mode: 'Markdown'
-          })
-        });
-        const editJson = await editRes.json();
-        console.log('📦 Telegram editMessageText response:', editJson);
-      } catch (editE) {
-        console.warn('⚠️ Exception editing Telegram message:', editE);
-      }
-      return existingMsgId;
-    }
-
-    const sendRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const edgeUrl = `${window.supabaseClient.supabaseUrl}/functions/v1/send-telegram`;
+    const res = await fetch(edgeUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
-        chat_id: chatId,
-        text: tgText,
-        parse_mode: 'Markdown'
+        rpcData,
+        orderData,
+        status,
+        existingMsgId
       })
     });
-    const sendJson = await sendRes.json();
-    if (sendJson.ok && sendJson.result && sendJson.result.message_id) {
-      const newMsgId = String(sendJson.result.message_id);
-      console.log('✅ Telegram notification sent (Message ID:', newMsgId, ')');
-      if (orderId && orderId !== 'غير محدد' && window.supabaseClient) {
-        try {
-          await window.supabaseClient.rpc('update_order_telegram_msg_id', { p_order_id: orderId, p_tg_msg_id: newMsgId });
-        } catch(rpcE) {}
-      }
-      return newMsgId;
-    } else {
-      console.error('❌ Telegram API error:', sendJson);
+    if (res.ok) {
+      const json = await res.json();
+      return json.message_id || existingMsgId;
     }
-  } catch (tgE) {
-    console.warn('❌ TG Alert exception:', tgE);
+  } catch (err) {
+    // تتجاهل الأخطاء الصامتة لعدم تعطيل واجهة المستخدم
   }
-  return null;
+  return existingMsgId;
 }
 
 /* جلب الإعدادات (روابط التواصل وأرقام الهاتف) من قاعدة البيانات */
@@ -353,8 +210,6 @@ async function loadSettingsFromDB() {
   if (!supabaseClient) initSupabase();
   window.CONFIG = window.CONFIG || {};
   if (!supabaseClient) {
-    window.CONFIG.telegram_bot_token = window.CONFIG.telegram_bot_token || '8861214693:AAHddszeT3JUILS2acEfuxt0FGMevTZBLuw';
-    window.CONFIG.telegram_chat_id = window.CONFIG.telegram_chat_id || '5038091659';
     return window.CONFIG;
   }
   try {
@@ -363,10 +218,7 @@ async function loadSettingsFromDB() {
       window.CONFIG = data.config;
     }
   } catch (e) {
-    console.error('❌ Exception loading settings:', e);
   }
-  window.CONFIG.telegram_bot_token = window.CONFIG.telegram_bot_token || '8861214693:AAHddszeT3JUILS2acEfuxt0FGMevTZBLuw';
-  window.CONFIG.telegram_chat_id = window.CONFIG.telegram_chat_id || '5038091659';
   return window.CONFIG;
 }
 
@@ -382,7 +234,6 @@ async function loadReviewsFromDB() {
     }
     return [];
   } catch (e) {
-    console.error('❌ Exception loading reviews:', e);
     return [];
   }
 }
@@ -394,7 +245,6 @@ async function loadFaqsFromDB() {
   try {
     const { data, error } = await supabaseClient.from('faq').select('*').eq('active', true).order('sort_order', { ascending: true });
     if (error) {
-      console.error('❌ Error loading faqs from Supabase:', error.message);
       return [];
     }
     if (!data || data.length === 0) return [];
@@ -421,13 +271,23 @@ async function loadFaqsFromDB() {
     window.FAQS = parsedFaqs;
     return parsedFaqs;
   } catch (e) {
-    console.error('❌ Exception loading faqs:', e);
     return [];
   }
 }
 
 // تهيئة الاتصال عند تحميل الملف
 initSupabase();
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+window.escapeHtml = escapeHtml;
 
 window.sendOrUpdateTelegramOrderAlert = sendOrUpdateTelegramOrderAlert;
 

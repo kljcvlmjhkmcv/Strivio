@@ -73,7 +73,23 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAUL
 -- ⚠️ تنبيه أمني حاسم: تأكد من الدخول للوحة تحكم Supabase -> Authentication -> Settings
 -- وإلغاء تفعيل "Enable Signups" (Disable User Signups) حتى لا يتمكن أحد من إنشاء حساب جديد.
 
--- دالة التحقق من أن المستخدم مدير معتمد في المتجر
+-- 4. إنشاء جدول المديرين المعتمدين (admin_users)
+CREATE TABLE IF NOT EXISTS public.admin_users (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow admin read on admin_users" ON public.admin_users;
+CREATE POLICY "Allow admin read on admin_users" ON public.admin_users
+  FOR ALL USING (auth.uid() IN (SELECT user_id FROM public.admin_users));
+
+-- إضافة حساب المدير الحالي تلقائياً إلى جدول المديرين
+INSERT INTO public.admin_users (user_id)
+VALUES ('78fb7305-ceb5-49b0-b956-ee31df047a36')
+ON CONFLICT (user_id) DO NOTHING;
+
+-- دالة التحقق من أن المستخدم مدير معتمد وموجود في جدول admin_users
 DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
@@ -81,7 +97,12 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  RETURN (auth.role() = 'authenticated');
+  -- التحقق من أن حساب المستخدم الحالي موجود في جدول admin_users
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.admin_users
+    WHERE user_id = auth.uid()
+  );
 END;
 $$;
 
@@ -100,7 +121,7 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public insert on orders" ON public.orders;
 
 -- ====================================================================
--- صلاحيات المدير (الذي يسجل دخوله بحساب Supabase Auth المعتمد فقط)
+-- صلاحيات المدير (الذي يسجل دخوله بحساب Supabase Auth الموجود في admin_users فقط)
 -- ====================================================================
 DROP POLICY IF EXISTS "Allow admin full access on services" ON public.services;
 CREATE POLICY "Allow admin full access on services"
@@ -230,16 +251,23 @@ BEGIN
 
     v_subtotal := v_subtotal + (v_unit_price * v_qty);
 
-    v_verified_item := jsonb_build_object(
+    v_verified_item := v_item || jsonb_build_object(
       'id', v_service_id,
-      'title', COALESCE(v_item->>'name', v_item->>'title', v_service_record.n->>'ar'),
+      'name', COALESCE(v_item->>'name', v_item->>'title', v_service_record.n->>'ar'),
+      'title', COALESCE(v_item->>'title', v_item->>'name', v_service_record.n->>'ar'),
+      'nameData', COALESCE(v_item->'nameData', v_service_record.n),
       'durIdx', v_dur_idx,
       'durLabel', COALESCE(v_item->>'durLabel', ''),
+      'durLabelData', COALESCE(v_item->'durLabelData', jsonb_build_object('ar', '', 'en', '', 'fr', '')),
       'typeIdx', v_type_idx,
       'typeLabel', COALESCE(v_item->>'typeLabel', ''),
+      'typeLabelData', COALESCE(v_item->'typeLabelData', v_service_record.types),
       'qty', v_qty,
       'unitPrice', v_unit_price,
-      'price', v_unit_price * v_qty
+      'price', v_unit_price * v_qty,
+      'iconType', COALESCE(v_item->>'iconType', v_service_record.icon_type),
+      'iconSrc', COALESCE(v_item->>'iconSrc', v_service_record.icon_src),
+      'bg', COALESCE(v_item->>'bg', v_service_record.bg)
     );
     v_verified_items := v_verified_items || v_verified_item;
   END LOOP;
@@ -322,6 +350,28 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Order not found');
   END IF;
 
+-- 3. دالة السيرفر الآمنة لتحديث الفاتورة ورابط الدفع (متاحة للسيرفر فقط)
+DROP FUNCTION IF EXISTS public.update_order_payment(UUID, TEXT, TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.update_order_payment(
+  p_order_id UUID,
+  p_payment_id TEXT,
+  p_payment_url TEXT
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_order RECORD;
+BEGIN
+  IF NOT public.is_admin() AND auth.role() <> 'service_role' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
+  END IF;
+
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Order not found');
+  END IF;
+
   UPDATE public.orders
   SET payment_id = p_payment_id,
       payment_url = p_payment_url,
@@ -332,7 +382,7 @@ BEGIN
 END;
 $$;
 
--- 4. دالة تأكيد الدفع التلقائي عند استلام ويب هوك أو تحقق ناجح (Webhook / Auto Confirm)
+-- 4. دالة تأكيد الدفع التلقائي عند التحقق الناجح عبر Edge Function أو السيرفر
 DROP FUNCTION IF EXISTS public.confirm_order_payment(TEXT, UUID) CASCADE;
 DROP FUNCTION IF EXISTS public.confirm_order_payment(TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.confirm_order_payment(
@@ -345,6 +395,10 @@ AS $$
 DECLARE
   v_order RECORD;
 BEGIN
+  IF NOT public.is_admin() AND auth.role() <> 'service_role' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
+  END IF;
+
   IF p_order_id IS NOT NULL THEN
     SELECT * INTO v_order FROM public.orders WHERE id::text = p_order_id OR payment_id = p_order_id LIMIT 1;
   END IF;
@@ -376,12 +430,15 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+  IF NOT public.is_admin() AND auth.role() <> 'service_role' THEN
+    RETURN false;
+  END IF;
   UPDATE public.orders SET telegram_msg_id = p_tg_msg_id WHERE id::text = p_order_id OR payment_id = p_order_id;
   RETURN true;
 END;
 $$;
 
--- 6. دالة إلغاء الطلب بأمان عبر السيرفر عند فشل أو إلغاء الدفع (يقبل UUID أو رقم الفاتورة)
+-- 6. دالة إلغاء الطلب بأمان عبر السيرفر عند فشل أو إلغاء الدفع
 DROP FUNCTION IF EXISTS public.cancel_order_payment(UUID) CASCADE;
 DROP FUNCTION IF EXISTS public.cancel_order_payment(TEXT) CASCADE;
 DROP FUNCTION IF EXISTS public.cancel_order_payment(TEXT, TEXT) CASCADE;
@@ -395,6 +452,10 @@ AS $$
 DECLARE
   v_order RECORD;
 BEGIN
+  IF NOT public.is_admin() AND auth.role() <> 'service_role' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
+  END IF;
+
   IF p_order_id IS NOT NULL THEN
     SELECT * INTO v_order FROM public.orders WHERE id::text = p_order_id OR payment_id = p_order_id LIMIT 1;
   END IF;
@@ -432,6 +493,9 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+  IF NOT public.is_admin() THEN
+    RETURN false;
+  END IF;
   UPDATE public.services
   SET p = p_p,
       types = p_types,
@@ -456,10 +520,34 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+  IF NOT public.is_admin() AND auth.role() <> 'service_role' THEN
+    RETURN false;
+  END IF;
   UPDATE public.orders SET status = p_status, updated_at = now() WHERE id::text = p_id OR payment_id = p_id;
   RETURN true;
 END;
 $$;
+
+-- ====================================================================
+-- تشديد وإحكام صلاحيات الـ RPC (REVOKE EXECUTE) لمنع أي استدعاء عشوائي
+-- ====================================================================
+REVOKE EXECUTE ON FUNCTION public.update_order_payment(UUID, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.update_order_payment(UUID, TEXT, TEXT) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.confirm_order_payment(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.confirm_order_payment(TEXT, TEXT) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.update_order_telegram_msg_id(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.update_order_telegram_msg_id(TEXT, TEXT) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.cancel_order_payment(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_order_payment(TEXT, TEXT) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.update_service_pricing_secure(TEXT, JSONB, JSONB, JSONB, BOOLEAN, JSONB, JSONB, INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.update_service_pricing_secure(TEXT, JSONB, JSONB, JSONB, BOOLEAN, JSONB, JSONB, INTEGER, TEXT) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.update_order_status_secure(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.update_order_status_secure(TEXT, TEXT) TO authenticated, service_role;
 
 -- ====================================================================
 -- إدخال بيانات الخدمات والمنتجات الـ 13 (مع أسعار الشاشات و الـ IPTV)

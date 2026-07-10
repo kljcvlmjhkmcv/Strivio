@@ -13,6 +13,7 @@
 })();
 </script>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تم الدفع بنجاح | Strivio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -354,33 +355,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         let isOrderPaid = data.status === 'paid' || data.status === 'completed';
         let isOrderCancelled = isCancelledParam || data.status === 'cancelled';
 
-        // التحقق الفعلي من حالة الفاتورة عبر SlickPay API لمنع اعتبار الطلب مدفوعاً عند الإلغاء
+        // التحقق الفعلي والآمن لحالة الفاتورة عبر Supabase Edge Function دون كشف أي أسرار
         if (!isOrderPaid && !isOrderCancelled && data.payment_id) {
           try {
-            const slickHeaders = {
-              'Authorization': 'Bearer 45913|clm8s1Msb8UcGqz5WMr8xFlYpbk6gzaBRQISVjJU',
-              'Accept': 'application/json'
-            };
-            let invRes = await fetch(`https://prodapi.slick-pay.com/api/v2/users/invoices/${data.payment_id}`, { headers: slickHeaders });
-            if (!invRes.ok) {
-              invRes = await fetch(`https://api.slick-pay.com/api/v2/users/invoices/${data.payment_id}`, { headers: slickHeaders });
-            }
-            if (invRes.ok) {
-              const invJson = await invRes.json();
-              const invData = invJson.data || invJson;
-              console.log('📦 SlickPay Invoice verification:', invData);
-              if (invData && (invData.status === 1 || invData.status === 'paid' || invData.status === 'completed' || invData.paid === true || invData.paid === 1)) {
-                isOrderPaid = true;
-              } else if (invData && (invData.status === 0 || invData.status === 'unpaid' || invData.status === 'cancelled')) {
-                if (isSuccessParam) {
-                  isOrderPaid = true;
-                } else {
-                  isOrderCancelled = true;
-                }
-              }
+            const verifyRes = await window.supabaseClient.functions.invoke('verify-payment', {
+              body: { order_id: data.id, payment_id: data.payment_id, action: isCancelledParam ? 'cancel' : 'check' }
+            });
+            const vData = verifyRes.data || {};
+            if (vData.status === 'paid' || vData.status === 'completed') {
+              isOrderPaid = true;
+            } else if (vData.status === 'cancelled' || vData.status === 'unpaid') {
+              if (isSuccessParam) isOrderPaid = true;
+              else isOrderCancelled = true;
             }
           } catch (slickVerifyE) {
-            console.warn('⚠️ Exception verifying SlickPay invoice:', slickVerifyE);
             if (!isSuccessParam) isOrderCancelled = true;
           }
         } else if (!isOrderPaid && !isOrderCancelled && !data.payment_id) {
@@ -393,18 +381,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             await window.supabaseClient.rpc('confirm_order_payment', { p_order_id: String(data.id) });
             document.getElementById('T_STATUS_VAL').textContent = savedLang === 'ar' ? "مكتمل ومؤكد ✅" : "Verified & Paid ✅";
             document.getElementById('T_STATUS_VAL').style.color = "#39ff14";
-            if (typeof window.sendOrUpdateTelegramOrderAlert === 'function' && data.telegram_msg_id) {
-              window.sendOrUpdateTelegramOrderAlert(data, data, 'paid', data.telegram_msg_id);
-            }
           } catch(e) {}
         } else if (isOrderCancelled) {
           try {
             await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: String(data.id) });
-            if (typeof window.sendOrUpdateTelegramOrderAlert === 'function' && data.telegram_msg_id) {
-              await window.sendOrUpdateTelegramOrderAlert(data, data, 'cancelled', data.telegram_msg_id);
-            }
           } catch(e) {}
-          // توجيه العميل فوراً إلى سلة المشتريات عند الإلغاء مع الحفاظ على منتجاته في السلة والطلب في قاعدة البيانات
           window.location.replace(`cart.html?payment_cancelled=1&order_id=${data.id}`);
           return;
         }

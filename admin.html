@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl" class="scroll-smooth">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Strivio — لوحة التحكم الذكية والباك اند</title>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -463,6 +464,16 @@
 
 <script src="supabase-client.js"></script>
 <script>
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function showToast(msg) {
   var t = document.getElementById('toast');
   document.getElementById('toast-msg').textContent = msg;
@@ -861,9 +872,11 @@ async function loadCoupons() {
     container.innerHTML = Object.keys(cList).map(function(code){
       var c = cList[code];
       var desc = c.type === 'percent' ? ('خصم ' + c.val + '%') : ('خصم ' + c.val + ' دج');
+      var safeCode = escapeHtml(code);
+      var safeDesc = escapeHtml(desc);
       return '<div class="flex items-center justify-between p-4 bg-[#101010] rounded-2xl border border-brand-border hover:border-brand-neon/30 transition-all">' +
-        '<div class="flex items-center gap-3"><span class="px-3.5 py-1.5 bg-brand-neon/10 border border-brand-neon/30 text-brand-neon font-display font-bold rounded-xl text-sm">' + code + '</span><span class="text-sm font-medium text-white">' + desc + '</span></div>' +
-        '<button onclick="deleteCoupon(\'' + code + '\')" class="px-3.5 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1">🗑️ حذف</button>' +
+        '<div class="flex items-center gap-3"><span class="px-3.5 py-1.5 bg-brand-neon/10 border border-brand-neon/30 text-brand-neon font-display font-bold rounded-xl text-sm">' + safeCode + '</span><span class="text-sm font-medium text-white">' + safeDesc + '</span></div>' +
+        '<button onclick="deleteCoupon(\'' + safeCode + '\')" class="px-3.5 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1">🗑️ حذف</button>' +
       '</div>';
     }).join('');
   }
@@ -1012,6 +1025,17 @@ async function bulkUpdateOrdersStatus(newStatus) {
   checkedList.forEach(function(chk){ ids.push(chk.value); });
   
   if (window.supabaseClient) {
+    for (var i = 0; i < ids.length; i++) {
+      try {
+        if (newStatus === 'cancelled') {
+          await window.supabaseClient.rpc('cancel_order_payment', { p_order_id: String(ids[i]) });
+        } else if (newStatus === 'paid' || newStatus === 'completed') {
+          await window.supabaseClient.rpc('confirm_order_payment', { p_order_id: String(ids[i]) });
+        } else {
+          await window.supabaseClient.rpc('update_order_status_secure', { p_id: String(ids[i]), p_status: newStatus });
+        }
+      } catch(e) {}
+    }
     var { error } = await window.supabaseClient.from('orders').update({ status: newStatus }).in('id', ids);
     if (error) {
       alert('خطأ أثناء تحديث الحالة: ' + error.message);
@@ -1067,29 +1091,32 @@ function renderOrdersList(data) {
   }
 
   container.innerHTML = filtered.map(function(o){
-    var dateStr = new Date(o.created_at).toLocaleString('ar-DZ');
+    var dateStr = escapeHtml(new Date(o.created_at).toLocaleString('ar-DZ'));
     var itemsStr = (o.items || []).map(function(i){
-      var tName = i.typeLabel ? (' <span class="text-brand-neon font-normal">[' + i.typeLabel + ']</span>') : '';
-      return '<b class="text-white">' + (i.title || i.name || 'منتج') + '</b>' + tName + ' (المدة: ' + (i.durLabel || 'قياسي') + ' | الكمية: x' + (i.qty || 1) + ')';
+      var tName = i.typeLabel ? (' <span class="text-brand-neon font-normal">[' + escapeHtml(i.typeLabel) + ']</span>') : '';
+      return '<b class="text-white">' + escapeHtml(i.title || i.name || 'منتج') + '</b>' + tName + ' (المدة: ' + escapeHtml(i.durLabel || 'قياسي') + ' | الكمية: x' + (i.qty || 1) + ')';
     }).join('<br/>');
     
     var totalAmt = o.total_payable || o.total_amount || 0;
     var badgeClass = o.status === 'completed' ? 'bg-green-500/10 text-green-400 border-green-500/30' : (o.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30');
-    var statusText = o.status === 'completed' ? '✅ مكتمل' : (o.status === 'pending' ? '⏳ بانتظار التأكيد' : o.status);
+    var statusText = o.status === 'completed' ? '✅ مكتمل' : (o.status === 'pending' ? '⏳ بانتظار التأكيد' : escapeHtml(o.status));
+    var safeId = escapeHtml(o.id);
+    var safeMethod = escapeHtml(o.payment_method);
+    var safeCoupon = o.coupon_code ? escapeHtml(o.coupon_code) : '';
     
     return '<div class="p-5 glass-card rounded-2xl border border-brand-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-brand-neon/30 transition-all">' +
       '<div class="flex items-start md:items-center gap-3.5 w-full md:w-auto">' +
-        '<input type="checkbox" class="order-chk w-5 h-5 mt-1 md:mt-0 accent-brand-neon rounded cursor-pointer shrink-0" value="' + o.id + '" onchange="updateBulkBar()"/>' +
+        '<input type="checkbox" class="order-chk w-5 h-5 mt-1 md:mt-0 accent-brand-neon rounded cursor-pointer shrink-0" value="' + safeId + '" onchange="updateBulkBar()"/>' +
         '<div class="space-y-2 w-full">' +
           '<div class="flex flex-wrap items-center gap-2">' +
-            '<span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-brand-neon/10 text-brand-neon border border-brand-neon/30 font-display"># ' + o.id + '</span>' +
+            '<span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-brand-neon/10 text-brand-neon border border-brand-neon/30 font-display"># ' + safeId + '</span>' +
             '<span class="text-xs text-gray-400">📅 ' + dateStr + '</span>' +
             '<span class="text-[11px] px-2.5 py-0.5 rounded-full border font-bold ' + badgeClass + '">' + statusText + '</span>' +
           '</div>' +
           '<div class="text-sm text-gray-200 leading-relaxed pl-2 border-r-2 border-brand-neon/40 pr-2">' + itemsStr + '</div>' +
           '<div class="text-xs text-gray-400 flex flex-wrap gap-4 pt-1">' +
-            '<span>طريقة الدفع: <b class="text-white">' + o.payment_method + '</b></span>' +
-            (o.coupon_code ? '<span>الكوبون: <b class="text-brand-neon">' + o.coupon_code + '</b></span>' : '') +
+            '<span>طريقة الدفع: <b class="text-white">' + safeMethod + '</b></span>' +
+            (safeCoupon ? '<span>الكوبون: <b class="text-brand-neon">' + safeCoupon + '</b></span>' : '') +
             (o.discount > 0 ? '<span>الخصم: <b class="text-yellow-400">-' + Number(o.discount).toLocaleString('ar-DZ') + ' دج</b></span>' : '') +
           '</div>' +
         '</div>' +
@@ -1100,8 +1127,8 @@ function renderOrdersList(data) {
           '<div class="font-display font-black text-brand-neon text-2xl drop-shadow-[0_0_10px_rgba(57,255,20,0.3)]">' + Number(totalAmt).toLocaleString('ar-DZ') + ' دج</div>' +
         '</div>' +
         '<div class="flex items-center gap-2 mt-2">' +
-          (o.status !== 'completed' ? '<button onclick="updateOrderStatus(\'' + o.id + '\', \'completed\')" class="px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500 hover:text-black rounded-xl text-xs font-bold transition-all flex items-center gap-1">✅ إكمال</button>' : '') +
-          '<button onclick="deleteOrder(\'' + o.id + '\')" class="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1">🗑️ حذف</button>' +
+          (o.status !== 'completed' ? '<button onclick="updateOrderStatus(\'' + safeId + '\', \'completed\')" class="px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500 hover:text-black rounded-xl text-xs font-bold transition-all flex items-center gap-1">✅ إكمال</button>' : '') +
+          '<button onclick="deleteOrder(\'' + safeId + '\')" class="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1">🗑️ حذف</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -1120,12 +1147,17 @@ async function loadReviewsAdmin() {
     return;
   }
   container.innerHTML = data.map(function(r) {
+    var safeI = escapeHtml(r.i || '★');
+    var safeN = escapeHtml(r.n);
+    var safeS = escapeHtml(r.s);
+    var safeD = escapeHtml(r.d);
+    var safeT = escapeHtml(r.t);
     return '<div class="p-4 bg-[#101010] rounded-2xl border border-brand-border flex items-center justify-between gap-4">' +
       '<div class="flex items-center gap-3.5">' +
-        '<div class="w-10 h-10 rounded-full bg-brand-neon/10 border border-brand-neon text-brand-neon flex items-center justify-center font-bold text-sm">' + (r.i || '★') + '</div>' +
+        '<div class="w-10 h-10 rounded-full bg-brand-neon/10 border border-brand-neon text-brand-neon flex items-center justify-center font-bold text-sm">' + safeI + '</div>' +
         '<div>' +
-          '<div class="font-bold text-white text-sm">' + r.n + ' <span class="text-xs text-brand-neon">[' + r.s + ']</span> <span class="text-[10px] text-gray-500">(' + r.d + ')</span></div>' +
-          '<div class="text-xs text-gray-400 mt-1 leading-relaxed">' + r.t + '</div>' +
+          '<div class="font-bold text-white text-sm">' + safeN + ' <span class="text-xs text-brand-neon">[' + safeS + ']</span> <span class="text-[10px] text-gray-500">(' + safeD + ')</span></div>' +
+          '<div class="text-xs text-gray-400 mt-1 leading-relaxed">' + safeT + '</div>' +
         '</div>' +
       '</div>' +
       '<button onclick="deleteReviewAdmin(' + r.id + ')" class="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1">🗑️ حذف</button>' +
@@ -1175,17 +1207,19 @@ async function loadFaqAdmin() {
     return;
   }
   container.innerHTML = data.map(function(f) {
-    var qAr = (f.q && f.q.ar) ? f.q.ar : (typeof f.q === 'string' ? f.q : '');
-    var aAr = (f.a && f.a.ar) ? f.a.ar : (typeof f.a === 'string' ? f.a : '');
+    var qAr = escapeHtml((f.q && f.q.ar) ? f.q.ar : (typeof f.q === 'string' ? f.q : ''));
+    var aAr = escapeHtml((f.a && f.a.ar) ? f.a.ar : (typeof f.a === 'string' ? f.a : ''));
+    var safeId = escapeHtml(f.id);
+    var safeIcon = escapeHtml(f.icon || '❓');
     return '<div class="p-4 bg-[#101010] rounded-2xl border border-brand-border flex items-center justify-between gap-4">' +
       '<div class="flex items-start gap-3">' +
-        '<span class="text-xl mt-0.5">' + (f.icon || '❓') + '</span>' +
+        '<span class="text-xl mt-0.5">' + safeIcon + '</span>' +
         '<div>' +
-          '<div class="font-bold text-white text-sm">' + qAr + ' <span class="text-[10px] text-gray-500 font-mono">(' + f.id + ')</span></div>' +
+          '<div class="font-bold text-white text-sm">' + qAr + ' <span class="text-[10px] text-gray-500 font-mono">(' + safeId + ')</span></div>' +
           '<div class="text-xs text-gray-400 mt-1">' + aAr + '</div>' +
         '</div>' +
       '</div>' +
-      '<button onclick="deleteFaqAdmin(\'' + f.id + '\')" class="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all">🗑️ حذف</button>' +
+      '<button onclick="deleteFaqAdmin(\'' + safeId + '\')" class="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all">🗑️ حذف</button>' +
     '</div>';
   }).join('');
 }

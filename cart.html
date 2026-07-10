@@ -2,6 +2,7 @@
 <html lang="en" dir="ltr" id="HR" class="scroll-smooth">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>Strivio — Cart & Checkout</title>
 <meta name="description" content="Review your cart and complete your order on Strivio."/>
@@ -282,6 +283,16 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 
 <script src="supabase-client.js"></script>
 <script>
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 var CONFIG = window.CONFIG || {};
 if (typeof loadSettingsFromDB === 'function') {
   loadSettingsFromDB().then(function(cfg){
@@ -487,8 +498,8 @@ function renderItems(){
           makeIcon(item, 44),
         '</div>',
         '<div style="flex:1;min-width:0">',
-          '<div class="font-display font-bold text-white text-base leading-tight">'+itemName+'</div>',
-          '<div class="text-xs mt-0.5 font-medium" style="color:rgba(224,224,224,.55)">'+durLabel+(typeLabel ? ' • <span style="color:#39ff14">'+typeLabel+'</span>' : '')+'</div>',
+          '<div class="font-display font-bold text-white text-base leading-tight">'+escapeHtml(itemName)+'</div>',
+          '<div class="text-xs mt-0.5 font-medium" style="color:rgba(224,224,224,.55)">'+escapeHtml(durLabel)+(typeLabel ? ' • <span style="color:#39ff14">'+escapeHtml(typeLabel)+'</span>' : '')+'</div>',
           '<div class="flex items-center gap-3 mt-2.5">',
             '<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#121212] border border-[#2A2A2A]">',
               '<button type="button" onclick="changeQty('+idx+', -1)" class="w-5 h-5 flex items-center justify-center text-white font-bold text-xs hover:text-[#39ff14]">-</button>',
@@ -537,7 +548,7 @@ function renderSummary(){
       var durLabel = (item.durLabelData && item.durLabelData[L]) ? item.durLabelData[L] : (item.durLabel || (tx.dl && tx.dl[item.durIdx||0]) || '1 Month');
       var q = item.qty || 1;
       var itemTotal = (item.unitPrice || item.price) * q;
-      return '<div class="flex items-center justify-between text-sm"><span style="color:rgba(224,224,224,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">'+itemName+' x'+q+'</span><span class="font-medium text-white ml-2 flex-shrink-0">'+fmtP(itemTotal)+'</span></div>';
+      return '<div class="flex items-center justify-between text-sm"><span style="color:rgba(224,224,224,.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">'+escapeHtml(itemName)+' x'+q+'</span><span class="font-medium text-white ml-2 flex-shrink-0">'+fmtP(itemTotal)+'</span></div>';
     }).join('');
   }
 

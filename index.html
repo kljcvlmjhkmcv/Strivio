@@ -2,6 +2,7 @@
 <html lang="en" dir="ltr" id="HR" class="scroll-smooth">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>Strivio — Official Digital Subscriptions | Instant Delivery</title>
 <meta name="description" content="Buy Netflix, Spotify, ChatGPT Plus and more at the best prices. Instant delivery, full warranty."/>
@@ -31,10 +32,12 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   .BO:hover{background:var(--n);color:#121212;box-shadow:0 0 20px rgba(var(--nr),.4)}
 }
 .BO:active{background:var(--n) !important;color:#121212 !important;transform:scale(0.96) !important}
-.PC{background:#181818;border:1px solid #2A2A2A;border-radius:18px;overflow:hidden;transition:all .32s cubic-bezier(.23,1,.32,1);position:relative;display:flex;flex-direction:column}
+.PC{background:#181818;border:1px solid #2A2A2A;border-radius:18px;overflow:hidden;transition:all .32s cubic-bezier(.23,1,.32,1);position:relative;display:flex;flex-direction:column;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}
 @media (hover: hover) and (pointer: fine) {
   .PC:hover{transform:translateY(-8px);border-color:var(--n);box-shadow:0 0 0 1px var(--n),0 20px 50px rgba(var(--nr),.14),0 8px 30px rgba(0,0,0,.5)}
 }
+.PC:active[data-sid]{transform:scale(0.97) !important;border-color:var(--n) !important;box-shadow:0 0 25px rgba(var(--nr),.3) !important}
+.PC .CIA, .PC .p-5 > *:not(.BC) {pointer-events:none}
 .PC.POP{border-color:rgba(var(--nr),.28);animation:CGA 3s ease-in-out infinite}
 .CIA{height:175px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0}
 .CIA::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,#181818 100%)}
@@ -502,6 +505,16 @@ var TX={
    ╚══════════════════════════════════════════════════════════════╝ */
 var SERVICES = window.SERVICES || [];
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 /* ═══════════════════════════════════════════════════════════════
    REVIEWS
 ═══════════════════════════════════════════════════════════════ */
@@ -731,16 +744,16 @@ function renderProducts(f){
     
     return[
       '<div class="PC'+(s.pop?' POP':'')+'" '+(oos?'':'data-sid="'+s.id+'"')+' style="'+(oos?'opacity:.65;border-color:#2a2a2a;cursor:not-allowed;':'cursor:pointer;transition:all 0.2s;')+'">',
-        pop?'<div class="absolute top-3 right-3 z-10 BDG BDG-RIGHT" style="font-size:.62rem;padding:.15rem .55rem">'+pop+'</div>':'',
-        (promo.badge && !oos ? '<div class="absolute top-3 left-3 z-10 BDG BDG-LEFT" style="font-size:.62rem;padding:.15rem .55rem;background:rgba(234,179,8,.15);border-color:rgba(234,179,8,.4);color:#facc15">'+promo.badge+'</div>' : ''),
-        (oos ? '<div class="absolute top-3 left-3 z-10 BDG BDG-LEFT" style="font-size:.62rem;padding:.15rem .55rem;background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#ef4444">' + (tx.oosBadge || 'نفد المخزون') + '</div>' : ''),
+        pop?'<div class="absolute top-3 right-3 z-10 BDG BDG-RIGHT" style="font-size:.62rem;padding:.15rem .55rem">'+escapeHtml(pop)+'</div>':'',
+        (promo.badge && !oos ? '<div class="absolute top-3 left-3 z-10 BDG BDG-LEFT" style="font-size:.62rem;padding:.15rem .55rem;background:rgba(234,179,8,.15);border-color:rgba(234,179,8,.4);color:#facc15">'+escapeHtml(promo.badge)+'</div>' : ''),
+        (oos ? '<div class="absolute top-3 left-3 z-10 BDG BDG-LEFT" style="font-size:.62rem;padding:.15rem .55rem;background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#ef4444">' + escapeHtml(tx.oosBadge || 'نفد المخزون') + '</div>' : ''),
         '<div class="CIA" style="background:'+s.bg+'">'+makeIcon(s)+'</div>',
         '<div class="p-5 flex flex-col flex-1">',
           '<div class="mb-3">',
-          '<div class="font-display font-bold text-white text-base leading-tight">'+((s.n&&s.n[L])?s.n[L]:((s.n&&s.n.ar)?s.n.ar:s.id))+'</div>',
-            '<div class="text-xs mt-1" style="color:rgba(224,224,224,.4)">'+(tx.fl[catIdx]||s.cat)+'</div>',
+          '<div class="font-display font-bold text-white text-base leading-tight">'+escapeHtml(((s.n&&s.n[L])?s.n[L]:((s.n&&s.n.ar)?s.n.ar:s.id)))+'</div>',
+            '<div class="text-xs mt-1" style="color:rgba(224,224,224,.4)">'+escapeHtml((tx.fl[catIdx]||s.cat))+'</div>',
           '</div>',
-          '<ul class="mb-4 space-y-1.5">'+((s.f&&Array.isArray(s.f[L]))?s.f[L]:((s.f&&Array.isArray(s.f.ar))?s.f.ar:[])).map(function(feat){return'<li class="flex items-center gap-2 text-xs" style="color:rgba(224,224,224,.65)"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="'+(oos?'#666':'#39ff14')+'" stroke-width="2.5" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>'+feat+'</li>'}).join('')+'</ul>',
+          '<ul class="mb-4 space-y-1.5">'+((s.f&&Array.isArray(s.f[L]))?s.f[L]:((s.f&&Array.isArray(s.f.ar))?s.f.ar:[])).map(function(feat){return'<li class="flex items-center gap-2 text-xs" style="color:rgba(224,224,224,.65)"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="'+(oos?'#666':'#39ff14')+'" stroke-width="2.5" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>'+escapeHtml(feat)+'</li>'}).join('')+'</ul>',
           '<div class="mb-4"><div class="text-xs mb-0.5" style="color:rgba(224,224,224,.4)">'+tx.from+'</div><div class="TP" style="'+(oos?'color:#888;text-shadow:none':'')+'">'+fmtP(startP)+(oldP > startP ? ' <s style="font-size:.9rem;color:#777;font-weight:600;margin-right:6px;margin-left:6px">'+fmtP(oldP)+'</s>' : '')+'</div><div class="text-xs mt-0.5" style="color:rgba(224,224,224,.3)">'+periodText+'</div></div>',
           oos ? '<button class="BC" disabled style="opacity:.4;cursor:not-allowed;border-color:#333;color:#888;background:#141414">' + (tx.oosBtn || 'غير متوفر حالياً') + '</button>' : '<button class="BC" data-sid="'+s.id+'">'+tx.cd+'</button>',
         '</div>',
@@ -757,7 +770,12 @@ function buildReviews(){
     return;
   }
   $('RG').innerHTML=REVIEWS.map(function(r){
-    return'<div class="RC"><div class="flex items-center justify-between mb-3"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm" style="background:rgba(57,255,20,.18);color:#39ff14;flex-shrink:0">'+r.i+'</div><div><div class="text-white font-semibold text-sm">'+r.n+'</div><div class="text-xs" style="color:rgba(224,224,224,.4)">'+tx.vfy+'</div></div></div><div class="STR text-sm">★★★★★</div></div><p class="text-sm leading-relaxed mb-4" style="color:rgba(224,224,224,.7)">'+r.t+'</p><div class="flex items-center gap-2 pt-3" style="border-top:1px solid #2A2A2A"><span class="BDG" style="font-size:.62rem;padding:.15rem .55rem">'+r.s+'</span><span class="text-xs" style="color:rgba(224,224,224,.35)">'+r.d+'</span></div></div>';
+    var safeI = escapeHtml(r.i || '★');
+    var safeN = escapeHtml(r.n);
+    var safeT = escapeHtml(r.t);
+    var safeS = escapeHtml(r.s);
+    var safeD = escapeHtml(r.d);
+    return'<div class="RC"><div class="flex items-center justify-between mb-3"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm" style="background:rgba(57,255,20,.18);color:#39ff14;flex-shrink:0">'+safeI+'</div><div><div class="text-white font-semibold text-sm">'+safeN+'</div><div class="text-xs" style="color:rgba(224,224,224,.4)">'+tx.vfy+'</div></div></div><div class="STR text-sm">★★★★★</div></div><p class="text-sm leading-relaxed mb-4" style="color:rgba(224,224,224,.7)">'+safeT+'</p><div class="flex items-center gap-2 pt-3" style="border-top:1px solid #2A2A2A"><span class="BDG" style="font-size:.62rem;padding:.15rem .55rem">'+safeS+'</span><span class="text-xs" style="color:rgba(224,224,224,.35)">'+safeD+'</span></div></div>';
   }).join('');
 }
 
