@@ -147,28 +147,54 @@ async function saveOrderToDB(orderData) {
 
     // 3. إذا كانت طريقة الدفع cib، نتصل بـ Edge Function لإنشاء الفاتورة ورابط الدفع دون كشف المفاتيح
     try {
-      const edgeUrl = `${supabaseClient.supabaseUrl}/functions/v1/create-payment`;
-      const edgeRes = await fetch(edgeUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          order_id: rpcData.order_id,
-          origin_url: window.location.origin
-        })
-      });
-
-      if (edgeRes.ok) {
-        const edgeJson = await edgeRes.json();
-        if (edgeJson.success && edgeJson.payment_url) {
-          rpcData.payment_url = edgeJson.payment_url;
-          if (edgeJson.telegram_msg_id) rpcData.telegram_msg_id = edgeJson.telegram_msg_id;
+      if (supabaseClient && typeof supabaseClient.functions?.invoke === 'function') {
+        const { data: invokeData, error: invokeErr } = await supabaseClient.functions.invoke('create-payment', {
+          body: { order_id: rpcData.order_id, origin_url: window.location.origin }
+        });
+        if (!invokeErr && invokeData && invokeData.success && invokeData.payment_url) {
+          rpcData.payment_url = invokeData.payment_url;
+          if (invokeData.telegram_msg_id) rpcData.telegram_msg_id = invokeData.telegram_msg_id;
           return rpcData;
+        } else if (invokeErr || (invokeData && !invokeData.success)) {
+          console.error("create-payment Edge Function invoke error:", invokeErr || invokeData);
+          if (invokeData && invokeData.error) rpcData.error_message = invokeData.error;
+        }
+      }
+
+      if (!rpcData.payment_url) {
+        const edgeUrl = `${supabaseClient.supabaseUrl}/functions/v1/create-payment`;
+        const edgeRes = await fetch(edgeUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'apikey': SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({
+            order_id: rpcData.order_id,
+            origin_url: window.location.origin
+          })
+        });
+
+        if (edgeRes.ok) {
+          const edgeJson = await edgeRes.json();
+          if (edgeJson.success && edgeJson.payment_url) {
+            rpcData.payment_url = edgeJson.payment_url;
+            if (edgeJson.telegram_msg_id) rpcData.telegram_msg_id = edgeJson.telegram_msg_id;
+            return rpcData;
+          } else {
+            console.error("create-payment edgeJson not success:", edgeJson);
+            if (edgeJson.error) rpcData.error_message = edgeJson.error;
+          }
+        } else {
+          var errText = await edgeRes.text().catch(function(){ return ""; });
+          console.error("create-payment fetch error status:", edgeRes.status, errText);
+          rpcData.error_message = `HTTP ${edgeRes.status}: ${errText}`;
         }
       }
     } catch (edgeErr) {
-      // إذا فشل الاتصال بالـ Edge Function يتم إرجاع بيانات الطلب
+      console.error("create-payment exception:", edgeErr);
+      rpcData.error_message = edgeErr && edgeErr.message ? edgeErr.message : String(edgeErr);
     }
 
     return rpcData;
@@ -182,11 +208,22 @@ async function saveOrderToDB(orderData) {
 async function sendOrUpdateTelegramOrderAlert(rpcData, orderData, status, existingMsgId = null) {
   if (!window.supabaseClient) return null;
   try {
+    if (typeof window.supabaseClient.functions?.invoke === 'function') {
+      const { data: invokeData, error: invokeErr } = await window.supabaseClient.functions.invoke('send-telegram', {
+        body: { rpcData, orderData, status, existingMsgId }
+      });
+      if (!invokeErr && invokeData && invokeData.message_id) {
+        return invokeData.message_id;
+      }
+    }
+
     const edgeUrl = `${window.supabaseClient.supabaseUrl}/functions/v1/send-telegram`;
     const res = await fetch(edgeUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY
       },
       body: JSON.stringify({
         rpcData,
@@ -200,7 +237,7 @@ async function sendOrUpdateTelegramOrderAlert(rpcData, orderData, status, existi
       return json.message_id || existingMsgId;
     }
   } catch (err) {
-    // تتجاهل الأخطاء الصامتة لعدم تعطيل واجهة المستخدم
+    console.error("sendOrUpdateTelegramOrderAlert error:", err);
   }
   return existingMsgId;
 }

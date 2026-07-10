@@ -801,6 +801,9 @@ async function confirmOrder(){
   }
 
   if (selPay === 'cib' && !rpcData.payment_url) {
+    if (rpcData.error_message) {
+      console.error("SlickPay / create-payment failure details:", rpcData.error_message);
+    }
     alert(L === 'ar' ? '⚠️ تعذر الاتصال ببوابة الدفع الإلكتروني حالياً. سيتم توجيهك إلى واتساب لإتمام الدفع مباشرة مع الدعم الفني.' : (L === 'fr' ? '⚠️ Impossible de contacter la passerelle de paiement. Redirection vers WhatsApp...' : '⚠️ Could not reach payment gateway. Redirecting to WhatsApp...'));
   }
 
