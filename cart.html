@@ -760,6 +760,23 @@ function buildMessage(rpcData){
 }
 
 /* ══════════════════════════════════════════════════════
+   REDIRECT TO SATIM GATEWAY (AUTO-FIX RELATIVE URL BUG)
+════════════════════════════════════════════════════════ */
+function redirectToSatimGateway(url) {
+  if (!url) return;
+  var finalUrl = url;
+  // تصحيح فوري لأي رابط يرجعه SlickPay بالخطأ على دومينه بدل cib.satim.dz
+  if (finalUrl.indexOf('mdOrder=') !== -1 && finalUrl.indexOf('cib.satim.dz/') === -1) {
+    var match = finalUrl.match(/mdOrder=([^&"'+<\s]+)/);
+    if (match && match[1]) {
+      finalUrl = 'https://cib.satim.dz/payment/epg/merchants/merchantsatim/payment.html?mdOrder=' + match[1] + '&language=fr';
+    }
+  }
+  localStorage.removeItem("strivio_cart");
+  window.location.href = finalUrl;
+}
+
+/* ══════════════════════════════════════════════════════
    CONFIRM ORDER VIA SERVER RPC & COPY CLIPBOARD
 ════════════════════════════════════════════════════════ */
 async function confirmOrder(){
@@ -795,8 +812,7 @@ async function confirmOrder(){
   }
 
   if (selPay === 'cib' && rpcData.payment_url) {
-    localStorage.removeItem("strivio_cart");
-    window.location.href = rpcData.payment_url;
+    redirectToSatimGateway(rpcData.payment_url);
     return;
   }
 
@@ -846,8 +862,7 @@ async function confirmOrderSocial(platform){
   }
 
   if (selPay === 'cib' && rpcData.payment_url) {
-    localStorage.removeItem("strivio_cart");
-    window.location.href = rpcData.payment_url;
+    redirectToSatimGateway(rpcData.payment_url);
     return;
   }
 
