@@ -131,16 +131,21 @@ async function saveOrderToDB(orderData) {
       return null;
     }
 
-    // 2. إذا كانت طريقة الدفع ليست cib (تحويل يدوي)، نرسل إشعار تليجرام لطلب معلق
-    // حيث تتولى دالة السيرفر send-telegram حفظ telegram_msg_id مباشرة في قاعدة البيانات
+    // إرسال إشعار تليجرام الشامل للطلب الجديد وحفظ معرّف الرسالة لتعديلها لاحقاً
+    const tgMsgId = await sendOrUpdateTelegramOrderAlert(rpcData, orderData, orderData.payment_method === 'cib' ? 'pending_payment' : 'pending');
+    if (tgMsgId && rpcData.order_id && supabaseClient) {
+      try {
+        await supabaseClient.rpc('update_order_telegram_msg_id', { p_order_id: rpcData.order_id, p_tg_msg_id: tgMsgId });
+        rpcData.telegram_msg_id = tgMsgId;
+      } catch(e) {}
+    }
+
+    // 2. إذا كانت طريقة الدفع ليست cib، نرجع بيانات RPC فوراً دون استدعاء SlickPay
     if (orderData.payment_method !== 'cib') {
-      const tgMsgId = await sendOrUpdateTelegramOrderAlert(rpcData, orderData, 'pending');
-      if (tgMsgId) rpcData.telegram_msg_id = tgMsgId;
       return rpcData;
     }
 
-    // 3. إذا كانت طريقة الدفع cib (SATIM)، نتصل بـ Edge Function لإنشاء الفاتورة ورابط الدفع
-    // حيث تتولى create-payment إنشاء الفاتورة وحفظ payment_id وإرسال رسالة تليجرام وحيدة لحماية المحادثة من التكرار
+    // 3. إذا كانت طريقة الدفع cib، نتصل بـ Edge Function لإنشاء الفاتورة ورابط الدفع دون كشف المفاتيح
     try {
       if (supabaseClient && typeof supabaseClient.functions?.invoke === 'function') {
         const { data: invokeData, error: invokeErr } = await supabaseClient.functions.invoke('create-payment', {

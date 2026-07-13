@@ -37,7 +37,7 @@ ALTER TABLE public.services ADD COLUMN IF NOT EXISTS dur_notes JSONB;
 -- 2. إنشاء جدول أكواد الخصم (coupons)
 CREATE TABLE IF NOT EXISTS public.coupons (
   code TEXT PRIMARY KEY,
-  type TEXT NOT NULL, -- 'pct' or 'fixed'
+  type TEXT NOT NULL, -- 'percent' or 'fixed'
   val NUMERIC NOT NULL,
   active BOOLEAN DEFAULT true
 );
@@ -58,7 +58,16 @@ CREATE TABLE IF NOT EXISTS public.orders (
   payment_id TEXT,
   payment_url TEXT,
   telegram_msg_id TEXT,
-  updated_at TIMESTAMPTZ DEFAULT now()
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  invoice_status TEXT,
+  invoice_completed BOOLEAN DEFAULT false,
+  payment_completed BOOLEAN DEFAULT false,
+  payment_bank TEXT,
+  paid_at TIMESTAMPTZ,
+  last_sync_at TIMESTAMPTZ,
+  transfer_id TEXT,
+  transfer_reference TEXT,
+  transfer_status TEXT
 );
 
 -- التحديث التلقائي لجدول الطلبات إذا كان موجوداً مسبقاً (Migration)
@@ -66,6 +75,15 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_id TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_url TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS telegram_msg_id TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS invoice_status TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS invoice_completed BOOLEAN DEFAULT false;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_completed BOOLEAN DEFAULT false;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_bank TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMPTZ;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS transfer_id TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS transfer_reference TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS transfer_status TEXT;
 
 -- ====================================================================
 -- تفعيل سياسات الأمان (Row Level Security - RLS) و الدوال الآمنة (RPC)
@@ -172,7 +190,7 @@ BEGIN
     RETURN jsonb_build_object('valid', false, 'message', 'كود الخصم غير صحيح أو غير فعال');
   END IF;
 
-  IF v_type = 'pct' THEN
+  IF v_type IN ('pct', 'percent') THEN
     v_disc := ROUND((p_subtotal * v_val) / 100);
   ELSE
     v_disc := LEAST(p_subtotal, v_val);
@@ -218,6 +236,14 @@ DECLARE
   v_verified_items JSONB := '[]'::jsonb;
   v_verified_item JSONB;
 BEGIN
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 OR jsonb_array_length(p_items) > 50 THEN
+    RAISE EXCEPTION 'Order must contain between 1 and 50 items';
+  END IF;
+
+  IF p_payment_method NOT IN ('cib', 'baridimob', 'ccp', 'wise', 'usdt', 'flexy') THEN
+    RAISE EXCEPTION 'Unsupported payment method';
+  END IF;
+
   -- 1. حساب السعر الحقيقي لكل منتج من جدول الخدمات في السيرفر
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
@@ -225,7 +251,12 @@ BEGIN
     v_dur_idx := COALESCE((v_item->>'durIdx')::int, 0);
     v_type_idx := COALESCE((v_item->>'typeIdx')::int, 0);
     v_qty := COALESCE((v_item->>'qty')::int, 1);
-    IF v_qty < 1 THEN v_qty := 1; END IF;
+    IF v_qty < 1 OR v_qty > 20 THEN
+      RAISE EXCEPTION 'Quantity must be between 1 and 20';
+    END IF;
+    IF v_dur_idx < 0 OR v_type_idx < 0 THEN
+      RAISE EXCEPTION 'Invalid service option index';
+    END IF;
     
     SELECT * INTO v_service_record FROM public.services WHERE id = v_service_id;
     IF NOT FOUND THEN
@@ -235,6 +266,10 @@ BEGIN
     -- التحقق أولاً من أن المنتج غير موقوف بالكامل (Out of Stock)
     IF COALESCE((v_service_record.out_of_stock->>'all')::boolean, false) = true THEN
       RAISE EXCEPTION 'عذراً، المنتج (%) غير متوفر حالياً في المخزون', COALESCE(v_service_record.n->>'ar', v_service_id);
+    END IF;
+
+    IF COALESCE((v_service_record.out_of_stock->'dur'->>v_dur_idx)::boolean, false) = true THEN
+      RAISE EXCEPTION 'The selected duration is currently out of stock';
     END IF;
 
     -- تحديد سعر الوحدة المعتمد في السيرفر بناءً على تفعيل خيار الباقات للمنتج
@@ -279,7 +314,7 @@ BEGIN
     WHERE UPPER(code) = UPPER(TRIM(p_coupon_code)) AND active = true;
     
     IF FOUND THEN
-      IF v_coupon_type = 'pct' THEN
+      IF v_coupon_type IN ('pct', 'percent') THEN
         v_discount := ROUND((v_subtotal * v_coupon_val) / 100);
       ELSE
         v_discount := LEAST(v_subtotal, v_coupon_val);
@@ -331,24 +366,6 @@ BEGIN
   );
 END;
 $$;
-
--- 3. دالة السيرفر الآمنة لتحديث الفاتورة ورابط الدفع دون انتهاك سياسات RLS
-DROP FUNCTION IF EXISTS public.update_order_payment(UUID, TEXT, TEXT) CASCADE;
-CREATE OR REPLACE FUNCTION public.update_order_payment(
-  p_order_id UUID,
-  p_payment_id TEXT,
-  p_payment_url TEXT
-) RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  v_order RECORD;
-BEGIN
-  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id;
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Order not found');
-  END IF;
 
 -- 3. دالة السيرفر الآمنة لتحديث الفاتورة ورابط الدفع (متاحة للسيرفر فقط)
 DROP FUNCTION IF EXISTS public.update_order_payment(UUID, TEXT, TEXT) CASCADE;
@@ -410,10 +427,14 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Order not found');
   END IF;
 
-  UPDATE public.orders
-  SET status = 'paid',
-      updated_at = now()
-  WHERE id = v_order.id;
+  IF v_order.status <> 'paid' AND v_order.status <> 'completed' THEN
+    UPDATE public.orders
+    SET status = 'paid',
+        updated_at = now()
+    WHERE id = v_order.id;
+    INSERT INTO public.order_status_logs (order_id, old_status, new_status, source)
+    VALUES (v_order.id, v_order.status, 'paid', 'confirm_order_payment');
+  END IF;
 
   RETURN jsonb_build_object('success', true, 'order_id', v_order.id, 'status', 'paid', 'total_payable', v_order.total_payable, 'telegram_msg_id', v_order.telegram_msg_id);
 END;
@@ -467,10 +488,14 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Order not found');
   END IF;
 
-  UPDATE public.orders
-  SET status = 'cancelled',
-      updated_at = now()
-  WHERE id = v_order.id;
+  IF v_order.status <> 'cancelled' THEN
+    UPDATE public.orders
+    SET status = 'cancelled',
+        updated_at = now()
+    WHERE id = v_order.id;
+    INSERT INTO public.order_status_logs (order_id, old_status, new_status, source)
+    VALUES (v_order.id, v_order.status, 'cancelled', 'cancel_order_payment');
+  END IF;
 
   RETURN jsonb_build_object('success', true, 'order_id', v_order.id, 'status', 'cancelled', 'telegram_msg_id', v_order.telegram_msg_id, 'items', v_order.items);
 END;
@@ -519,11 +544,20 @@ CREATE OR REPLACE FUNCTION public.update_order_status_secure(
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  v_old_status TEXT;
+  v_ord_id UUID;
 BEGIN
   IF NOT public.is_admin() AND auth.role() <> 'service_role' THEN
     RETURN false;
   END IF;
-  UPDATE public.orders SET status = p_status, updated_at = now() WHERE id::text = p_id OR payment_id = p_id;
+  SELECT status, id INTO v_old_status, v_ord_id FROM public.orders WHERE id::text = p_id OR payment_id = p_id LIMIT 1;
+  IF v_ord_id IS NULL THEN RETURN false; END IF;
+  IF v_old_status <> p_status THEN
+    UPDATE public.orders SET status = p_status, updated_at = now() WHERE id = v_ord_id;
+    INSERT INTO public.order_status_logs (order_id, old_status, new_status, source)
+    VALUES (v_ord_id, v_old_status, p_status, 'update_order_status_secure');
+  END IF;
   RETURN true;
 END;
 $$;
@@ -719,13 +753,21 @@ ON CONFLICT (id) DO UPDATE SET
 
 INSERT INTO public.coupons (code, type, val, active)
 VALUES
-  ('STRIVIO10', 'pct', 0.10, true),
-  ('VIP20', 'pct', 0.20, true),
+  ('STRIVIO10', 'percent', 10, true),
+  ('VIP20', 'percent', 20, true),
   ('WELCOME5', 'fixed', 500, true)
 ON CONFLICT (code) DO UPDATE SET
   type = EXCLUDED.type,
   val = EXCLUDED.val,
   active = EXCLUDED.active;
+
+-- توحيد الكوبونات القديمة مع القيمة التي تستخدمها لوحة الإدارة.
+-- القيم القديمة بين 0 و1 كانت مخزنة كنسبة عشرية، لذلك تُحوّل إلى نسبة مئوية صحيحة.
+UPDATE public.coupons
+SET
+  val = CASE WHEN val > 0 AND val <= 1 THEN val * 100 ELSE val END,
+  type = 'percent'
+WHERE type = 'pct';
 
 -- ====================================================================
 -- ضبط الباقات للخدمات الأخرى (ما عدا نتفلكس و IPTV) لتكون type 1 إلى 5 ومخفية افتراضياً
@@ -824,3 +866,75 @@ INSERT INTO public.faq (id, icon, q, a, sort_order) VALUES
 ('crypto_wise', '🌐', '{"fr": "Comment payer par Wise ou USDT Crypto ?", "ar": "كيف أتمم الدفع عبر Wise أو USDT؟", "en": "How to complete payment via Wise or USDT Crypto?"}'::jsonb, '{"fr": "Dans votre panier, choisissez \"Wise\" ou \"USDT\". Le montant sera automatiquement converti au taux officiel du store. Une fois la commande confirmée sur WhatsApp, nous vous transmettrons l''adresse USDT (TRC20) ou l''email Wise pour effectuer le virement.", "ar": "عند الوصول للسلة، اختر Wise أو USDT وسيتم احتساب التوتال تلقائياً باليورو أو USDT. بعد الضغط على تأكيد الطلب، سيرسل لك فريق الدعم عنوان المحفظة أو إيميل Wise لإتمام التحويل.", "en": "In your cart, select Wise or USDT. The total converts automatically. Upon order confirmation on WhatsApp, our support team will provide the USDT (TRC20) address or Wise email."}'::jsonb, 5)
 ON CONFLICT (id) DO UPDATE SET icon=EXCLUDED.icon, q=EXCLUDED.q, a=EXCLUDED.a, sort_order=EXCLUDED.sort_order;
 
+-- ====================================================================
+-- 8. جداول وسجلات مراقبة الدفع الآمنة (Production Logs & Audit)
+-- ====================================================================
+
+CREATE TABLE IF NOT EXISTS public.order_status_logs (
+  id BIGSERIAL PRIMARY KEY,
+  order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+  old_status TEXT,
+  new_status TEXT NOT NULL,
+  source TEXT DEFAULT 'system',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.order_status_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow admin full access on order_status_logs" ON public.order_status_logs;
+CREATE POLICY "Allow admin full access on order_status_logs" ON public.order_status_logs FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE TABLE IF NOT EXISTS public.payment_webhooks (
+  id BIGSERIAL PRIMARY KEY,
+  headers JSONB,
+  body JSONB,
+  received_at TIMESTAMPTZ DEFAULT now(),
+  ip TEXT,
+  processing_result TEXT,
+  error_message TEXT
+);
+
+ALTER TABLE public.payment_webhooks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow admin full access on payment_webhooks" ON public.payment_webhooks;
+CREATE POLICY "Allow admin full access on payment_webhooks" ON public.payment_webhooks FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE OR REPLACE FUNCTION public.log_order_status_change(
+  p_order_id UUID,
+  p_old_status TEXT,
+  p_new_status TEXT,
+  p_source TEXT DEFAULT 'system'
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  INSERT INTO public.order_status_logs (order_id, old_status, new_status, source)
+  VALUES (p_order_id, p_old_status, p_new_status, p_source);
+  RETURN true;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.cleanup_old_orders(
+  p_days INTEGER DEFAULT 30
+) RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_deleted_count INTEGER;
+BEGIN
+  IF NOT public.is_admin() AND auth.role() <> 'service_role' THEN
+    RETURN 0;
+  END IF;
+  DELETE FROM public.orders
+  WHERE status IN ('expired', 'cancelled', 'failed')
+    AND created_at < now() - (p_days || ' days')::interval;
+  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+  RETURN v_deleted_count;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.log_order_status_change(UUID, TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.log_order_status_change(UUID, TEXT, TEXT, TEXT) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.cleanup_old_orders(INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.cleanup_old_orders(INTEGER) TO authenticated, service_role;

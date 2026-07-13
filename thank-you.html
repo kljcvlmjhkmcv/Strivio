@@ -220,10 +220,6 @@ html[dir="ltr"] .order-info-box { text-align: left; }
       <span class="info-label" id="T_OID_LBL">رقم الطلب:</span>
       <span class="info-val highlight font-mono text-sm" id="T_OID_VAL">--</span>
     </div>
-    <div class="info-row" id="ROW_ORDER_ITEMS" style="display:none; flex-direction:column; align-items:stretch; gap:8px; padding:12px 0;">
-      <span class="info-label" id="T_ITEMS_LBL" style="font-weight:700; margin-bottom:4px;">📦 المنتجات المشتراة:</span>
-      <div id="T_ITEMS_LIST" style="display:flex; flex-direction:column; gap:6px;"></div>
-    </div>
     <div class="info-row font-bold" id="ROW_ORDER_TOTAL" style="display:none">
       <span class="info-label" id="T_TOTAL_LBL">المبلغ الإجمالي:</span>
       <span class="info-val text-brand-neon" id="T_TOTAL_VAL">--</span>
@@ -260,7 +256,6 @@ const TEXTS = {
   ar: {
     title: "تم الدفع وإتمام الطلب بنجاح!",
     desc: "شكراً لثقتك في Strivio. لقد تم تأكيد دفعتك الإلكترونية عبر بوابة SATIM بأمان. نقوم الآن بمعالجة اشتراكك وسيصلك التفعيل في أقرب وقت.",
-    itemsLbl: "📦 المنتجات المشتراة:",
     statusLbl: "حالة الطلب:",
     statusVal: "مكتمل ومؤكد ✅",
     gatewayLbl: "بوابة الدفع:",
@@ -271,7 +266,6 @@ const TEXTS = {
   fr: {
     title: "Paiement Effectué avec Succès !",
     desc: "Merci pour votre confiance. Votre paiement électronique via SATIM a été validé en toute sécurité. Nous traitons votre commande et votre abonnement sera activé très bientôt.",
-    itemsLbl: "📦 Produits achetés :",
     statusLbl: "État de la commande :",
     statusVal: "Validé et Payé ✅",
     gatewayLbl: "Passerelle :",
@@ -282,7 +276,6 @@ const TEXTS = {
   en: {
     title: "Payment Completed Successfully!",
     desc: "Thank you for trusting Strivio. Your electronic payment via SATIM has been securely verified. We are processing your subscription and activation details will be sent soon.",
-    itemsLbl: "📦 Purchased Items:",
     statusLbl: "Order Status:",
     statusVal: "Verified & Paid ✅",
     gatewayLbl: "Payment Gateway:",
@@ -304,8 +297,6 @@ function setLang(lang) {
   const t = TEXTS[lang] || TEXTS.ar;
   document.getElementById('T_TITLE').textContent = t.title;
   document.getElementById('T_DESC').textContent = t.desc;
-  const itemsLblEl = document.getElementById('T_ITEMS_LBL');
-  if (itemsLblEl) itemsLblEl.textContent = t.itemsLbl;
   document.getElementById('T_STATUS_LBL').textContent = t.statusLbl;
   document.getElementById('T_STATUS_VAL').textContent = t.statusVal;
   document.getElementById('T_GATEWAY_LBL').textContent = t.gatewayLbl;
@@ -356,26 +347,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         data = alt.data;
       }
       if (data) {
-        // عرض المنتجات المشتراة
-        if (data.items && Array.isArray(data.items) && data.items.length > 0) {
-          const rowItems = document.getElementById('ROW_ORDER_ITEMS');
-          const itemsList = document.getElementById('T_ITEMS_LIST');
-          if (rowItems && itemsList) {
-            rowItems.style.display = 'flex';
-            itemsList.innerHTML = '';
-            data.items.forEach(it => {
-              const name = it.nameData?.[savedLang] || it.nameData?.ar || it.name || it.title || 'منتج';
-              const dur = it.durLabel ? ` <span style="color:#9494a8; font-size:12px;">(${it.durLabel})</span>` : '';
-              const qty = Number(it.qty || 1);
-              const pr = Number(it.unitPrice || it.price || 0);
-              const itemDiv = document.createElement('div');
-              itemDiv.style.cssText = 'background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; text-align:right; font-size:14px;';
-              itemDiv.innerHTML = `<span><strong>${name}</strong>${dur}</span> <span style="color:#39ff14; font-family:Outfit,sans-serif; font-weight:700;">${qty}x - ${(pr * qty).toLocaleString('en-US')} دج</span>`;
-              itemsList.appendChild(itemDiv);
-            });
-          }
-        }
-
         const rowTotal = document.getElementById('ROW_ORDER_TOTAL');
         const totalVal = document.getElementById('T_TOTAL_VAL');
         if (rowTotal && totalVal && data.total_payable) {
@@ -386,46 +357,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         let isOrderPaid = data.status === 'paid' || data.status === 'completed';
         let isOrderCancelled = isCancelledParam || data.status === 'cancelled';
 
-        // التحقق الآمن عبر السيرفر فقط (verify-payment Edge Function) مع تكرار آلي في حال تأخر البنك
-        if (!isOrderPaid && !isOrderCancelled && (data.payment_id || data.id)) {
-          const statusEl = document.getElementById('T_STATUS_VAL');
-          if (statusEl) {
-            statusEl.textContent = savedLang === 'ar' ? "⏳ جاري تأكيد الدفع من البنك..." : (savedLang === 'fr' ? "⏳ Vérification du paiement..." : "⏳ Verifying payment...");
-            statusEl.style.color = "#fbbf24";
-          }
-
-          let attempts = 0;
-          while (attempts < 5 && !isOrderPaid && !isOrderCancelled) {
-            attempts++;
-            try {
-              const verifyRes = await window.supabaseClient.functions.invoke('verify-payment', {
-                body: { order_id: data.id, payment_id: data.payment_id, action: isCancelledParam ? 'cancel' : 'check' }
-              });
-              const vData = verifyRes.data || {};
-              if (vData.status === 'paid' || vData.status === 'completed' || vData.verified === true) {
-                isOrderPaid = true;
-                break;
-              } else if (vData.status === 'cancelled' || vData.payment_status === 'failed') {
-                isOrderCancelled = true;
-                break;
-              }
-            } catch (slickVerifyE) {}
-
-            if (!isOrderPaid && !isOrderCancelled && attempts < 5) {
-              await new Promise(r => setTimeout(r, 3000));
+        // التحقق الآمن عبر السيرفر فقط (verify-payment Edge Function) دون أي صلاحيات تعديل من جهة العميل
+        if (data.payment_id || data.id) {
+          try {
+            const verifyRes = await window.supabaseClient.functions.invoke('verify-payment', {
+              body: { order_id: data.id, payment_id: data.payment_id, action: isCancelledParam ? 'cancel' : 'check' }
+            });
+            const vData = verifyRes.data || {};
+            if (vData.status === 'paid' || vData.status === 'completed') {
+              isOrderPaid = true;
+            } else if (vData.status === 'cancelled' || vData.status === 'unpaid') {
+              isOrderCancelled = true;
             }
-          }
+          } catch (slickVerifyE) {}
         }
 
         if (isOrderPaid) {
-          document.getElementById('T_STATUS_VAL').textContent = savedLang === 'ar' ? "مكتمل ومؤكد ✅" : (savedLang === 'fr' ? "Validé et Payé ✅" : "Verified & Paid ✅");
+          document.getElementById('T_STATUS_VAL').textContent = savedLang === 'ar' ? "مكتمل ومؤكد ✅" : "Verified & Paid ✅";
           document.getElementById('T_STATUS_VAL').style.color = "#39ff14";
         } else if (isOrderCancelled) {
           window.location.replace(`cart.html?payment_cancelled=1&order_id=${data.id}`);
           return;
-        } else {
-          document.getElementById('T_STATUS_VAL').textContent = savedLang === 'ar' ? "في انتظار تأكيد البنك ⏳" : (savedLang === 'fr' ? "En attente de confirmation ⏳" : "Pending Bank Confirmation ⏳");
-          document.getElementById('T_STATUS_VAL').style.color = "#fbbf24";
         }
       }
     } catch(e) {}

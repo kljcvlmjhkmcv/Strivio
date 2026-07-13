@@ -586,7 +586,7 @@ async function loadAnalytics() {
     if (t >= weekStart) cntWeek++;
     if (t >= monthStart) cntMonth++;
     var amt = Number(o.total_payable || o.total_amount || 0);
-    totalRev += amt;
+    if (o.status === 'paid' || o.status === 'completed') totalRev += amt;
   });
 
   document.getElementById('stat-today').textContent = cntToday;
@@ -1103,6 +1103,14 @@ function renderOrdersList(data) {
     var safeId = escapeHtml(o.id);
     var safeMethod = escapeHtml(o.payment_method);
     var safeCoupon = o.coupon_code ? escapeHtml(o.coupon_code) : '';
+    var safeInvoiceId = o.payment_id ? escapeHtml(o.payment_id) : 'غير متوفر حالياً';
+    var safeInvoiceStatus = o.invoice_status ? escapeHtml(o.invoice_status) : 'غير متوفر حالياً';
+    var safeBank = o.payment_bank ? escapeHtml(o.payment_bank) : 'غير متوفر حالياً';
+    var safeTransferId = o.transfer_id ? escapeHtml(o.transfer_id) : '';
+    var safeTransferRef = o.transfer_reference ? escapeHtml(o.transfer_reference) : '';
+    var safeTransferStatus = o.transfer_status ? escapeHtml(o.transfer_status) : '';
+    var safeLastSync = o.last_sync_at ? escapeHtml(new Date(o.last_sync_at).toLocaleString('ar-DZ')) : 'غير متوفر حالياً';
+    var safePaidAt = o.paid_at ? escapeHtml(new Date(o.paid_at).toLocaleString('ar-DZ')) : '';
     
     return '<div class="p-5 glass-card rounded-2xl border border-brand-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-brand-neon/30 transition-all">' +
       '<div class="flex items-start md:items-center gap-3.5 w-full md:w-auto">' +
@@ -1114,9 +1122,17 @@ function renderOrdersList(data) {
             '<span class="text-[11px] px-2.5 py-0.5 rounded-full border font-bold ' + badgeClass + '">' + statusText + '</span>' +
           '</div>' +
           '<div class="text-sm text-gray-200 leading-relaxed pl-2 border-r-2 border-brand-neon/40 pr-2">' + itemsStr + '</div>' +
-          '<div class="text-xs text-gray-400 flex flex-wrap gap-4 pt-1">' +
-            '<span>طريقة الدفع: <b class="text-white">' + safeMethod + '</b></span>' +
-            (safeCoupon ? '<span>الكوبون: <b class="text-brand-neon">' + safeCoupon + '</b></span>' : '') +
+           '<div class="text-xs text-gray-400 flex flex-wrap gap-4 pt-1">' +
+             '<span>طريقة الدفع: <b class="text-white">' + safeMethod + '</b></span>' +
+             '<span>رقم الفاتورة: <b class="text-cyan-300 font-mono">' + safeInvoiceId + '</b></span>' +
+             '<span>حالة الفاتورة: <b class="text-white">' + safeInvoiceStatus + '</b></span>' +
+             '<span>البنك: <b class="text-white">' + safeBank + '</b></span>' +
+             (safeTransferId ? '<span>رقم التحويل: <b class="text-white font-mono">' + safeTransferId + '</b></span>' : '') +
+             (safeTransferRef ? '<span>مرجع التحويل: <b class="text-white font-mono">' + safeTransferRef + '</b></span>' : '') +
+             (safeTransferStatus ? '<span>حالة التحويل: <b class="text-white">' + safeTransferStatus + '</b></span>' : '') +
+             '<span>آخر مزامنة: <b class="text-white">' + safeLastSync + '</b></span>' +
+             (safePaidAt ? '<span>وقت الدفع: <b class="text-green-400">' + safePaidAt + '</b></span>' : '') +
+             (safeCoupon ? '<span>الكوبون: <b class="text-brand-neon">' + safeCoupon + '</b></span>' : '') +
             (o.discount > 0 ? '<span>الخصم: <b class="text-yellow-400">-' + Number(o.discount).toLocaleString('ar-DZ') + ' دج</b></span>' : '') +
           '</div>' +
         '</div>' +
