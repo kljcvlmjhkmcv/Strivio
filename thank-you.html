@@ -1,17 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<script>
-(function(){
-  var s = window.location.search.toLowerCase();
-  if (s.indexOf('error') !== -1 || s.indexOf('expired') !== -1 || s.indexOf('timeout') !== -1 || s.indexOf('cancelled') !== -1 || s.indexOf('cancel') !== -1 || s.indexOf('annul') !== -1 || s.indexOf('payment_cancelled') !== -1 || s.indexOf('status=cancelled') !== -1 || s.indexOf('status=failed') !== -1) {
-    var oid = '';
-    var m = s.match(/[?&](?:order_id|id|invoice_id)=([^&]+)/);
-    if (m) oid = m[1];
-    window.location.replace('cart.html?payment_cancelled=1&order_id=' + oid);
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -130,6 +119,7 @@ html[dir="ltr"] .order-info-box { text-align: left; }
 .info-label { color: var(--text-muted); }
 .info-val { font-weight: 700; color: #fff; }
 .info-val.highlight { color: var(--accent); font-family: 'Outfit', sans-serif; font-size: 16px; }
+#T_ITEMS_VAL { max-width: 68%; text-align: end; line-height: 1.55; overflow-wrap: anywhere; }
 .actions-grid {
   display: flex;
   flex-direction: column;
@@ -212,8 +202,8 @@ html[dir="ltr"] .order-info-box { text-align: left; }
     <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
   </div>
   
-  <h1 id="T_TITLE">تم الدفع وإتمام الطلب بنجاح!</h1>
-  <p class="subtitle" id="T_DESC">شكراً لثقتك في Strivio. لقد تم تأكيد دفعتك الإلكترونية عبر بوابة SATIM بأمان. نقوم الآن بمعالجة اشتراكك وسيصلك التفعيل في أقرب وقت.</p>
+  <h1 id="T_TITLE">جاري التحقق من عملية الدفع</h1>
+  <p class="subtitle" id="T_DESC">نراجع حالة العملية مباشرة مع بوابة الدفع. يرجى إبقاء هذه الصفحة مفتوحة حتى يظهر التأكيد الرسمي.</p>
   
   <div class="order-info-box" id="ORDER_INFO_BOX">
     <div class="info-row" id="ROW_ORDER_ID" style="display:none">
@@ -224,9 +214,13 @@ html[dir="ltr"] .order-info-box { text-align: left; }
       <span class="info-label" id="T_TOTAL_LBL">المبلغ الإجمالي:</span>
       <span class="info-val text-brand-neon" id="T_TOTAL_VAL">--</span>
     </div>
+    <div class="info-row" id="ROW_ORDER_ITEMS" style="display:none">
+      <span class="info-label" id="T_ITEMS_LBL">المنتجات:</span>
+      <span class="info-val" id="T_ITEMS_VAL">--</span>
+    </div>
     <div class="info-row">
       <span class="info-label" id="T_STATUS_LBL">حالة الطلب:</span>
-      <span class="info-val highlight" id="T_STATUS_VAL">مكتمل ومؤكد</span>
+      <span class="info-val highlight" id="T_STATUS_VAL">قيد التحقق...</span>
     </div>
     <div class="info-row">
       <span class="info-label" id="T_GATEWAY_LBL">بوابة الدفع:</span>
@@ -254,36 +248,62 @@ html[dir="ltr"] .order-info-box { text-align: left; }
 <script>
 const TEXTS = {
   ar: {
-    title: "تم الدفع وإتمام الطلب بنجاح!",
-    desc: "شكراً لثقتك في Strivio. لقد تم تأكيد دفعتك الإلكترونية عبر بوابة SATIM بأمان. نقوم الآن بمعالجة اشتراكك وسيصلك التفعيل في أقرب وقت.",
+    title: "جاري التحقق من عملية الدفع",
+    desc: "نراجع حالة العملية مباشرة مع بوابة الدفع. يرجى إبقاء هذه الصفحة مفتوحة حتى يظهر التأكيد الرسمي.",
     statusLbl: "حالة الطلب:",
-    statusVal: "مكتمل ومؤكد ✅",
+    statusVal: "قيد التحقق...",
+    paidTitle: "تم الدفع وإتمام الطلب بنجاح!",
+    paidDesc: "شكراً لثقتك في Strivio. تم تأكيد دفعتك رسميًا عبر SATIM ونقوم الآن بمعالجة طلبك.",
+    paidStatus: "مكتمل ومؤكد ✅",
+    itemsLbl: "المنتجات:",
     gatewayLbl: "بوابة الدفع:",
     timeLbl: "التوقيت:",
     waTxt: "التواصل الفوري مع الدعم الفني",
     homeTxt: "العودة للصفحة الرئيسية"
   },
   fr: {
-    title: "Paiement Effectué avec Succès !",
-    desc: "Merci pour votre confiance. Votre paiement électronique via SATIM a été validé en toute sécurité. Nous traitons votre commande et votre abonnement sera activé très bientôt.",
+    title: "Vérification du paiement...",
+    desc: "Nous vérifions directement le paiement auprès de la passerelle. Gardez cette page ouverte jusqu'à la confirmation officielle.",
     statusLbl: "État de la commande :",
-    statusVal: "Validé et Payé ✅",
+    statusVal: "Vérification en cours...",
+    paidTitle: "Paiement Effectué avec Succès !",
+    paidDesc: "Votre paiement SATIM a été officiellement confirmé. Nous traitons maintenant votre commande.",
+    paidStatus: "Validé et Payé ✅",
+    itemsLbl: "Produits :",
     gatewayLbl: "Passerelle :",
     timeLbl: "Heure :",
     waTxt: "Contacter le Support Technique",
     homeTxt: "Retour à l'Accueil"
   },
   en: {
-    title: "Payment Completed Successfully!",
-    desc: "Thank you for trusting Strivio. Your electronic payment via SATIM has been securely verified. We are processing your subscription and activation details will be sent soon.",
+    title: "Verifying your payment...",
+    desc: "We are checking the transaction directly with the payment gateway. Keep this page open until official confirmation.",
     statusLbl: "Order Status:",
-    statusVal: "Verified & Paid ✅",
+    statusVal: "Verification in progress...",
+    paidTitle: "Payment Completed Successfully!",
+    paidDesc: "Your SATIM payment has been officially confirmed. We are now processing your order.",
+    paidStatus: "Verified & Paid ✅",
+    itemsLbl: "Products:",
     gatewayLbl: "Payment Gateway:",
     timeLbl: "Timestamp:",
     waTxt: "Contact Technical Support",
     homeTxt: "Return to Homepage"
   }
 };
+
+let paymentUiState = 'pending';
+let paymentSecondsLeft = 10 * 60;
+
+function renderPaymentState(lang) {
+  const t = TEXTS[lang] || TEXTS.ar;
+  const paid = paymentUiState === 'paid';
+  document.getElementById('T_TITLE').textContent = paid ? t.paidTitle : t.title;
+  document.getElementById('T_DESC').textContent = paid ? t.paidDesc : t.desc;
+  const minutes = String(Math.floor(paymentSecondsLeft / 60)).padStart(2, '0');
+  const seconds = String(paymentSecondsLeft % 60).padStart(2, '0');
+  document.getElementById('T_STATUS_VAL').textContent = paid ? t.paidStatus : `${t.statusVal} ${minutes}:${seconds}`;
+  document.getElementById('T_STATUS_VAL').style.color = paid ? '#39ff14' : '#facc15';
+}
 
 function setLang(lang) {
   localStorage.setItem('strivio_lang', lang);
@@ -295,105 +315,184 @@ function setLang(lang) {
   });
 
   const t = TEXTS[lang] || TEXTS.ar;
-  document.getElementById('T_TITLE').textContent = t.title;
-  document.getElementById('T_DESC').textContent = t.desc;
   document.getElementById('T_STATUS_LBL').textContent = t.statusLbl;
-  document.getElementById('T_STATUS_VAL').textContent = t.statusVal;
+  document.getElementById('T_ITEMS_LBL').textContent = t.itemsLbl;
   document.getElementById('T_GATEWAY_LBL').textContent = t.gatewayLbl;
   document.getElementById('T_TIME_LBL').textContent = t.timeLbl;
   document.getElementById('T_WA_TXT').textContent = t.waTxt;
   document.getElementById('T_HOME_TXT').textContent = t.homeTxt;
+  renderPaymentState(lang);
+}
+
+const VERIFY_INTERVAL_MS = 5000;
+const VERIFY_TIMEOUT_MS = 10 * 60 * 1000;
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isPaidStatus(status) {
+  return status === 'paid' || status === 'completed';
+}
+
+function isCancelledStatus(status) {
+  return status === 'cancelled' || status === 'failed' || status === 'expired';
+}
+
+async function fetchOrder(orderId) {
+  let result = await window.supabaseClient.from('orders').select('*').eq('id', orderId).single();
+  if (result.data) return result.data;
+  result = await window.supabaseClient.from('orders').select('*').eq('payment_id', orderId).single();
+  return result.data || null;
+}
+
+function renderOrderDetails(order, lang) {
+  document.getElementById('ROW_ORDER_ID').style.display = 'flex';
+  document.getElementById('T_OID_VAL').textContent = order.id;
+
+  document.getElementById('ROW_ORDER_TOTAL').style.display = 'flex';
+  document.getElementById('T_TOTAL_VAL').textContent = Number(order.total_payable || 0).toLocaleString('en-US') + ' دج';
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  if (items.length) {
+    const itemText = items.map(item => {
+      const name = item?.nameData?.[lang] || item?.nameData?.ar || item?.title || item?.name || 'Product';
+      const duration = item?.durLabelData?.[lang] || item?.durLabelData?.ar || item?.durLabel || '';
+      const qty = Number(item?.qty || 1);
+      return `${name}${duration ? ` — ${duration}` : ''} ×${qty}`;
+    }).join(' • ');
+    document.getElementById('ROW_ORDER_ITEMS').style.display = 'flex';
+    document.getElementById('T_ITEMS_VAL').textContent = itemText;
+  }
+}
+
+function restoreCart(order) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  if (items.length) localStorage.setItem('strivio_cart', JSON.stringify(items));
+  localStorage.removeItem('strivio_pending_cart');
+  localStorage.removeItem('strivio_pending_order_id');
+}
+
+function clearPaidCart() {
+  localStorage.removeItem('strivio_cart');
+  localStorage.removeItem('strivio_pending_cart');
+  localStorage.removeItem('strivio_pending_order_id');
+}
+
+function updateWhatsApp(orderId, lang, paid) {
+  const waBtn = document.getElementById('T_WA_BTN');
+  if (!waBtn) return;
+  const message = paid
+    ? (lang === 'ar'
+      ? `مرحباً الدعم الفني، تم تأكيد دفع طلبي رقم (${orderId}) رسميًا وأرغب باستلام الحساب، شكراً!`
+      : `Hello Support, payment for order (${orderId}) was officially confirmed.`)
+    : (lang === 'ar'
+      ? `مرحباً الدعم الفني، ما زال الدفع قيد التحقق لطلبي رقم (${orderId}) وأرغب بالمساعدة.`
+      : `Hello Support, payment for order (${orderId}) is still being verified.`);
+  waBtn.href = `https://wa.me/213562961410?text=${encodeURIComponent(message)}`;
+}
+
+function showPaid(order, lang) {
+  paymentUiState = 'paid';
+  clearPaidCart();
+  renderPaymentState(lang);
+  updateWhatsApp(order.id, lang, true);
+}
+
+function returnCancelled(order, reason) {
+  restoreCart(order);
+  window.location.replace(`cart.html?payment_cancelled=1&order_id=${encodeURIComponent(order.id)}&reason=${encodeURIComponent(reason || 'cancelled')}`);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
   const savedLang = localStorage.getItem('strivio_lang') || 'ar';
   setLang(savedLang);
+  document.getElementById('ORDER_TIME').textContent = new Date().toLocaleTimeString(savedLang === 'ar' ? 'ar-DZ' : 'en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-  const now = new Date();
-  document.getElementById('ORDER_TIME').textContent = now.toLocaleTimeString(savedLang === 'ar' ? 'ar-DZ' : 'en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get('order_id') || params.get('id') || params.get('invoice_id');
   const msgParam = (params.get('message') || '').toLowerCase();
-  const isCancelledParam = params.get('cancelled') || params.get('cancel') || params.get('payment_cancelled') || params.get('status') === 'cancelled' || params.get('status') === 'failed' || params.get('error') === '1' || params.has('error') || msgParam.includes('annul') || msgParam.includes('cancel') || msgParam.includes('error');
-  const isSuccessParam = params.get('success') === '1' || params.get('status') === 'completed' || params.get('status') === 'paid';
-  
-  if (isCancelledParam) {
-    if (orderId && window.supabaseClient) {
-      try {
-        await window.supabaseClient.functions.invoke('verify-payment', {
-          body: { order_id: orderId, action: 'cancel' }
-        });
-      } catch(e) {}
-    }
-    window.location.replace(`cart.html?payment_cancelled=1&order_id=${orderId || ''}`);
+  const cancellationReturned = Boolean(
+    params.get('cancelled') || params.get('cancel') || params.get('payment_cancelled')
+    || params.get('status') === 'cancelled' || params.get('status') === 'failed'
+    || params.get('error') === '1' || params.has('error')
+    || msgParam.includes('annul') || msgParam.includes('cancel') || msgParam.includes('error')
+  );
+
+  if (!orderId || !window.supabaseClient) {
+    window.location.replace('cart.html?payment_cancelled=1&reason=missing_order');
     return;
-  } else {
-    localStorage.removeItem("strivio_cart");
   }
-  
-  if (orderId && window.supabaseClient) {
-    const rowOid = document.getElementById('ROW_ORDER_ID');
-    const oidVal = document.getElementById('T_OID_VAL');
-    if (rowOid && oidVal) {
-      rowOid.style.display = 'flex';
-      oidVal.textContent = orderId;
-    }
+
+  let order = null;
+  try { order = await fetchOrder(orderId); } catch (_) {}
+  if (!order) {
+    window.location.replace(`cart.html?payment_cancelled=1&order_id=${encodeURIComponent(orderId)}&reason=order_not_found`);
+    return;
+  }
+
+  renderOrderDetails(order, savedLang);
+  updateWhatsApp(order.id, savedLang, false);
+
+  if (isPaidStatus(order.status)) {
+    showPaid(order, savedLang);
+    return;
+  }
+
+  if (cancellationReturned) {
+    try {
+      const cancelledCheck = await window.supabaseClient.functions.invoke('verify-payment', {
+        body: { order_id: order.id, payment_id: order.payment_id, action: 'cancel' }
+      });
+      const state = cancelledCheck.data || {};
+      if (isPaidStatus(state.status)) {
+        showPaid(order, savedLang);
+        return;
+      }
+    } catch (_) {}
+    returnCancelled(order, 'customer_cancelled');
+    return;
+  }
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < VERIFY_TIMEOUT_MS) {
+    paymentSecondsLeft = Math.max(0, Math.ceil((VERIFY_TIMEOUT_MS - (Date.now() - startedAt)) / 1000));
+    renderPaymentState(savedLang);
 
     try {
-      let { data } = await window.supabaseClient.from('orders').select('*').eq('id', orderId).single();
-      if (!data) {
-        let alt = await window.supabaseClient.from('orders').select('*').eq('payment_id', orderId).single();
-        data = alt.data;
+      const verifyResult = await window.supabaseClient.functions.invoke('verify-payment', {
+        body: { order_id: order.id, payment_id: order.payment_id, action: 'check' }
+      });
+      const state = verifyResult.data || {};
+      if (isPaidStatus(state.status) && state.verified !== false) {
+        order.status = state.status;
+        showPaid(order, savedLang);
+        return;
       }
-      if (data) {
-        const rowTotal = document.getElementById('ROW_ORDER_TOTAL');
-        const totalVal = document.getElementById('T_TOTAL_VAL');
-        if (rowTotal && totalVal && data.total_payable) {
-          rowTotal.style.display = 'flex';
-          totalVal.textContent = Number(data.total_payable).toLocaleString('en-US') + ' دج';
-        }
-
-        let isOrderPaid = data.status === 'paid' || data.status === 'completed';
-        let isOrderCancelled = isCancelledParam || data.status === 'cancelled';
-
-        // التحقق الآمن عبر السيرفر فقط (verify-payment Edge Function) دون أي صلاحيات تعديل من جهة العميل
-        if (data.payment_id || data.id) {
-          try {
-            const verifyRes = await window.supabaseClient.functions.invoke('verify-payment', {
-              body: { order_id: data.id, payment_id: data.payment_id, action: isCancelledParam ? 'cancel' : 'check' }
-            });
-            const vData = verifyRes.data || {};
-            if (vData.status === 'paid' || vData.status === 'completed') {
-              isOrderPaid = true;
-            } else if (vData.status === 'cancelled' || vData.status === 'unpaid') {
-              isOrderCancelled = true;
-            }
-          } catch (slickVerifyE) {}
-        }
-
-        if (isOrderPaid) {
-          document.getElementById('T_STATUS_VAL').textContent = savedLang === 'ar' ? "مكتمل ومؤكد ✅" : "Verified & Paid ✅";
-          document.getElementById('T_STATUS_VAL').style.color = "#39ff14";
-        } else if (isOrderCancelled) {
-          window.location.replace(`cart.html?payment_cancelled=1&order_id=${data.id}`);
-          return;
-        }
+      if (isCancelledStatus(state.status)) {
+        returnCancelled(order, state.status);
+        return;
       }
-    } catch(e) {}
-
-    const waBtn = document.getElementById('T_WA_BTN');
-    if (waBtn) {
-      const waMsg = isCancelledParam || (document.getElementById('T_STATUS_VAL').style.color === 'rgb(234, 179, 8)' || document.getElementById('T_STATUS_VAL').style.color === 'rgb(239, 68, 68)')
-        ? (savedLang === 'ar' ? `مرحباً الدعم الفني، واجهت مشكلة في الدفع لطلبي رقم (${orderId}) وأرغب بالمساعدة، شكراً!` : `Hello Support, I had an issue paying for order (${orderId}) and need help, thanks!`)
-        : (savedLang === 'ar'
-          ? `مرحباً الدعم الفني، قمت بإتمام عملية الدفع عبر SATIM لطلبي رقم (${orderId}) وأرغب باستلام الحساب الآن، شكراً!`
-          : (savedLang === 'fr'
-            ? `Bonjour le support, j'ai effectué le paiement SATIM pour ma commande (${orderId}). Je souhaite recevoir mon abonnement, merci !`
-            : `Hello Support, I completed SATIM payment for order (${orderId}). I would like to receive my subscription now, thanks!`));
-      waBtn.href = `https://wa.me/213562961410?text=${encodeURIComponent(waMsg)}`;
+    } catch (_) {
+      // Temporary network errors are retried until the verification deadline.
     }
+
+    await wait(VERIFY_INTERVAL_MS);
   }
+
+  try {
+    const timeoutResult = await window.supabaseClient.functions.invoke('verify-payment', {
+      body: { order_id: order.id, payment_id: order.payment_id, action: 'timeout' }
+    });
+    const finalState = timeoutResult.data || {};
+    if (isPaidStatus(finalState.status) && finalState.verified !== false) {
+      order.status = finalState.status;
+      showPaid(order, savedLang);
+      return;
+    }
+  } catch (_) {}
+
+  returnCancelled(order, 'verification_timeout');
 });
 
 /* ═══════════════════════════════════════════════════════════════
