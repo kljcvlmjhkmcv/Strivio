@@ -916,6 +916,10 @@ $('MCLB').addEventListener('click',closeModal);
 
 function buildCartItem(){
   var DUR_MONTHS=[1,2,3,6,12]; var tx=t();
+  var visibleQty = parseInt(($('MQVAL') && $('MQVAL').textContent) || selQty || 1, 10);
+  if(!Number.isFinite(visibleQty) || visibleQty < 1) visibleQty = 1;
+  if(visibleQty > 20) visibleQty = 20;
+  selQty = visibleQty;
   var unitPr=(curSvc.showTypes && curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
   var tLabel=curSvc.showTypes && curSvc.types && curSvc.types[L] ? curSvc.types[L][selType] : null;
   var tData=curSvc.showTypes && curSvc.types ? curSvc.types : null;
@@ -927,7 +931,7 @@ function buildCartItem(){
     durLabel:tx.dl[selDur],
     durLabelData:{en:TX.en.dl[selDur],fr:TX.fr.dl[selDur],ar:TX.ar.dl[selDur]},
     typeIdx:selType, typeLabel:tLabel, typeLabelData:tData,
-    qty:selQty, unitPrice:unitPr, price:unitPr*selQty,
+    qty:visibleQty, quantity:visibleQty, unitPrice:unitPr, price:unitPr*visibleQty,
     addedAt:Date.now()
   };
 }
