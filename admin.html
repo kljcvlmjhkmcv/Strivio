@@ -796,7 +796,16 @@ function setupFulfillmentAdmin(){
   if(sel&&!sel.dataset.bound){sel.dataset.bound='1';sel.addEventListener('change',function(){var s=ADMIN_SERVICES.find(function(x){return x.id===sel.value;})||{};document.getElementById('ful-mode').value=s.fulfillment_mode||'manual_delivery';document.getElementById('ful-instructions').value=(s.fulfillment_config&&s.fulfillment_config.instructions)||'';});sel.dispatchEvent(new Event('change'));}
 }
 async function saveFulfillmentMode(){var id=document.getElementById('ful-service').value,mode=document.getElementById('ful-mode').value,instructions=document.getElementById('ful-instructions').value.trim();var res=await window.supabaseClient.from('services').update({fulfillment_mode:mode,fulfillment_config:{instructions:instructions}}).eq('id',id);if(res.error)return alert('تعذر الحفظ: '+res.error.message);var s=ADMIN_SERVICES.find(function(x){return x.id===id;});if(s){s.fulfillment_mode=mode;s.fulfillment_config={instructions:instructions};}showToast('تم حفظ طريقة التسليم.');}
-async function inventoryCall(body){var r=await window.supabaseClient.functions.invoke('admin-inventory',{body:body});if(r.error||!r.data||!r.data.success)throw new Error((r.data&&r.data.error)||(r.error&&r.error.message)||'تعذر تنفيذ العملية');return r.data;}
+async function inventoryCall(body){
+  var r=await window.supabaseClient.functions.invoke('admin-inventory',{body:body});
+  if(r.error){
+    var message=r.error.message||'تعذر تنفيذ العملية';
+    try{if(r.error.context&&typeof r.error.context.clone==='function'){var details=await r.error.context.clone().json();message=details.error||message;}}catch(_ignored){}
+    throw new Error(message);
+  }
+  if(!r.data||!r.data.success)throw new Error((r.data&&r.data.error)||'تعذر تنفيذ العملية');
+  return r.data;
+}
 async function addInventoryAccount(){try{var lines=document.getElementById('inv-profiles').value.split(/\r?\n/).filter(Boolean),profiles=lines.map(function(line){var p=line.split('|');return{name:(p[0]||'').trim(),pin:(p[1]||'').trim()};});var capacity=Number(document.getElementById('inv-capacity').value||profiles.length||1);await inventoryCall({action:'add_account',service_id:document.getElementById('inv-account-service').value,label:document.getElementById('inv-label').value.trim(),email:document.getElementById('inv-email').value.trim(),password:document.getElementById('inv-password').value,capacity:capacity,profiles:profiles});document.getElementById('inv-password').value='';showToast('تم تشفير الحساب وإضافة الشاشات.');loadInventory();}catch(e){alert(e.message)}}
 async function addInventoryLicenses(){try{var codes=document.getElementById('inv-codes').value.split(/\r?\n/).filter(Boolean);var r=await inventoryCall({action:'add_licenses',service_id:document.getElementById('inv-license-service').value,codes:codes});document.getElementById('inv-codes').value='';showToast('تمت إضافة '+r.count+' أكواد.');loadInventory();}catch(e){alert(e.message)}}
 async function inventoryAction(action,kind,id,status){try{if(action==='delete'&&!confirm('حذف عنصر المخزون نهائياً؟'))return;await inventoryCall({action:action,kind:kind,id:id,status:status});showToast('تم تحديث المخزون.');await loadInventory();}catch(e){alert('خطأ المخزون: '+e.message);}}
