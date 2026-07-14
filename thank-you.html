@@ -416,10 +416,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get('order_id') || params.get('id') || params.get('invoice_id');
   const msgParam = (params.get('message') || '').toLowerCase();
+  const errorParam = String(params.get('error') || '').toLowerCase();
   const cancellationReturned = Boolean(
-    params.get('cancelled') || params.get('cancel') || params.get('payment_cancelled')
+    params.get('cancelled') === '1' || params.get('cancel') === '1' || params.get('payment_cancelled') === '1'
     || params.get('status') === 'cancelled' || params.get('status') === 'failed'
-    || params.get('error') === '1' || params.has('error')
+    || ['1', 'true', 'cancelled', 'failed', 'error'].includes(errorParam)
     || msgParam.includes('annul') || msgParam.includes('cancel') || msgParam.includes('error')
   );
 
@@ -452,16 +453,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (cancellationReturned) {
     try {
       const cancelledCheck = await window.supabaseClient.functions.invoke('verify-payment', {
-        body: { order_id: order.id, payment_id: order.payment_id, action: 'cancel' }
+        body: { order_id: order.id, payment_id: order.payment_id, action: 'check' }
       });
       const state = cancelledCheck.data || {};
       if (isPaidStatus(state.status)) {
         showPaid(order, savedLang);
         return;
       }
+      if (isCancelledStatus(state.status)) {
+        returnCancelled(order, state.status);
+        return;
+      }
     } catch (_) {}
-    returnCancelled(order, 'customer_cancelled');
-    return;
+    // SATIM/SlickPay can return before payment_status has propagated. Keep
+    // polling instead of cancelling a payment that may already be successful.
   }
 
   const startedAt = Date.now();
