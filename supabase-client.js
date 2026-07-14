@@ -124,7 +124,7 @@ async function saveOrderToDB(orderData) {
     // 1. الاتصال بدالة السيرفر الآمنة RPC لحساب السعر وإنشاء الطلب
     const { data: rpcData, error: rpcError } = await supabaseClient.rpc('create_order_secure', {
       p_items: orderData.items || [],
-      p_payment_method: orderData.payment_method || 'cib',
+      p_payment_method: orderData.payment_method === 'test' ? 'baridimob' : (orderData.payment_method || 'cib'),
       p_coupon_code: orderData.coupon_code || null,
       p_customer_info: orderData.customer_info || {}
     });
@@ -150,6 +150,19 @@ async function saveOrderToDB(orderData) {
         await supabaseClient.rpc('update_order_telegram_msg_id', { p_order_id: rpcData.order_id, p_tg_msg_id: tgMsgId });
         rpcData.telegram_msg_id = tgMsgId;
       } catch(e) {}
+    }
+
+    if (orderData.payment_method === 'test') {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session || !session.access_token) return Object.assign(rpcData, { success: false, error_message: 'Admin session required' });
+      const testRes = await fetch(`${SUPABASE_URL}/functions/v1/simulate-payment`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'x-client-info': 'strivio-admin-test' },
+        body: JSON.stringify({ order_id: rpcData.order_id })
+      });
+      const testData = await testRes.json().catch(function(){ return null; });
+      if (!testRes.ok || !testData || !testData.success) return Object.assign(rpcData, { success: false, error_message: (testData && testData.error) || 'Test payment failed' });
+      return Object.assign(rpcData, { simulated_paid: true, fulfillment_status: testData.fulfillment_status });
     }
 
     // 2. إذا كانت طريقة الدفع ليست cib، نرجع بيانات RPC فوراً دون استدعاء SlickPay
