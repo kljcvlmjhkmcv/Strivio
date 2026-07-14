@@ -795,6 +795,8 @@ async function confirmOrder(){
   }
 
   if (selPay === 'cib' && rpcData.payment_url) {
+    localStorage.setItem('strivio_pending_cart', JSON.stringify(cart));
+    localStorage.setItem('strivio_pending_order_id', String(rpcData.order_id || ''));
     localStorage.removeItem("strivio_cart");
     window.location.href = rpcData.payment_url;
     return;
@@ -846,6 +848,8 @@ async function confirmOrderSocial(platform){
   }
 
   if (selPay === 'cib' && rpcData.payment_url) {
+    localStorage.setItem('strivio_pending_cart', JSON.stringify(cart));
+    localStorage.setItem('strivio_pending_order_id', String(rpcData.order_id || ''));
     localStorage.removeItem("strivio_cart");
     window.location.href = rpcData.payment_url;
     return;
@@ -995,6 +999,15 @@ applyLang(L);
       L === 'ar' ? 'لم يتم خصم أي مبلغ. يمكنك المحاولة مرة أخرى أو اختيار طريقة دفع أخرى.' : (L === 'fr' ? 'Aucun montant n\'a été débité. Vous pouvez réessayer.' : 'No funds were charged. You can try again.')
     );
     var orderId = params.get('order_id') || '---';
+    var pendingOrderId = localStorage.getItem('strivio_pending_order_id') || '';
+    try {
+      var pendingBackup = JSON.parse(localStorage.getItem('strivio_pending_cart') || '[]');
+      if (cart.length === 0 && Array.isArray(pendingBackup) && pendingBackup.length > 0 && (!pendingOrderId || pendingOrderId === orderId)) {
+        cart = pendingBackup;
+        localStorage.setItem('strivio_cart', JSON.stringify(cart));
+        if (typeof render === 'function') render();
+      }
+    } catch (_) {}
     var bannerContainer = document.getElementById('CANCEL_BANNER_CONTAINER');
     if (bannerContainer) {
       var titleText = L === 'ar' ? 'تم إلغاء أو عدم اكتمال عملية الدفع الفوري (SATIM) ⚠️' : (L === 'fr' ? 'Paiement SATIM annulé ou non finalisé ⚠️' : 'SATIM Payment Cancelled or Unfinished ⚠️');
@@ -1028,6 +1041,8 @@ applyLang(L);
             applyLang(L);
             if (typeof render === 'function') render();
           }
+          localStorage.removeItem('strivio_pending_cart');
+          localStorage.removeItem('strivio_pending_order_id');
         }
       } catch(e) {
         console.error('Error handling cancelled order redirect:', e);
