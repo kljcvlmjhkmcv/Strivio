@@ -244,7 +244,6 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
             <input id="C_LAST" class="bg-[#181818] border border-[#333] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#39ff14]" maxlength="80">
             <input id="C_EMAIL" type="email" class="col-span-2 bg-[#181818] border border-[#333] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#39ff14]" maxlength="254">
             <input id="C_PHONE" type="tel" class="col-span-2 bg-[#181818] border border-[#333] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#39ff14]" maxlength="24">
-            <input id="C_WILAYA" class="col-span-2 bg-[#181818] border border-[#333] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#39ff14]" maxlength="80">
           </div>
           <label class="flex items-start gap-2 mt-3 text-[11px] text-gray-400"><input id="C_M_EMAIL" type="checkbox" class="mt-0.5 accent-[#39ff14]"><span id="C_EMAIL_OPT"></span></label>
           <label class="flex items-start gap-2 mt-2 text-[11px] text-gray-400"><input id="C_M_WA" type="checkbox" class="mt-0.5 accent-[#39ff14]"><span id="C_WA_OPT"></span></label>
@@ -936,14 +935,13 @@ async function getCustomerInfo(){
     last_name: ($('C_LAST').value || '').trim(),
     email: ($('C_EMAIL').value || '').trim().toLowerCase(),
     phone: ($('C_PHONE').value || '').trim(),
-    wilaya: ($('C_WILAYA').value || '').trim(),
     marketing_email_opt_in: $('C_M_EMAIL').checked,
     marketing_whatsapp_opt_in: $('C_M_WA').checked,
     consent_source: 'checkout',
     lang: L
   };
   var err = $('CUSTOMER_ERR');
-  if(!info.first_name || !info.last_name || !/^\S+@\S+\.\S+$/.test(info.email) || info.phone.length < 8 || !info.wilaya){
+  if(!info.first_name || !info.last_name || !/^\S+@\S+\.\S+$/.test(info.email) || info.phone.length < 8){
     err.textContent = CUSTOMER_TEXT[L].error;
     err.classList.remove('hidden');
     $('CUSTOMER_BOX').scrollIntoView({behavior:'smooth',block:'center'});
@@ -954,11 +952,11 @@ async function getCustomerInfo(){
 }
 
 var CUSTOMER_TEXT={
-  ar:{title:'معلومات الاستلام',account:'حسابي',first:'الاسم *',last:'اللقب *',email:'البريد الإلكتروني للاستلام *',phone:'رقم الهاتف *',wilaya:'الولاية *',emailOpt:'أوافق اختياريًا على استقبال العروض والتجديدات عبر البريد. يمكنني إلغاء الموافقة من حسابي.',waOpt:'أوافق اختياريًا على استقبال العروض والتجديدات عبر WhatsApp.',error:'يرجى إدخال الاسم واللقب والبريد الصحيح ورقم الهاتف والولاية.'},
-  fr:{title:'Informations de livraison',account:'Mon compte',first:'Prénom *',last:'Nom *',email:'E-mail de livraison *',phone:'Numéro de téléphone *',wilaya:'Wilaya *',emailOpt:'J’accepte facultativement les offres et rappels par e-mail. Je peux retirer mon consentement depuis mon compte.',waOpt:'J’accepte facultativement les offres et rappels via WhatsApp.',error:'Saisissez le prénom, le nom, un e-mail valide, le téléphone et la wilaya.'},
-  en:{title:'Delivery details',account:'My account',first:'First name *',last:'Last name *',email:'Delivery email *',phone:'Phone number *',wilaya:'Wilaya *',emailOpt:'I optionally agree to email offers and renewal reminders. I can withdraw consent from my account.',waOpt:'I optionally agree to offers and reminders through WhatsApp.',error:'Enter your first name, last name, a valid email, phone number, and wilaya.'}
+  ar:{title:'معلومات الاستلام',account:'حسابي',first:'الاسم *',last:'اللقب *',email:'البريد الإلكتروني للاستلام *',phone:'رقم الهاتف *',emailOpt:'أوافق اختياريًا على استقبال العروض والتجديدات عبر البريد. يمكنني إلغاء الموافقة من حسابي.',waOpt:'أوافق اختياريًا على استقبال العروض والتجديدات عبر WhatsApp.',error:'يرجى إدخال الاسم واللقب والبريد الصحيح ورقم الهاتف.'},
+  fr:{title:'Informations de livraison',account:'Mon compte',first:'Prénom *',last:'Nom *',email:'E-mail de livraison *',phone:'Numéro de téléphone *',emailOpt:'J’accepte facultativement les offres et rappels par e-mail. Je peux retirer mon consentement depuis mon compte.',waOpt:'J’accepte facultativement les offres et rappels via WhatsApp.',error:'Saisissez le prénom, le nom, un e-mail valide et le téléphone.'},
+  en:{title:'Delivery details',account:'My account',first:'First name *',last:'Last name *',email:'Delivery email *',phone:'Phone number *',emailOpt:'I optionally agree to email offers and renewal reminders. I can withdraw consent from my account.',waOpt:'I optionally agree to offers and reminders through WhatsApp.',error:'Enter your first name, last name, a valid email, and phone number.'}
 };
-function applyCustomerLanguage(){var c=CUSTOMER_TEXT[L]||CUSTOMER_TEXT.ar;setT('C_INFO_TITLE',c.title);setT('C_ACCOUNT_LINK',c.account);$('C_FIRST').placeholder=c.first;$('C_LAST').placeholder=c.last;$('C_EMAIL').placeholder=c.email;$('C_PHONE').placeholder=c.phone;$('C_WILAYA').placeholder=c.wilaya;setT('C_EMAIL_OPT',c.emailOpt);setT('C_WA_OPT',c.waOpt);}
+function applyCustomerLanguage(){var c=CUSTOMER_TEXT[L]||CUSTOMER_TEXT.ar;setT('C_INFO_TITLE',c.title);setT('C_ACCOUNT_LINK',c.account);$('C_FIRST').placeholder=c.first;$('C_LAST').placeholder=c.last;$('C_EMAIL').placeholder=c.email;$('C_PHONE').placeholder=c.phone;setT('C_EMAIL_OPT',c.emailOpt);setT('C_WA_OPT',c.waOpt);}
 
 async function prefillCustomer(){
   if(!window.supabaseClient) return;
@@ -967,7 +965,7 @@ async function prefillCustomer(){
   $('C_EMAIL').value = session.user.email || '';
   var {data:p} = await window.supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
   if(!p) return;
-  $('C_FIRST').value=p.first_name||''; $('C_LAST').value=p.last_name||''; $('C_PHONE').value=p.phone||''; $('C_WILAYA').value=p.wilaya||'';
+  $('C_FIRST').value=p.first_name||''; $('C_LAST').value=p.last_name||''; $('C_PHONE').value=p.phone||'';
   $('C_M_EMAIL').checked=!!p.marketing_email_opt_in; $('C_M_WA').checked=!!p.marketing_whatsapp_opt_in;
 }
 
