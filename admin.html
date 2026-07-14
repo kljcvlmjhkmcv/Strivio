@@ -516,7 +516,8 @@ async function checkAuth() {
 
 async function isAuthorizedAdmin(userId) {
   var result = await window.supabaseClient.from('admin_users').select('user_id').eq('user_id', userId).maybeSingle();
-  return !result.error && !!result.data;
+  if (result.error) throw new Error('تعذر التحقق من صلاحية حساب الأدمن: ' + result.error.message);
+  return !!result.data;
 }
 
 function showAdminLoginError(message) {
@@ -551,18 +552,22 @@ async function handleLogin(e) {
     return;
   }
 
-  var { data, error } = await window.supabaseClient.auth.signInWithPassword({
-    email: email,
-    password: pass
-  });
-
-  if (!error && data.user && !(await isAuthorizedAdmin(data.user.id))) {
-    await window.supabaseClient.auth.signOut();
-    error = new Error('هذا الحساب ليس مديراً معتمداً.');
+  var data = null;
+  var error = null;
+  try {
+    var loginResult = await window.supabaseClient.auth.signInWithPassword({ email: email, password: pass });
+    data = loginResult.data;
+    error = loginResult.error;
+    if (!error && data.user && !(await isAuthorizedAdmin(data.user.id))) {
+      await window.supabaseClient.auth.signOut();
+      error = new Error('هذا الحساب صحيح لكنه غير مضاف كحساب أدمن.');
+    }
+  } catch (loginCheckError) {
+    error = loginCheckError;
   }
 
   if (error || !data.session) {
-    errEl.textContent = '❌ بيانات الدخول غير صحيحة! تأكد من البريد وكلمة المرور.';
+    errEl.textContent = error && error.message ? '❌ ' + error.message : '❌ تعذر تسجيل الدخول. تأكد من البريد وكلمة المرور.';
     errEl.classList.remove('hidden');
     btn.textContent = '🔐 دخول آمن للوحة التحكم';
     btn.disabled = false;
