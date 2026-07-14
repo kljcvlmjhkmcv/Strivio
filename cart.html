@@ -713,6 +713,8 @@ function updateConfirmBtn(){
     btn.disabled = false;
     if (selPay === 'cib') {
       btn.textContent = L === 'ar' ? '💳 الانتقال للدفع الفوري الآمن (SATIM)' : (L === 'fr' ? '💳 Payer instantanément via SATIM' : '💳 Pay Instant & Secure via SATIM');
+    } else if (selPay === 'test') {
+      btn.textContent = L === 'ar' ? '🧪 تنفيذ دفع تجريبي مجاني' : (L === 'fr' ? '🧪 Simuler le paiement gratuit' : '🧪 Run Free Test Payment');
     } else {
       btn.textContent = tx.confirmBtn;
     }
@@ -808,8 +810,16 @@ async function confirmOrder(){
   }
 
   if (!rpcData || !rpcData.success) {
-    var errMsg = L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
+    var errMsg = rpcData && rpcData.error_message ? rpcData.error_message : (L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.'));
     alert(errMsg);
+    return;
+  }
+
+  if (selPay === 'test' && rpcData.simulated_paid) {
+    localStorage.removeItem('strivio_cart');
+    localStorage.removeItem('strivio_pending_cart');
+    localStorage.setItem('strivio_pending_order_id', String(rpcData.order_id || ''));
+    window.location.href = 'thank-you.html?test=1&order_id=' + encodeURIComponent(rpcData.order_id);
     return;
   }
 
@@ -969,6 +979,25 @@ async function prefillCustomer(){
   $('C_M_EMAIL').checked=!!p.marketing_email_opt_in; $('C_M_WA').checked=!!p.marketing_whatsapp_opt_in;
 }
 
+async function enableAdminTestPayment(){
+  if(!window.supabaseClient) return;
+  var sessionResult=await window.supabaseClient.auth.getSession();
+  var session=sessionResult.data&&sessionResult.data.session;
+  if(!session) return;
+  var membership=await window.supabaseClient.from('admin_users').select('user_id').eq('user_id',session.user.id).maybeSingle();
+  if(membership.error||!membership.data) return;
+  var labels={
+    ar:{label:'🧪 دفع تجريبي مجاني — أدمن',desc:'يعتبر الطلب مدفوعاً ويستهلك المخزون الحقيقي'},
+    fr:{label:'🧪 Paiement test gratuit — Admin',desc:'Commande payée et stock réel consommé'},
+    en:{label:'🧪 Free Test Payment — Admin',desc:'Marks paid and consumes real inventory'}
+  };
+  Object.keys(TX).forEach(function(lang){
+    if(!TX[lang].payMethods.some(function(p){return p.id==='test';})) TX[lang].payMethods.unshift({id:'test',label:labels[lang].label,desc:labels[lang].desc,icon:'🧪',disabled:false});
+  });
+  renderPayMethods();
+  updateConfirmBtn();
+}
+
 /* ══════════════════════════════════════════════════════
    MASTER RENDER
 ════════════════════════════════════════════════════════ */
@@ -1059,6 +1088,7 @@ document.querySelectorAll('.FAR').forEach(function(el){ el.innerHTML = FL.ar; })
 cart = JSON.parse(localStorage.getItem('strivio_cart') || '[]');
 applyLang(L);
 prefillCustomer();
+enableAdminTestPayment();
 
 // Check if returned from cancelled payment
 (async function checkCancelledPayment() {
