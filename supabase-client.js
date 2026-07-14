@@ -58,7 +58,9 @@ async function loadServicesFromDB() {
         promo: parseJ(s.promo, null),
         dur_notes: parseJ(s.dur_notes, (parseJ(s.promo, {}) || {}).dur_notes || null),
         out_of_stock: parseJ(s.out_of_stock, null),
-        best_value: s.best_value !== undefined && s.best_value !== null ? Number(s.best_value) : 2
+        best_value: s.best_value !== undefined && s.best_value !== null ? Number(s.best_value) : 2,
+        fulfillment_mode: s.fulfillment_mode || 'manual_delivery',
+        fulfillment_config: parseJ(s.fulfillment_config, {})
       };
     });
   } catch (e) {
@@ -128,6 +130,16 @@ async function saveOrderToDB(orderData) {
     });
 
     if (rpcError || !rpcData || !rpcData.success) {
+      return null;
+    }
+
+    // Link the order to the authenticated customer before payment starts.
+    const ownerResult = await supabaseClient.rpc('attach_order_owner_and_profile', {
+      p_order_id: rpcData.order_id,
+      p_customer_info: orderData.customer_info || {}
+    });
+    if (ownerResult.error) {
+      console.error('Could not attach customer to order', ownerResult.error);
       return null;
     }
 
@@ -327,4 +339,3 @@ function escapeHtml(str) {
 window.escapeHtml = escapeHtml;
 
 window.sendOrUpdateTelegramOrderAlert = sendOrUpdateTelegramOrderAlert;
-
