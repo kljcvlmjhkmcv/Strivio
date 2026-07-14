@@ -547,6 +547,25 @@ function changeQty(idx, delta){
   render();
 }
 
+function normalizedCartItems(){
+  return cart.map(function(item){
+    var q = parseInt(item.qty || item.quantity || 1, 10);
+    if(!Number.isFinite(q) || q < 1) q = 1;
+    if(q > 20) q = 20;
+    var unit = Number(item.unitPrice || 0);
+    if(!unit){
+      var rawPrice = Number(item.price || 0);
+      unit = rawPrice && q ? rawPrice / q : 0;
+    }
+    return Object.assign({}, item, {
+      qty: q,
+      quantity: q,
+      unitPrice: unit,
+      price: unit * q
+    });
+  });
+}
+
 /* ══════════════════════════════════════════════════════
    RENDER SUMMARY
 ════════════════════════════════════════════════════════ */
@@ -795,7 +814,7 @@ async function confirmOrder(){
   var rpcData = null;
   if (typeof saveOrderToDB === 'function') {
     rpcData = await saveOrderToDB({
-      items: cart,
+      items: normalizedCartItems(),
       payment_method: selPay,
       coupon_code: appliedCoupon || null,
       customer_info: customerInfo
@@ -826,7 +845,7 @@ async function confirmOrder(){
   }
 
   if (selPay === 'cib' && rpcData.payment_url) {
-    localStorage.setItem('strivio_pending_cart', JSON.stringify(cart));
+    localStorage.setItem('strivio_pending_cart', JSON.stringify(normalizedCartItems()));
     localStorage.setItem('strivio_pending_order_id', String(rpcData.order_id || ''));
     localStorage.removeItem("strivio_cart");
     window.location.href = rpcData.payment_url;
@@ -865,7 +884,7 @@ async function confirmOrderSocial(platform){
   var rpcData = null;
   if (typeof saveOrderToDB === 'function') {
     rpcData = await saveOrderToDB({
-      items: cart,
+      items: normalizedCartItems(),
       payment_method: selPay,
       coupon_code: appliedCoupon || null,
       customer_info: Object.assign({}, customerInfo, { platform: platform })
@@ -881,7 +900,7 @@ async function confirmOrderSocial(platform){
   }
 
   if (selPay === 'cib' && rpcData.payment_url) {
-    localStorage.setItem('strivio_pending_cart', JSON.stringify(cart));
+    localStorage.setItem('strivio_pending_cart', JSON.stringify(normalizedCartItems()));
     localStorage.setItem('strivio_pending_order_id', String(rpcData.order_id || ''));
     localStorage.removeItem("strivio_cart");
     window.location.href = rpcData.payment_url;
