@@ -536,11 +536,13 @@ function renderItems(){
 
 function changeQty(idx, delta){
   if(!cart[idx]) return;
-  var q = (cart[idx].qty || 1) + delta;
+  var previousQty = Number(cart[idx].qty || 1);
+  if(!Number(cart[idx].unitPrice)) cart[idx].unitPrice = Number(cart[idx].price || 0) / previousQty;
+  var q = previousQty + delta;
   if(q < 1) q = 1;
   if(q > 20) q = 20;
   cart[idx].qty = q;
-  cart[idx].price = (cart[idx].unitPrice || cart[idx].price) * q;
+  cart[idx].price = Number(cart[idx].unitPrice || 0) * q;
   localStorage.setItem('strivio_cart', JSON.stringify(cart));
   render();
 }
@@ -550,7 +552,7 @@ function changeQty(idx, delta){
 ════════════════════════════════════════════════════════ */
 function renderSummary(){
   var tx = t();
-  var sub = cart.reduce(function(s,i){ return s + (i.price || (i.unitPrice * (i.qty||1))); }, 0);
+  var sub = cart.reduce(function(s,i){ var q=Number(i.qty||1),u=Number(i.unitPrice||0)||Number(i.price||0)/q; return s + u*q; }, 0);
   var disc = appliedCoupon ? (couponDiscount || 0) : 0;
   var subAfterDisc = Math.max(0, sub - disc);
   var flexyFee = Math.round(subAfterDisc * 0.19);
@@ -644,7 +646,7 @@ $('CPN_BTN').addEventListener('click', async function(){
     return;
   }
   if (typeof validateCouponInDB === 'function') {
-    var sub = cart.reduce(function(s,i){ return s + (i.price || (i.unitPrice * (i.qty||1))); }, 0);
+    var sub = cart.reduce(function(s,i){ var q=Number(i.qty||1),u=Number(i.unitPrice||0)||Number(i.price||0)/q; return s + u*q; }, 0);
     var res = await validateCouponInDB(val, sub);
     if (res && res.valid) {
       appliedCoupon = val;
