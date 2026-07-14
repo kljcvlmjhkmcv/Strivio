@@ -339,11 +339,14 @@ function isCancelledStatus(status) {
   return status === 'cancelled' || status === 'failed' || status === 'expired';
 }
 
-async function fetchOrder(orderId) {
-  let result = await window.supabaseClient.from('orders').select('*').eq('id', orderId).single();
-  if (result.data) return result.data;
-  result = await window.supabaseClient.from('orders').select('*').eq('payment_id', orderId).single();
-  return result.data || null;
+async function verifyAndFetchOrder(orderId, action = 'check') {
+  const result = await window.supabaseClient.functions.invoke('verify-payment', {
+    body: orderId.includes('-')
+      ? { order_id: orderId, action }
+      : { payment_id: orderId, action }
+  });
+  if (result.error || !result.data?.success || !result.data?.order) return null;
+  return { order: result.data.order, state: result.data };
 }
 
 function renderOrderDetails(order, lang) {
@@ -424,18 +427,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  let order = null;
-  try { order = await fetchOrder(orderId); } catch (_) {}
-  if (!order) {
+  let initialVerification = null;
+  try { initialVerification = await verifyAndFetchOrder(orderId); } catch (_) {}
+  if (!initialVerification) {
     window.location.replace(`cart.html?payment_cancelled=1&order_id=${encodeURIComponent(orderId)}&reason=order_not_found`);
     return;
   }
+  const order = initialVerification.order;
 
   renderOrderDetails(order, savedLang);
   updateWhatsApp(order.id, savedLang, false);
 
-  if (isPaidStatus(order.status)) {
+  if (isPaidStatus(initialVerification.state.status) && initialVerification.state.verified !== false) {
     showPaid(order, savedLang);
+    return;
+  }
+
+  if (isCancelledStatus(initialVerification.state.status) && !cancellationReturned) {
+    returnCancelled(order, initialVerification.state.status);
     return;
   }
 
