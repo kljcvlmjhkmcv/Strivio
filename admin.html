@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl" class="scroll-smooth">
 <head>
 <meta charset="UTF-8"/>
@@ -316,6 +316,13 @@
     <div class="glass-card p-6 rounded-3xl">
       <h3 class="text-white font-bold text-lg mb-2">⚡ طريقة تسليم كل منتج</h3>
       <p class="text-xs text-gray-400 mb-4">بيانات الحسابات تُشفّر في الخادم ولا تظهر مجددًا بعد حفظها.</p>
+            <div class="mb-4 p-4 rounded-2xl border border-brand-neon/25 bg-brand-neon/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div>
+          <div class="font-bold text-white">🔄 تحديث Google Sheet من قاعدة البيانات</div>
+          <div id="sheet-sync-status" class="text-xs text-gray-400 mt-1">استخدمه لو الشيت تأخر أو ما ظهرت آخر الطلبات/المخزون.</div>
+        </div>
+        <button id="sheet-sync-btn" onclick="syncGoogleSheetNow()" class="save-btn py-2.5 px-5 text-sm whitespace-nowrap">Sync Sheet Now</button>
+      </div>
       <div class="grid md:grid-cols-2 gap-3"><select id="ful-service" class="input-box"></select><select id="ful-mode" class="input-box"><option value="automatic_slot">شاشات/بروفايلات — آلي</option><option value="automatic_account">حساب كامل — آلي</option><option value="automatic_license">أكواد أو تراخيص — آلي</option><option value="manual_activation">تفعيل حساب العميل</option><option value="email_invite">دعوة عبر البريد</option><option value="manual_delivery">تسليم يدوي</option></select></div>
       <textarea id="ful-instructions" class="input-box mt-3 h-20" placeholder="تعليمات للعميل (اختياري)"></textarea><button onclick="saveFulfillmentMode()" class="save-btn w-full mt-3 py-3">حفظ إعداد التسليم</button>
     </div>
@@ -814,6 +821,25 @@ async function inventoryCall(body){
   try{data=await response.json();}catch(_ignored){}
   if(!response.ok||!data||!data.success)throw new Error((data&&data.error)||('تعذر تنفيذ العملية (HTTP '+response.status+')'));
   return data;
+}
+async function syncGoogleSheetNow(){
+  var btn=document.getElementById('sheet-sync-btn');
+  var status=document.getElementById('sheet-sync-status');
+  try{
+    if(btn){btn.disabled=true;btn.textContent='Syncing...';}
+    if(status)status.textContent='جاري تحديث Google Sheet من قاعدة البيانات...';
+    var result=await inventoryCall({action:'sync_sheet'});
+    var sync=result.sync||{};
+    var processed=(sync.processed!==undefined)?sync.processed:'-';
+    var sent=(sync.sent!==undefined)?sync.sent:'-';
+    if(status)status.textContent='تم تحديث Google Sheet. تمت معالجة '+processed+' وإرسال '+sent+'.';
+    showToast('تم تحديث Google Sheet من قاعدة البيانات.');
+  }catch(e){
+    if(status)status.textContent='فشل تحديث الشيت: '+(e.message||e);
+    alert('فشل تحديث الشيت: '+(e.message||e));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Sync Sheet Now';}
+  }
 }
 async function addInventoryAccount(){try{var lines=document.getElementById('inv-profiles').value.split(/\r?\n/).filter(Boolean),profiles=lines.map(function(line){var p=line.split('|');return{name:(p[0]||'').trim(),pin:(p[1]||'').trim()};});var capacity=Number(document.getElementById('inv-capacity').value||profiles.length||1);await inventoryCall({action:'add_account',service_id:document.getElementById('inv-account-service').value,label:document.getElementById('inv-label').value.trim(),email:document.getElementById('inv-email').value.trim(),password:document.getElementById('inv-password').value,capacity:capacity,profiles:profiles});document.getElementById('inv-password').value='';showToast('تم تشفير الحساب وإضافة الشاشات.');loadInventory();}catch(e){alert(e.message)}}
 async function addInventoryLicenses(){try{var codes=document.getElementById('inv-codes').value.split(/\r?\n/).filter(Boolean);var r=await inventoryCall({action:'add_licenses',service_id:document.getElementById('inv-license-service').value,codes:codes});document.getElementById('inv-codes').value='';showToast('تمت إضافة '+r.count+' أكواد.');loadInventory();}catch(e){alert(e.message)}}
