@@ -184,7 +184,7 @@
   <div class="mb-10">
     <div class="flex items-center justify-between mb-4">
       <h2 class="font-display font-black text-lg text-white flex items-center gap-2"><span class="text-brand-neon">📊</span> إحصائيات المبيعات والطلبات (مباشر من Supabase):</h2>
-      <button onclick="loadOrders()" class="text-xs text-gray-400 hover:text-brand-neon flex items-center gap-1 transition-colors">🔄 تحديث الأرقام</button>
+      <div class="flex items-center gap-3"><a href="operations.html" class="text-xs text-brand-neon hover:underline">مركز العمليات الجديد ↗</a><button onclick="loadOrders()" class="text-xs text-gray-400 hover:text-brand-neon flex items-center gap-1 transition-colors">🔄 تحديث الأرقام</button></div>
     </div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
       <div class="stat-card">
@@ -844,12 +844,22 @@ async function syncGoogleSheetNow(){
 async function addInventoryAccount(){try{var lines=document.getElementById('inv-profiles').value.split(/\r?\n/).filter(Boolean),profiles=lines.map(function(line){var p=line.split('|');return{name:(p[0]||'').trim(),pin:(p[1]||'').trim()};});var capacity=Number(document.getElementById('inv-capacity').value||profiles.length||1);await inventoryCall({action:'add_account',service_id:document.getElementById('inv-account-service').value,label:document.getElementById('inv-label').value.trim(),email:document.getElementById('inv-email').value.trim(),password:document.getElementById('inv-password').value,capacity:capacity,profiles:profiles});document.getElementById('inv-password').value='';showToast('تم تشفير الحساب وإضافة الشاشات.');loadInventory();}catch(e){alert(e.message)}}
 async function addInventoryLicenses(){try{var codes=document.getElementById('inv-codes').value.split(/\r?\n/).filter(Boolean);var r=await inventoryCall({action:'add_licenses',service_id:document.getElementById('inv-license-service').value,codes:codes});document.getElementById('inv-codes').value='';showToast('تمت إضافة '+r.count+' أكواد.');loadInventory();}catch(e){alert(e.message)}}
 async function inventoryAction(action,kind,id,status){try{if(action==='delete'&&!confirm('حذف عنصر المخزون نهائياً؟'))return;await inventoryCall({action:action,kind:kind,id:id,status:status});showToast('تم تحديث المخزون.');await loadInventory();}catch(e){alert('خطأ المخزون: '+e.message);}}
+function inventoryProfileNo(label){
+  var m=String(label||'').match(/\d+/);
+  return m?Number(m[0]):9999;
+}
+function sortInventorySlots(a,b){
+  return inventoryProfileNo(a.label)-inventoryProfileNo(b.label)||
+    String(a.label||'').localeCompare(String(b.label||''))||
+    String(a.created_at||'').localeCompare(String(b.created_at||''))||
+    String(a.id||'').localeCompare(String(b.id||''));
+}
 async function loadInventory(){
   var el=document.getElementById('inventory-list');if(!el)return;el.textContent='جاري التحميل...';
   try{
     var d=await inventoryCall({action:'list'}),names={};ADMIN_SERVICES.forEach(function(s){names[s.id]=(s.n&&s.n.ar)||s.id;});
     var cards=(d.accounts||[]).map(function(a){
-      var ss=(d.slots||[]).filter(function(s){return s.account_id===a.id;}),free=ss.filter(function(s){return s.status==='available';}).length;
+      var ss=(d.slots||[]).filter(function(s){return s.account_id===a.id;}).sort(sortInventorySlots),free=ss.filter(function(s){return s.status==='available';}).length;
       var slots=ss.map(function(s){return '<div class="flex items-center justify-between gap-2 mt-2 p-2 rounded-lg bg-black/30"><span>'+escapeHtml(s.label)+' — '+escapeHtml(s.status)+'</span><div class="flex gap-1"><button onclick="inventoryAction(\'set_status\',\'slots\',\''+s.id+'\',\''+(s.status==='available'?'maintenance':'available')+'\')" class="text-[10px] px-2 py-1 rounded border border-brand-border">'+(s.status==='available'?'إيقاف':'إتاحة')+'</button><button onclick="inventoryAction(\'delete\',\'slots\',\''+s.id+'\')" class="text-[10px] text-red-400">حذف</button></div></div>';}).join('');
       return '<div class="p-4 rounded-xl border border-brand-border mb-3"><div class="flex justify-between gap-3"><div><b class="text-white">'+escapeHtml(names[a.service_id]||a.service_id)+' — '+escapeHtml(a.label)+'</b><div class="mt-1">الشاشات المتاحة: <span class="text-brand-neon">'+free+'</span> / '+ss.length+' • '+escapeHtml(a.status)+'</div></div><div class="flex gap-2"><button onclick="inventoryAction(\'set_status\',\'accounts\',\''+a.id+'\',\''+(a.status==='active'?'maintenance':'active')+'\')" class="text-xs text-yellow-300">'+(a.status==='active'?'إيقاف':'تفعيل')+'</button><button onclick="inventoryAction(\'delete\',\'accounts\',\''+a.id+'\')" class="text-xs text-red-400">حذف</button></div></div>'+slots+'</div>';
     });
