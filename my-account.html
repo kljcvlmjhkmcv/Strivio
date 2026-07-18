@@ -632,7 +632,7 @@
             '">WhatsApp لهذا الطلب</a></div></div>';
           document.body.appendChild(wrap);
         } catch (e) {
-          alert("تعذر فتح تفاصيل الطلب. تأكد أنك داخل الحساب الذي أجرى الطلب.");
+          showAppNotice("تعذر فتح تفاصيل الطلب. تأكد أنك داخل الحساب الذي أجرى الطلب.", { tone: "error" });
         }
       }
       function renderDelivery(fs, orderId) {
@@ -745,7 +745,7 @@
             return submitRenewal(event, orderId, fulfillmentId);
           };
         } catch (error) {
-          alert(error.message || "تعذر فتح التجديد.");
+          showAppNotice(error.message || "تعذر فتح التجديد.", { tone: "error" });
         }
       }
       async function submitRenewal(event, orderId, fulfillmentId) {
@@ -756,7 +756,7 @@
             ),
           ),
           button = event.target.querySelector('button[type="submit"]');
-        if (!selected.length) return alert("اختر اشتراكًا واحدًا على الأقل.");
+        if (!selected.length) return showAppNotice("اختر اشتراكًا واحدًا على الأقل.", { tone: "error" });
         var kinds = Array.from(
           new Set(
             selected.map(function (input) {
@@ -765,7 +765,7 @@
           ),
         );
         if (kinds.length !== 1)
-          return alert("جدّد نوعًا واحدًا من الاشتراكات في كل عملية.");
+          return showAppNotice("جدّد نوعًا واحدًا من الاشتراكات في كل عملية.", { tone: "error" });
         button.disabled = true;
         button.textContent = "جاري إنشاء طلب التجديد…";
         try {
@@ -816,7 +816,7 @@
         } catch (error) {
           button.disabled = false;
           button.textContent = "المتابعة إلى الدفع";
-          alert("تعذر بدء التجديد: " + error.message);
+          showAppNotice("تعذر بدء التجديد: " + error.message, { tone: "error" });
         }
       }
       function orderCard(o, small = false) {
@@ -1029,13 +1029,13 @@
             return;
           }
           btn.disabled = false;
-          return alert("تعذر حفظ البلاغ: " + result.error.message);
+          return showAppNotice("تعذر حفظ البلاغ: " + result.error.message, { tone: "error" });
         }
         await loadProblems();
         renderOrders();
         if (window.accountPortalApply) window.accountPortalApply();
         document.getElementById("report")?.remove();
-        alert(existingId ? "تم إرسال ردك داخل البلاغ." : "تم إرسال البلاغ.");
+        showAppNotice(existingId ? "تم إرسال ردك داخل البلاغ." : "تم إرسال البلاغ.", { tone: "success" });
       }
       async function loadProblems() {
         let [r, m] = await Promise.all([
@@ -1120,7 +1120,7 @@
               updated_at: new Date().toISOString(),
             },
             r = await window.supabaseClient.from("profiles").upsert(data);
-          alert(
+            showAppNotice(
             r.error
               ? "تعذر حفظ البيانات: " + r.error.message
               : "تم حفظ بياناتك بنجاح",
@@ -1633,7 +1633,7 @@
               return window.openRenewal(id, eligible[0].id);
             return window.showDetails(id);
           } catch (error) {
-            alert(error.message || "Renewal is not available right now.");
+            showAppNotice(error.message || "Renewal is not available right now.", { tone: "error" });
           }
         }
         window.renewSubscription = renewSubscription;

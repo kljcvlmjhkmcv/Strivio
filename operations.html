@@ -425,6 +425,22 @@
       </form>
     </div>
     <div
+      id="end-date-modal"
+      class="hidden fixed inset-0 z-[65] p-4 bg-black/80 backdrop-blur-sm flex items-center justify-center"
+    >
+      <form id="end-date-form" class="panel rounded-[24px] w-full max-w-md p-6">
+        <div class="flex justify-between gap-4 items-start">
+          <div><div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">SUBSCRIPTION CONTROL</div><h2 class="display text-xl font-black mt-1">تعديل تاريخ الانتهاء</h2><p class="muted text-xs mt-2">سيتم تحديث البروفايل والطلب والشيت مع تسجيل التغيير في سجل العمليات.</p></div>
+          <button type="button" class="btn" onclick="closeEndDateEditor()">إغلاق</button>
+        </div>
+        <input id="end-date-allocation" type="hidden" />
+        <label class="muted text-xs block mt-5 mb-2">تاريخ الانتهاء الجديد</label>
+        <input id="end-date-value" type="date" class="input" required />
+        <label class="flex gap-2 text-sm text-gray-300 bg-black/20 border border-white/5 p-3 rounded-xl mt-4"><input id="end-date-notify" type="checkbox" class="accent-[#39ff14]" /><span>إرسال إشعار للعميل إذا كان البريد مفعّلًا.</span></label>
+        <div class="flex justify-end gap-2 mt-6"><button type="button" class="btn" onclick="closeEndDateEditor()">إلغاء</button><button class="btn neon" type="submit">حفظ التاريخ</button></div>
+      </form>
+    </div>
+    <div
       id="toast"
       class="hidden fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm"
     ></div>
@@ -548,14 +564,13 @@
         return m ? Number(m[0]) : 9999;
       }
       function toast(message, bad) {
+        if (window.showAppNotice)
+          return window.showAppNotice(message, {
+            tone: bad ? "error" : "success",
+          });
         var el = $("toast");
         el.textContent = message;
-        el.className =
-          "fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm " +
-          (bad ? "text-red-300" : "text-[#39ff14]");
-        setTimeout(function () {
-          el.className = "hidden";
-        }, 4200);
+        el.className = "fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm";
       }
       async function requireAdmin() {
         try {
@@ -1216,11 +1231,14 @@
                 '</button></div></div></div><div class="border-t border-[#292929]">' +
                 slots
                   .map(function (s) {
-                    return (
+              return (
                       '<div class="px-4 py-3 border-b border-[#202020] last:border-0 flex items-center justify-between gap-3"><div><b>' +
                       esc(s.label || "Profile") +
-                      '</b></div><div class="flex items-center gap-2">' +
+                      '</b>' +
+                      (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<div class="muted text-[11px] mt-1">ينتهي: '+esc(allocation.ends_at?new Date(allocation.ends_at).toLocaleDateString('ar-DZ'):'غير محدد')+'</div>':'';})() +
+                      '</div><div class="flex items-center gap-2">' +
                       statusBadge(s.status) +
+                      (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<button class="btn" onclick="openEndDateEditor(\''+esc(allocation.id)+'\',\''+esc(allocation.ends_at||'')+'\')">تعديل الانتهاء</button>':'';})() +
                       "<button class=\"btn\" onclick=\"setInventoryStatus('slots','" +
                       esc(s.id) +
                       "','" +
@@ -1251,6 +1269,35 @@
           toast(e.message, true);
         }
       }
+      function openEndDateEditor(allocationId, endsAt) {
+        $("end-date-allocation").value = allocationId || "";
+        $("end-date-value").value = endsAt ? new Date(endsAt).toISOString().slice(0, 10) : "";
+        $("end-date-notify").checked = false;
+        $("end-date-modal").classList.remove("hidden");
+      }
+      function closeEndDateEditor() {
+        $("end-date-modal").classList.add("hidden");
+      }
+      $("end-date-form").addEventListener("submit", async function (event) {
+        event.preventDefault();
+        var button = event.target.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+          var result = await inventoryCall({
+            action: "update_allocation_end",
+            allocation_id: $("end-date-allocation").value,
+            ends_at: $("end-date-value").value,
+            notify: $("end-date-notify").checked,
+          });
+          closeEndDateEditor();
+          toast("تم تحديث تاريخ الانتهاء وتسجيله في الشيت.");
+          await loadAll();
+        } catch (error) {
+          toast("تعذر تحديث تاريخ الانتهاء: " + error.message, true);
+        } finally {
+          button.disabled = false;
+        }
+      });
       function openAccountEditor(id) {
         editingAccount =
           state.accounts.find(function (a) {

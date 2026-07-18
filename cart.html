@@ -833,7 +833,7 @@ async function confirmOrder(){
 
   if (!rpcData || !rpcData.success) {
     var errMsg = rpcData && rpcData.error_message ? rpcData.error_message : (L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.'));
-    alert(errMsg);
+    showAppNotice(errMsg, { tone: 'error' });
     return;
   }
 
@@ -857,7 +857,7 @@ async function confirmOrder(){
     if (rpcData.error_message) {
       console.error("SlickPay / create-payment failure details:", rpcData.error_message);
     }
-    alert(L === 'ar' ? '⚠️ تعذر الاتصال ببوابة الدفع الإلكتروني حالياً. سيتم توجيهك إلى واتساب لإتمام الدفع مباشرة مع الدعم الفني.' : (L === 'fr' ? '⚠️ Impossible de contacter la passerelle de paiement. Redirection vers WhatsApp...' : '⚠️ Could not reach payment gateway. Redirecting to WhatsApp...'));
+    showAppNotice(L === 'ar' ? '⚠️ تعذر الاتصال ببوابة الدفع الإلكتروني حالياً. سيتم توجيهك إلى واتساب لإتمام الدفع مباشرة مع الدعم الفني.' : (L === 'fr' ? '⚠️ Impossible de contacter la passerelle de paiement. Redirection vers WhatsApp...' : '⚠️ Could not reach payment gateway. Redirecting to WhatsApp...'), { tone: 'error' });
   }
 
   var msg = buildMessage(rpcData);
@@ -870,7 +870,7 @@ async function confirmOrder(){
 
 async function confirmOrderSocial(platform){
   if(!selPay || cart.length === 0){
-    alert(t().selectPayFirst);
+    showAppNotice(t().selectPayFirst, { tone: 'error' });
     return;
   }
   var tx = t();
@@ -896,7 +896,7 @@ async function confirmOrderSocial(platform){
 
   if (!rpcData || !rpcData.success) {
     var errMsg = L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
-    alert(errMsg);
+    showAppNotice(errMsg, { tone: 'error' });
     return;
   }
 

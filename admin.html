@@ -803,7 +803,7 @@ function setupFulfillmentAdmin(){
   var sel=document.getElementById('ful-service');
   if(sel&&!sel.dataset.bound){sel.dataset.bound='1';sel.addEventListener('change',function(){var s=ADMIN_SERVICES.find(function(x){return x.id===sel.value;})||{};document.getElementById('ful-mode').value=s.fulfillment_mode||'manual_delivery';document.getElementById('ful-instructions').value=(s.fulfillment_config&&s.fulfillment_config.instructions)||'';});sel.dispatchEvent(new Event('change'));}
 }
-async function saveFulfillmentMode(){var id=document.getElementById('ful-service').value,mode=document.getElementById('ful-mode').value,instructions=document.getElementById('ful-instructions').value.trim();var res=await window.supabaseClient.from('services').update({fulfillment_mode:mode,fulfillment_config:{instructions:instructions}}).eq('id',id);if(res.error)return alert('تعذر الحفظ: '+res.error.message);var s=ADMIN_SERVICES.find(function(x){return x.id===id;});if(s){s.fulfillment_mode=mode;s.fulfillment_config={instructions:instructions};}showToast('تم حفظ طريقة التسليم.');}
+async function saveFulfillmentMode(){var id=document.getElementById('ful-service').value,mode=document.getElementById('ful-mode').value,instructions=document.getElementById('ful-instructions').value.trim();var res=await window.supabaseClient.from('services').update({fulfillment_mode:mode,fulfillment_config:{instructions:instructions}}).eq('id',id);if(res.error)return showAppNotice('تعذر الحفظ: '+res.error.message,{tone:'error'});var s=ADMIN_SERVICES.find(function(x){return x.id===id;});if(s){s.fulfillment_mode=mode;s.fulfillment_config={instructions:instructions};}showToast('تم حفظ طريقة التسليم.');}
 async function inventoryCall(body){
   var sessionResult=await window.supabaseClient.auth.getSession();
   var session=sessionResult.data&&sessionResult.data.session;
@@ -837,14 +837,14 @@ async function syncGoogleSheetNow(){
     showToast('تم تحديث Google Sheet من قاعدة البيانات.');
   }catch(e){
     if(status)status.textContent='فشل تحديث الشيت: '+(e.message||e);
-    alert('فشل تحديث الشيت: '+(e.message||e));
+    showAppNotice('فشل تحديث الشيت: '+(e.message||e),{tone:'error'});
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Sync Sheet Now';}
   }
 }
-async function addInventoryAccount(){try{var lines=document.getElementById('inv-profiles').value.split(/\r?\n/).filter(Boolean),profiles=lines.map(function(line){var p=line.split('|');return{name:(p[0]||'').trim(),pin:(p[1]||'').trim()};});var capacity=Number(document.getElementById('inv-capacity').value||profiles.length||1);await inventoryCall({action:'add_account',service_id:document.getElementById('inv-account-service').value,label:document.getElementById('inv-label').value.trim(),email:document.getElementById('inv-email').value.trim(),password:document.getElementById('inv-password').value,capacity:capacity,profiles:profiles});document.getElementById('inv-password').value='';showToast('تم تشفير الحساب وإضافة الشاشات.');loadInventory();}catch(e){alert(e.message)}}
-async function addInventoryLicenses(){try{var codes=document.getElementById('inv-codes').value.split(/\r?\n/).filter(Boolean);var r=await inventoryCall({action:'add_licenses',service_id:document.getElementById('inv-license-service').value,codes:codes});document.getElementById('inv-codes').value='';showToast('تمت إضافة '+r.count+' أكواد.');loadInventory();}catch(e){alert(e.message)}}
-async function inventoryAction(action,kind,id,status){try{if(action==='delete'&&!confirm('حذف عنصر المخزون نهائياً؟'))return;await inventoryCall({action:action,kind:kind,id:id,status:status});showToast('تم تحديث المخزون.');await loadInventory();}catch(e){alert('خطأ المخزون: '+e.message);}}
+async function addInventoryAccount(){try{var lines=document.getElementById('inv-profiles').value.split(/\r?\n/).filter(Boolean),profiles=lines.map(function(line){var p=line.split('|');return{name:(p[0]||'').trim(),pin:(p[1]||'').trim()};});var capacity=Number(document.getElementById('inv-capacity').value||profiles.length||1);await inventoryCall({action:'add_account',service_id:document.getElementById('inv-account-service').value,label:document.getElementById('inv-label').value.trim(),email:document.getElementById('inv-email').value.trim(),password:document.getElementById('inv-password').value,capacity:capacity,profiles:profiles});document.getElementById('inv-password').value='';showToast('تم تشفير الحساب وإضافة الشاشات.');loadInventory();}catch(e){showAppNotice(e.message,{tone:'error'})}}
+async function addInventoryLicenses(){try{var codes=document.getElementById('inv-codes').value.split(/\r?\n/).filter(Boolean);var r=await inventoryCall({action:'add_licenses',service_id:document.getElementById('inv-license-service').value,codes:codes});document.getElementById('inv-codes').value='';showToast('تمت إضافة '+r.count+' أكواد.');loadInventory();}catch(e){showAppNotice(e.message,{tone:'error'})}}
+async function inventoryAction(action,kind,id,status){try{if(action==='delete'&&!confirm('حذف عنصر المخزون نهائياً؟'))return;await inventoryCall({action:action,kind:kind,id:id,status:status});showToast('تم تحديث المخزون.');await loadInventory();}catch(e){showAppNotice('خطأ المخزون: '+e.message,{tone:'error'});}}
 function inventoryProfileNo(label){
   var m=String(label||'').match(/\d+/);
   return m?Number(m[0]):9999;
@@ -969,9 +969,9 @@ async function saveServicePricing(serviceId, idx) {
 
     if (error && rpcErr) {
       if (error.message && error.message.indexOf('does not exist') !== -1) {
-        alert('تنبيه: لتفعيل حفظ الخصومات والمدة الأكثر شراءً وشارات البطاقات، يجب تشغيل أمر SQL البسيط التالي مرة واحدة في حسابك على Supabase (SQL Editor):\n\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS promo JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS out_of_stock JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS best_value INTEGER DEFAULT 2;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS pop TEXT;\n\nتم حفظ باقي الأسعار الأساسية بنجاح!');
+        showAppNotice('تنبيه: لتفعيل حفظ الخصومات والمدة الأكثر شراءً وشارات البطاقات، يجب تشغيل أمر SQL البسيط التالي مرة واحدة في حسابك على Supabase (SQL Editor):\n\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS promo JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS out_of_stock JSONB;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS best_value INTEGER DEFAULT 2;\nALTER TABLE public.services ADD COLUMN IF NOT EXISTS pop TEXT;\n\nتم حفظ باقي الأسعار الأساسية بنجاح!',{tone:'info',duration:9000});
       } else {
-        alert('خطأ أثناء حفظ التعديلات في Supabase: ' + error.message);
+        showAppNotice('خطأ أثناء حفظ التعديلات في Supabase: ' + error.message,{tone:'error'});
       }
     } else {
       showToast('✅ تم حفظ وتحديث أسعار ' + s.n.ar + ' بنجاح في قاعدة البيانات!');
@@ -1007,13 +1007,13 @@ async function addCoupon() {
   var code = document.getElementById('new-coupon-code').value.trim().toUpperCase();
   var type = document.getElementById('new-coupon-type').value;
   var val = parseInt(document.getElementById('new-coupon-val').value) || 0;
-  if (!code || val <= 0) { alert('يرجى إدخال كود صحيح وقيمة خصم أكبر من 0'); return; }
+  if (!code || val <= 0) { showAppNotice('يرجى إدخال كود صحيح وقيمة خصم أكبر من 0',{tone:'error'}); return; }
 
   if (window.supabaseClient) {
     var { error } = await window.supabaseClient.from('coupons').insert([{
       code: code, type: type, val: val, active: true
     }]);
-    if (error) alert('خطأ أثناء إضافة الكوبون (تأكد من الصلاحيات): ' + error.message);
+    if (error) showAppNotice('خطأ أثناء إضافة الكوبون (تأكد من الصلاحيات): ' + error.message,{tone:'error'});
     else {
       showToast('تمت إضافة الكوبون ' + code + ' بنجاح!');
       document.getElementById('new-coupon-code').value = '';
@@ -1068,7 +1068,7 @@ async function updateOrderStatus(id, newStatus) {
 
     var { error } = await window.supabaseClient.from('orders').update({ status: newStatus }).eq('id', id);
     if (error && rpcErr) {
-      alert('خطأ: ' + error.message);
+      showAppNotice('خطأ: ' + error.message,{tone:'error'});
     } else {
       showToast('✅ تم تحديث حالة الطلب إلى: ' + newStatus);
       if (ord && typeof window.sendOrUpdateTelegramOrderAlert === 'function' && ord.telegram_msg_id) {
@@ -1129,7 +1129,7 @@ async function bulkDeleteOrders() {
   if (window.supabaseClient) {
     var { error } = await window.supabaseClient.from('orders').delete().in('id', ids);
     if (error) {
-      alert('خطأ أثناء الحذف الجماعي: ' + error.message);
+      showAppNotice('خطأ أثناء الحذف الجماعي: ' + error.message,{tone:'error'});
     } else {
       showToast('✅ تم حذف (' + ids.length + ') طلب بنجاح!');
       loadOrders();
@@ -1159,7 +1159,7 @@ async function bulkUpdateOrdersStatus(newStatus) {
     }
     var { error } = await window.supabaseClient.from('orders').update({ status: newStatus }).in('id', ids);
     if (error) {
-      alert('خطأ أثناء تحديث الحالة: ' + error.message);
+      showAppNotice('خطأ أثناء تحديث الحالة: ' + error.message,{tone:'error'});
     } else {
       showToast('✅ تم تحديث حالة (' + ids.length + ') طلب إلى: ' + newStatus + ' بنجاح!');
       loadOrders();
@@ -1308,13 +1308,13 @@ async function addReviewAdmin() {
   var srv = document.getElementById('rev-srv').value.trim() || 'Subscription';
   var date = document.getElementById('rev-date').value.trim() || 'اليوم';
   var txt = document.getElementById('rev-txt').value.trim();
-  if (!name || !txt) { alert('يرجى إدخال اسم العميل ونص التقييم'); return; }
+  if (!name || !txt) { showAppNotice('يرجى إدخال اسم العميل ونص التقييم',{tone:'error'}); return; }
 
   if (window.supabaseClient) {
     var { error } = await window.supabaseClient.from('reviews').insert([{
       i: init, n: name, s: srv, d: date, t: txt, active: true
     }]);
-    if (error) alert('خطأ أثناء إضافة التقييم: ' + error.message);
+    if (error) showAppNotice('خطأ أثناء إضافة التقييم: ' + error.message,{tone:'error'});
     else {
       showToast('تمت إضافة التقييم بنجاح!');
       document.getElementById('rev-name').value = '';
@@ -1327,7 +1327,7 @@ async function addReviewAdmin() {
 async function deleteReviewAdmin(id) {
   if (!confirm('هل أنت متأكد من حذف هذا التقييم؟')) return;
   var { error } = await window.supabaseClient.from('reviews').delete().eq('id', id);
-  if (error) alert('خطأ أثناء الحذف: ' + error.message);
+  if (error) showAppNotice('خطأ أثناء الحذف: ' + error.message,{tone:'error'});
   else {
     showToast('تم حذف التقييم بنجاح');
     loadReviewsAdmin();
@@ -1372,7 +1372,7 @@ async function addFaqAdmin() {
   var aEn = document.getElementById('faq-a-en').value.trim() || aAr;
   var aFr = document.getElementById('faq-a-fr').value.trim() || aAr;
 
-  if (!id || !qAr || !aAr) { alert('يرجى إدخال معرف السؤال (ID) والسؤال والجواب بالعربية على الأقل'); return; }
+  if (!id || !qAr || !aAr) { showAppNotice('يرجى إدخال معرف السؤال (ID) والسؤال والجواب بالعربية على الأقل',{tone:'error'}); return; }
 
   var qObj = { ar: qAr, en: qEn, fr: qFr };
   var aObj = { ar: aAr, en: aEn, fr: aFr };
@@ -1381,7 +1381,7 @@ async function addFaqAdmin() {
     var { error } = await window.supabaseClient.from('faq').insert([{
       id: id, icon: icon, q: qObj, a: aObj, sort_order: order, active: true
     }]);
-    if (error) alert('خطأ أثناء حفظ السؤال: ' + error.message);
+    if (error) showAppNotice('خطأ أثناء حفظ السؤال: ' + error.message,{tone:'error'});
     else {
       showToast('تمت إضافة السؤال بنجاح!');
       document.getElementById('faq-id').value = '';
@@ -1395,7 +1395,7 @@ async function addFaqAdmin() {
 async function deleteFaqAdmin(id) {
   if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
   var { error } = await window.supabaseClient.from('faq').delete().eq('id', id);
-  if (error) alert('خطأ أثناء الحذف: ' + error.message);
+  if (error) showAppNotice('خطأ أثناء الحذف: ' + error.message,{tone:'error'});
   else {
     showToast('تم حذف السؤال بنجاح');
     loadFaqAdmin();
@@ -1430,7 +1430,7 @@ async function saveSettingsAdmin() {
   c.telegram_chat_id = document.getElementById('set-tg-chatid').value.trim();
 
   var { error } = await window.supabaseClient.from('settings').update({ config: c }).eq('id', 1);
-  if (error) alert('خطأ أثناء حفظ الإعدادات: ' + error.message);
+  if (error) showAppNotice('خطأ أثناء حفظ الإعدادات: ' + error.message,{tone:'error'});
   else {
     showToast('تم حفظ إعدادات التواصل والتليجرام بنجاح! 🎉');
     if (window.CONFIG) window.CONFIG = c;

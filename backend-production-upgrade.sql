@@ -289,6 +289,44 @@ $$;
 revoke all on function public.ops_ack_sheet_snapshot(text,uuid) from public;
 grant execute on function public.ops_ack_sheet_snapshot(text,uuid) to service_role;
 
+create or replace function public.ops_update_allocation_end(
+  p_allocation_id uuid,
+  p_ends_at timestamptz,
+  p_notify boolean default false
+) returns jsonb language plpgsql security definer set search_path=public as $$
+declare
+  a public.fulfillment_allocations%rowtype;
+  f public.fulfillments%rowtype;
+  old_end timestamptz;
+  new_end timestamptz;
+begin
+  if not public.is_admin() then raise exception 'Admin only'; end if;
+  if p_ends_at is null then raise exception 'End date is required'; end if;
+  select * into a from public.fulfillment_allocations where id=p_allocation_id for update;
+  if not found then raise exception 'Subscription allocation not found'; end if;
+  if a.starts_at is not null and p_ends_at<a.starts_at then raise exception 'End date cannot be before the start date'; end if;
+  select * into f from public.fulfillments where id=a.fulfillment_id for update;
+  old_end=a.ends_at;
+  update public.fulfillment_allocations
+    set ends_at=p_ends_at,sheet_version=coalesce(sheet_version,0)+1
+    where id=a.id;
+  select max(ends_at) into new_end from public.fulfillment_allocations where fulfillment_id=a.fulfillment_id and status='active';
+  if f.id is not null then
+    update public.fulfillments
+      set delivery_summary=coalesce(delivery_summary,'{}'::jsonb)||jsonb_build_object('ends_at',new_end),updated_at=now()
+      where id=f.id;
+  end if;
+  insert into public.operations_audit_log(actor_id,action,entity_type,entity_id,order_id,service_id,before_data,after_data,metadata)
+  values(auth.uid(),'update_subscription_end','allocation',a.id::text,f.order_id,f.service_id,
+    jsonb_build_object('ends_at',old_end),jsonb_build_object('ends_at',p_ends_at),jsonb_build_object('notify',p_notify));
+  insert into public.integration_outbox(event_type,aggregate_id,payload)
+  values('subscription_updated',a.id::text,jsonb_build_object('order_id',f.order_id,'allocation_id',a.id,'ends_at',p_ends_at,'inventory',true,'source','operations_center'));
+  return jsonb_build_object('success',true,'allocation_id',a.id,'fulfillment_id',a.fulfillment_id,'old_ends_at',old_end,'ends_at',p_ends_at,'notify',p_notify);
+end;
+$$;
+revoke all on function public.ops_update_allocation_end(uuid,timestamptz,boolean) from public;
+grant execute on function public.ops_update_allocation_end(uuid,timestamptz,boolean) to authenticated;
+
 create or replace function public.ops_enqueue_sheet_projection()
 returns trigger language plpgsql security definer set search_path=public as $$
 declare row_id text; service_value text; order_value uuid; event_value text;

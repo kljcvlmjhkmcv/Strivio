@@ -6,6 +6,26 @@
 const SUPABASE_URL = 'https://rrfguexpsfizyijekkmi.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_V-uY9E5L4uSY3PP6QNoInw_YSkYmdtw';
 
+/* Shared in-site feedback and tactile button motion. Keeps errors and success
+   states inside the Strivio UI instead of browser alert popups. */
+(function installStrivioFeedback(){
+  if(window.__strivioFeedbackInstalled)return;
+  window.__strivioFeedbackInstalled=true;
+  var style=document.createElement('style');
+  style.textContent=`
+    .app-notice-host{position:fixed;z-index:9999;inset:auto 18px 18px;display:grid;gap:10px;max-width:min(420px,calc(100vw - 36px));pointer-events:none}
+    .app-notice{pointer-events:auto;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid #303030;border-radius:18px;background:linear-gradient(145deg,#171717,#0b0b0b);color:#f4f4f4;box-shadow:0 18px 55px #0009;animation:noticeIn .28s cubic-bezier(.2,.8,.2,1) both;direction:rtl}
+    .app-notice.is-leaving{animation:noticeOut .22s ease both}.app-notice__icon{width:24px;height:24px;display:grid;place-items:center;border-radius:50%;font-weight:900;flex:0 0 auto}.app-notice__body{flex:1;line-height:1.65;font-size:13px}.app-notice__close{border:0;background:transparent;color:#999;font-size:20px;line-height:1;cursor:pointer}.app-notice.success{border-color:#39ff1466}.app-notice.success .app-notice__icon{background:#39ff1422;color:#39ff14}.app-notice.error{border-color:#ff646466}.app-notice.error .app-notice__icon{background:#ff646422;color:#ff8585}.app-notice.info .app-notice__icon{background:#ffffff18;color:#fff}
+    button,.btn,.ghost,a[role=button]{transition:transform .18s ease,box-shadow .18s ease,filter .18s ease,border-color .18s ease,background-color .18s ease!important}button:hover,.btn:hover,.ghost:hover,a[role=button]:hover{transform:translateY(-1px)}button:active,.btn:active,.ghost:active,a[role=button]:active{transform:translateY(1px) scale(.975);filter:brightness(1.12)}.press-ripple{position:absolute;border-radius:999px;pointer-events:none;background:#39ff1455;transform:scale(0);animation:pressRipple .55s ease-out forwards}
+    @keyframes noticeIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}@keyframes noticeOut{to{opacity:0;transform:translateY(10px) scale(.97)}}@keyframes pressRipple{to{opacity:0;transform:scale(1)}}
+    @media (max-width:640px){.app-notice-host{inset:auto 12px 12px;max-width:none}}
+  `;
+  document.head.appendChild(style);
+  function host(){var h=document.querySelector('.app-notice-host');if(!h){h=document.createElement('div');h.className='app-notice-host';h.setAttribute('aria-live','polite');document.body.appendChild(h)}return h}
+  window.showAppNotice=function(message,options){options=options||{};var tone=options.tone||'info',h=host(),n=document.createElement('div');n.className='app-notice '+tone;n.setAttribute('role','status');var icon=tone==='error'?'!':tone==='success'?'✓':'i';n.innerHTML='<span class="app-notice__icon">'+icon+'</span><div class="app-notice__body"></div><button type="button" class="app-notice__close" aria-label="Close">×</button>';n.querySelector('.app-notice__body').textContent=String(message||'');n.querySelector('.app-notice__close').onclick=function(){n.classList.add('is-leaving');setTimeout(function(){n.remove()},220)};h.appendChild(n);var ttl=Number(options.duration||4200);if(ttl>0)setTimeout(function(){if(n.isConnected)n.querySelector('.app-notice__close').click()},ttl);return n};
+  document.addEventListener('pointerdown',function(e){var b=e.target.closest&&e.target.closest('button,.btn,.ghost,a[role=button]');if(!b||b.disabled)return;var r=b.getBoundingClientRect(),s=Math.max(r.width,r.height)*1.5,span=document.createElement('span');span.className='press-ripple';span.style.width=span.style.height=s+'px';span.style.left=(e.clientX-r.left-s/2)+'px';span.style.top=(e.clientY-r.top-s/2)+'px';if(getComputedStyle(b).position==='static')b.style.position='relative';b.style.overflow='hidden';b.appendChild(span);setTimeout(function(){span.remove()},600)});
+})();
+
 let supabaseClient = null;
 
 function initSupabase() {
