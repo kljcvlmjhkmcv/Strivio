@@ -436,7 +436,6 @@
         <input id="end-date-allocation" type="hidden" />
         <label class="muted text-xs block mt-5 mb-2">تاريخ الانتهاء الجديد</label>
         <input id="end-date-value" type="date" class="input" required />
-        <label class="flex gap-2 text-sm text-gray-300 bg-black/20 border border-white/5 p-3 rounded-xl mt-4"><input id="end-date-notify" type="checkbox" class="accent-[#39ff14]" /><span>إرسال إشعار للعميل إذا كان البريد مفعّلًا.</span></label>
         <div class="flex justify-end gap-2 mt-6"><button type="button" class="btn" onclick="closeEndDateEditor()">إلغاء</button><button class="btn neon" type="submit">حفظ التاريخ</button></div>
       </form>
     </div>
@@ -1281,7 +1280,6 @@
       function openEndDateEditor(allocationId, endsAt) {
         $("end-date-allocation").value = allocationId || "";
         $("end-date-value").value = endsAt ? new Date(endsAt).toISOString().slice(0, 10) : "";
-        $("end-date-notify").checked = false;
         $("end-date-modal").classList.remove("hidden");
       }
       function closeEndDateEditor() {
@@ -1296,7 +1294,7 @@
             action: "update_allocation_end",
             allocation_id: $("end-date-allocation").value,
             ends_at: $("end-date-value").value,
-            notify: $("end-date-notify").checked,
+            notify: false,
           });
           closeEndDateEditor();
           toast("تم تحديث تاريخ الانتهاء وتسجيله في الشيت.");
