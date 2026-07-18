@@ -1421,8 +1421,12 @@
           var labels = document.querySelectorAll("#profileForm label span");
           if (labels[0]) labels[0].textContent = t.emailConsent;
           if (labels[1]) labels[1].textContent = t.waConsent;
+          document.querySelectorAll("#ordersList .order button.btn").forEach(function (b) {
+            if ((b.getAttribute("onclick") || "").indexOf("openRenewalForOrder") >= 0)
+              b.setAttribute("data-renew-order", "1");
+          });
           document
-            .querySelectorAll("#ordersList .order button.btn")
+            .querySelectorAll("#ordersList .order button.btn:not([data-renew-order])")
             .forEach(function (b) {
               b.textContent = t.details;
             });
