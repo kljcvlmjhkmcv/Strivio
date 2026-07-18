@@ -782,10 +782,9 @@
               '</div><div class="report-thread mt-3 space-y-3"><div class="thread-bubble thread-customer"><b data-thread-label="customer" class="block text-[10px] opacity-70 mb-1">رسالتك</b>' +
               esc(p.message || p.description || "—") +
               '</div><div class="thread-bubble thread-admin"><b data-thread-label="admin" class="block text-[10px] text-[#39ff14] mb-1">رد فريق Strivio</b>' +
-              esc(
-                p.admin_notes ||
-                  "تم استلام البلاغ، وسيظهر رد الفريق هنا فور تحديثه.",
-              ) +
+              (p.admin_notes
+                ? esc(p.admin_notes)
+                : '<span data-waiting-reply>تم استلام البلاغ، وسيظهر رد الفريق هنا فور تحديثه.</span>') +
               "</div></div>"
             : "") +
           (closed
@@ -885,7 +884,9 @@
                       esc(p.admin_notes) +
                       "</div>"
                     : "") +
-                  '<button class="ghost mt-3" onclick="openReport(\'' +
+                  '<button class="ghost mt-3" data-problem-state="' +
+                  esc(String(p.status || "open").toLowerCase()) +
+                  '" onclick="openReport(\'' +
                   esc(p.order_id) +
                   "', '" +
                   esc(p.id) +
@@ -1026,6 +1027,7 @@
             details: "عرض التفاصيل",
             report: "بلاغ / دعم",
             followReport: "متابعة البلاغ",
+            viewReport: "عرض البلاغ",
             menu: "قائمة الحساب",
             paymentOrder: "الطلب",
             paymentDate: "التاريخ",
@@ -1072,6 +1074,7 @@
             details: "Voir les détails",
             report: "Support / signalement",
             followReport: "Suivre le signalement",
+            viewReport: "Voir le signalement",
             menu: "Menu du compte",
             paymentOrder: "Commande",
             paymentDate: "Date",
@@ -1117,6 +1120,7 @@
             details: "View details",
             report: "Report / support",
             followReport: "Follow report",
+            viewReport: "View report",
             menu: "Account menu",
             paymentOrder: "Order",
             paymentDate: "Date",
@@ -1198,6 +1202,15 @@
                   ? t.followReport
                   : t.report;
             });
+          document
+            .querySelectorAll("#problemsList [data-problem-state]")
+            .forEach(function (b) {
+              b.textContent = ["resolved", "closed", "cancelled"].includes(
+                b.dataset.problemState,
+              )
+                ? t.viewReport
+                : t.followReport;
+            });
           var heads = document.querySelectorAll("#paymentsList th");
           [
             t.paymentOrder,
@@ -1264,6 +1277,8 @@
               saveReport: "حفظ التعديل",
               customerMessage: "رسالتك",
               teamReply: "رد فريق Strivio",
+              waitingReply:
+                "تم استلام البلاغ، وسيظهر رد الفريق هنا فور تحديثه.",
               editMessage: "تعديل رسالتك الحالية",
               problemDescription: "وصف المشكلة",
               closedReport:
@@ -1288,6 +1303,8 @@
               saveReport: "Enregistrer la modification",
               customerMessage: "Votre message",
               teamReply: "Réponse de l’équipe Strivio",
+              waitingReply:
+                "Le signalement a bien été reçu. La réponse de l’équipe apparaîtra ici dès sa mise à jour.",
               editMessage: "Modifier votre message actuel",
               problemDescription: "Description du problème",
               closedReport:
@@ -1313,6 +1330,8 @@
               saveReport: "Save update",
               customerMessage: "Your message",
               teamReply: "Strivio team reply",
+              waitingReply:
+                "Your report has been received. The team reply will appear here as soon as it is updated.",
               editMessage: "Edit your current message",
               problemDescription: "Problem description",
               closedReport:
@@ -1367,6 +1386,8 @@
             if (customerLabel) customerLabel.textContent = t.customerMessage;
             var adminLabel = r.querySelector('[data-thread-label="admin"]');
             if (adminLabel) adminLabel.textContent = t.teamReply;
+            var waitingReply = r.querySelector("[data-waiting-reply]");
+            if (waitingReply) waitingReply.textContent = t.waitingReply;
             var editorLabel = r.querySelector("[data-report-editor-label]");
             if (editorLabel)
               editorLabel.textContent = existing
