@@ -268,6 +268,27 @@ revoke all on function public.apply_paid_renewal_order(uuid) from public;
 grant execute on function public.create_renewal_order(uuid[],text,integer,text,jsonb) to authenticated;
 grant execute on function public.apply_paid_renewal_order(uuid) to service_role,authenticated;
 
+create or replace function public.ops_ack_sheet_snapshot(p_scope text, p_order_id uuid default null)
+returns integer language plpgsql security definer set search_path=public as $$
+declare affected integer;
+begin
+  if auth.role()<>'service_role' and not public.is_admin() then raise exception 'Server only'; end if;
+  update public.integration_outbox set status='sent',processed_at=now(),last_error=null
+  where status in ('pending','failed') and (
+    (
+      lower(coalesce(p_scope,'')) in ('inventory','netflix','netflix_inventory')
+      and event_type in ('inventory_changed','admin_sheet_refresh')
+      and lower(coalesce(payload->>'inventory','false'))='true'
+    )
+    or (p_order_id is not null and payload->>'order_id'=p_order_id::text)
+  );
+  get diagnostics affected=row_count;
+  return affected;
+end;
+$$;
+revoke all on function public.ops_ack_sheet_snapshot(text,uuid) from public;
+grant execute on function public.ops_ack_sheet_snapshot(text,uuid) to service_role;
+
 create or replace function public.ops_enqueue_sheet_projection()
 returns trigger language plpgsql security definer set search_path=public as $$
 declare row_id text; service_value text; order_value uuid; event_value text;

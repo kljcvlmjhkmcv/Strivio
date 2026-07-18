@@ -161,15 +161,7 @@ serve(async req=>{
       const max=Math.max(3,Math.min(Number(requestBody?.limit||8),20));
       directEvents=await scopedEvents(db,requestBody?.refresh_scope||requestBody?.scope||'all_light',max);
     }
-    let events:any[]=[];
-    if(directEvents) {
-      events.push(...directEvents);
-      const {data:pendingEvents}=await db.from('integration_outbox').select('*').in('status',['pending','failed']).lt('attempts',5).order('id').limit(50);
-      events.push(...(pendingEvents||[]));
-    } else {
-      const {data:pendingEvents}=await db.from('integration_outbox').select('*').in('status',['pending','failed']).lt('attempts',5).order('id').limit(50);
-      events=pendingEvents||[];
-    }
+    const {data:events}=directEvents?{data:directEvents}:await db.from('integration_outbox').select('*').in('status',['pending','failed']).lt('attempts',5).order('id').limit(8);
     let sent=0;
     const queue=(events&&events.length)?events:[{id:null,event_type:'inventory_refresh',aggregate_id:'manual-refresh',payload:{inventory:true,source:'manual_refresh'},attempts:0}];
     const includeInventory=requestBody?.include_inventory===true||requestBody?.full_refresh===true||!directEvents;
@@ -177,7 +169,6 @@ serve(async req=>{
     const failures:any[]=[];
     for(let idx=0;idx<(queue||[]).length;idx++){
       const ev=queue[idx];
-      if(ev.id)await db.from('integration_outbox').update({status:'processing',attempts:ev.attempts+1}).eq('id',ev.id);
       const orderId=ev.payload?.order_id||ev.aggregate_id;
       const {data:order}=await db.from('orders').select('id,created_at,status,total_payable,payment_method,customer_info,items,fulfillment_status').eq('id',orderId).maybeSingle();
       const {data:allocations}=order?await db.from('fulfillment_allocations').select('id,starts_at,ends_at,status,admin_notes,sheet_version,fulfillments!inner(order_id,service_id,user_id)').eq('fulfillments.order_id',orderId):{data:[]};
@@ -193,7 +184,20 @@ serve(async req=>{
         let sheetResult:any=null;
         try{sheetResult=JSON.parse(responseText);}catch{/* Apps Script may return plain text on platform errors */}
         if(!response.ok||sheetResult?.success===false)throw new Error(sheetResult?.error||responseText||`Google Sheets webhook failed (${response.status})`);
-        if(ev.id)await db.from('integration_outbox').update({status:'sent',processed_at:new Date().toISOString(),last_error:null}).eq('id',ev.id);sent++;
+        const processedAt=new Date().toISOString();
+        if(ev.id) {
+          await db.from('integration_outbox').update({status:'sent',attempts:(ev.attempts||0)+1,processed_at:processedAt,last_error:null}).eq('id',ev.id);
+        } else if(directEvents) {
+          if(ev.event_type==='inventory_refresh') {
+            const {error:ackInventoryError}=await db.rpc('ops_ack_sheet_snapshot',{p_scope:requestBody?.refresh_scope||requestBody?.scope||'inventory',p_order_id:null});
+            if(ackInventoryError)throw ackInventoryError;
+          }
+          if(order) {
+            const {error:ackOrderError}=await db.rpc('ops_ack_sheet_snapshot',{p_scope:requestBody?.refresh_scope||requestBody?.scope||'',p_order_id:order.id});
+            if(ackOrderError)throw ackOrderError;
+          }
+        }
+        sent++;
       }catch(e:any){
         failures.push({event:ev.event_type,order_id:orderId,error:String(e?.message||e).slice(0,500)});
         if(ev.id)await db.from('integration_outbox').update({status:'failed',last_error:String(e?.message||e).slice(0,500)}).eq('id',ev.id);
