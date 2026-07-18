@@ -998,6 +998,7 @@
                   '</div></div><div class="table-wrap border-0 rounded-none"><table class="table min-w-[780px]"><thead><tr><th>البروفايل</th><th>العميل والاشتراك</th><th>الحالة</th><th>الإدارة</th></tr></thead><tbody>' +
                   slots
                     .map(function (x) {
+                      var allocation = allocationFor(x.id);
                       return (
                         "<tr><td><b>" +
                         esc(x.label || "Profile") +
@@ -1015,7 +1016,15 @@
                         (x.status === "available"
                           ? "إيقاف مؤقت"
                           : "جعله متاحاً") +
-                        "</button></td></tr>"
+                        "</button>" +
+                        (allocation
+                          ? '<button class="btn neon mr-2" onclick="openEndDateEditor(\'' +
+                            esc(allocation.id) +
+                            "','" +
+                            esc(allocation.ends_at || "") +
+                            "')\">تعديل الانتهاء</button>"
+                          : "") +
+                        "</td></tr>"
                       );
                     })
                     .join("") +
