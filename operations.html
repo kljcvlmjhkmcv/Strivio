@@ -1,107 +1,1617 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
-<head>
-  <script src="clean-url.js"></script>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#080808">
-  <meta name="robots" content="noindex,nofollow">
-  <title>Strivio — مركز العمليات</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    :root{--neon:#39ff14;--black:#080808;--card:#121212;--line:#292929}*{box-sizing:border-box}body{margin:0;background:#090909;color:#eee;font-family:Inter,Arial,sans-serif}.display{font-family:'Space Grotesk',Inter,sans-serif}.grid-bg{background-image:linear-gradient(rgba(57,255,20,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(57,255,20,.025) 1px,transparent 1px);background-size:46px 46px}.panel{background:linear-gradient(145deg,rgba(25,25,25,.98),rgba(13,13,13,.98));border:1px solid var(--line);box-shadow:0 18px 60px rgba(0,0,0,.2)}.tab{border:1px solid #303030;background:#121212;color:#a8a8a8;border-radius:12px;padding:10px 13px;font-size:12px;font-weight:800;cursor:pointer}.tab.active{color:#071007;background:var(--neon);border-color:var(--neon)}.btn{border:1px solid #353535;background:#171717;color:#eee;border-radius:11px;padding:9px 12px;font-size:12px;font-weight:800;cursor:pointer}.btn:hover{border-color:var(--neon);color:var(--neon)}.btn.neon{background:var(--neon);color:#071007;border-color:var(--neon)}.btn.danger{color:#ff7777}.input,.select{width:100%;background:#0b0b0b;border:1px solid #303030;color:#eee;border-radius:11px;padding:10px 12px;outline:none}.input:focus,.select:focus{border-color:var(--neon)}.badge{display:inline-flex;align-items:center;border:1px solid #333;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:900;white-space:nowrap}.b-green{background:rgba(57,255,20,.09);color:var(--neon);border-color:rgba(57,255,20,.28)}.b-red{background:rgba(255,70,70,.1);color:#ff7777;border-color:rgba(255,70,70,.25)}.b-yellow{background:rgba(250,204,21,.1);color:#facc15;border-color:rgba(250,204,21,.25)}.b-gray{background:#171717;color:#aaa}.table-wrap{overflow:auto;border:1px solid #292929;border-radius:15px}.table{width:100%;border-collapse:collapse;min-width:950px;font-size:12px}.table th{background:#0d0d0d;color:#8c8c8c;text-align:right;padding:12px;white-space:nowrap;font-size:10px;text-transform:uppercase;letter-spacing:.04em}.table td{padding:12px;border-top:1px solid #222;vertical-align:middle}.table tr:hover td{background:rgba(57,255,20,.025)}.muted{color:#8b8b8b}.stat{min-height:108px}.loading{padding:45px;text-align:center;color:#8b8b8b}.hidden{display:none!important}@media(max-width:700px){.desktop{display:none}.table{font-size:11px}.table th,.table td{padding:10px}}
-  </style>
-</head>
-<body class="grid-bg min-h-screen">
-  <div id="gate" class="min-h-screen flex items-center justify-center p-5"><div class="panel rounded-[28px] p-8 max-w-md w-full text-center"><div class="text-4xl mb-4">🛡️</div><h1 class="display text-2xl font-black">مركز عمليات Strivio</h1><p id="gate-msg" class="muted text-sm mt-3">جاري التحقق من صلاحيات الأدمن…</p><a href="admin" class="btn inline-block mt-6">العودة للوحة الأدمن</a></div></div>
+  <head>
+    <script src="clean-url.js"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#080808" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Strivio — مركز العمليات</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --neon: #39ff14;
+        --black: #080808;
+        --card: #121212;
+        --line: #292929;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #090909;
+        color: #eee;
+        font-family: Inter, Arial, sans-serif;
+      }
+      .display {
+        font-family: "Space Grotesk", Inter, sans-serif;
+      }
+      .grid-bg {
+        background-image:
+          linear-gradient(rgba(57, 255, 20, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(57, 255, 20, 0.025) 1px, transparent 1px);
+        background-size: 46px 46px;
+      }
+      .panel {
+        background: linear-gradient(
+          145deg,
+          rgba(25, 25, 25, 0.98),
+          rgba(13, 13, 13, 0.98)
+        );
+        border: 1px solid var(--line);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.2);
+      }
+      .tab {
+        border: 1px solid #303030;
+        background: #121212;
+        color: #a8a8a8;
+        border-radius: 12px;
+        padding: 10px 13px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .tab.active {
+        color: #071007;
+        background: var(--neon);
+        border-color: var(--neon);
+      }
+      .btn {
+        border: 1px solid #353535;
+        background: #171717;
+        color: #eee;
+        border-radius: 11px;
+        padding: 9px 12px;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      .btn:hover {
+        border-color: var(--neon);
+        color: var(--neon);
+      }
+      .btn.neon {
+        background: var(--neon);
+        color: #071007;
+        border-color: var(--neon);
+      }
+      .btn.danger {
+        color: #ff7777;
+      }
+      .input,
+      .select {
+        width: 100%;
+        background: #0b0b0b;
+        border: 1px solid #303030;
+        color: #eee;
+        border-radius: 11px;
+        padding: 10px 12px;
+        outline: none;
+      }
+      .input:focus,
+      .select:focus {
+        border-color: var(--neon);
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #333;
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 10px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+      .b-green {
+        background: rgba(57, 255, 20, 0.09);
+        color: var(--neon);
+        border-color: rgba(57, 255, 20, 0.28);
+      }
+      .b-red {
+        background: rgba(255, 70, 70, 0.1);
+        color: #ff7777;
+        border-color: rgba(255, 70, 70, 0.25);
+      }
+      .b-yellow {
+        background: rgba(250, 204, 21, 0.1);
+        color: #facc15;
+        border-color: rgba(250, 204, 21, 0.25);
+      }
+      .b-gray {
+        background: #171717;
+        color: #aaa;
+      }
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid #292929;
+        border-radius: 15px;
+      }
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 950px;
+        font-size: 12px;
+      }
+      .table th {
+        background: #0d0d0d;
+        color: #8c8c8c;
+        text-align: right;
+        padding: 12px;
+        white-space: nowrap;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .table td {
+        padding: 12px;
+        border-top: 1px solid #222;
+        vertical-align: middle;
+      }
+      .table tr:hover td {
+        background: rgba(57, 255, 20, 0.025);
+      }
+      .muted {
+        color: #8b8b8b;
+      }
+      .stat {
+        min-height: 108px;
+      }
+      .loading {
+        padding: 45px;
+        text-align: center;
+        color: #8b8b8b;
+      }
+      .hidden {
+        display: none !important;
+      }
+      @media (max-width: 700px) {
+        .desktop {
+          display: none;
+        }
+        .table {
+          font-size: 11px;
+        }
+        .table th,
+        .table td {
+          padding: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body class="grid-bg min-h-screen">
+    <div id="gate" class="min-h-screen flex items-center justify-center p-5">
+      <div class="panel rounded-[28px] p-8 max-w-md w-full text-center">
+        <div class="text-4xl mb-4">🛡️</div>
+        <h1 class="display text-2xl font-black">مركز عمليات Strivio</h1>
+        <p id="gate-msg" class="muted text-sm mt-3">
+          جاري التحقق من صلاحيات الأدمن…
+        </p>
+        <a href="admin" class="btn inline-block mt-6">العودة للوحة الأدمن</a>
+      </div>
+    </div>
 
-  <main id="app" class="hidden max-w-[1600px] mx-auto px-4 py-5 sm:px-6 sm:py-7">
-    <header class="panel rounded-[24px] p-5 sm:p-6 mb-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-      <div><div class="text-[11px] font-black text-[#39ff14] tracking-[.18em]">DATABASE-FIRST OPERATIONS</div><h1 class="display text-3xl font-black mt-1">مركز العمليات</h1><p class="muted text-sm mt-2">الإدارة من هنا فقط — Google Sheets للعرض والمتابعة.</p></div>
-      <div class="flex flex-wrap items-center gap-2"><span id="last-sync" class="muted text-xs px-2"></span><button class="btn" onclick="loadAll()">↻ تحديث البيانات</button><a class="btn" href="admin">لوحة الإدارة</a><button class="btn danger" onclick="logout()">تسجيل الخروج</button></div>
-    </header>
+    <main
+      id="app"
+      class="hidden max-w-[1600px] mx-auto px-4 py-5 sm:px-6 sm:py-7"
+    >
+      <header
+        class="panel rounded-[24px] p-5 sm:p-6 mb-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5"
+      >
+        <div>
+          <div class="text-[11px] font-black text-[#39ff14] tracking-[.18em]">
+            DATABASE-FIRST OPERATIONS
+          </div>
+          <h1 class="display text-3xl font-black mt-1">مركز العمليات</h1>
+          <p class="muted text-sm mt-2">
+            الإدارة من هنا فقط — Google Sheets للعرض والمتابعة.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="last-sync" class="muted text-xs px-2"></span
+          ><button class="btn" onclick="loadAll()">↻ تحديث البيانات</button
+          ><a class="btn" href="admin">لوحة الإدارة</a
+          ><button class="btn danger" onclick="logout()">تسجيل الخروج</button>
+        </div>
+      </header>
 
-    <section id="stats" class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5"></section>
-    <section class="panel rounded-[20px] p-3 mb-5 flex flex-wrap gap-2"><button class="tab active" data-tab="overview">نظرة عامة</button><button class="tab" data-tab="services">سجلات الخدمات</button><button class="tab" data-tab="inventory">المخزون والحسابات</button><button class="tab" data-tab="activations">طلبات التفعيل</button><button class="tab" data-tab="problems">المشاكل</button><button class="tab" data-tab="orders">كل الطلبات</button></section>
+      <section
+        id="stats"
+        class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5"
+      ></section>
+      <section class="panel rounded-[20px] p-3 mb-5 flex flex-wrap gap-2">
+        <button class="tab active" data-tab="overview">نظرة عامة</button
+        ><button class="tab" data-tab="services">سجلات الخدمات</button
+        ><button class="tab" data-tab="activations">طلبات التفعيل</button
+        ><button class="tab" data-tab="problems">المشاكل</button
+        ><button class="tab" data-tab="orders">كل الطلبات</button>
+      </section>
 
-    <section id="view-overview" class="view space-y-5"><div class="panel rounded-[20px] p-5"><div class="flex items-center justify-between gap-3 mb-4"><div><h2 class="font-black text-lg">آخر الطلبات</h2><p class="muted text-xs mt-1">أحدث ما وصل للمتجر مباشرة من قاعدة البيانات.</p></div><button class="btn" onclick="showTab('orders')">عرض الكل</button></div><div id="recent-orders" class="table-wrap"></div></div></section>
-    <section id="view-services" class="view hidden space-y-5"><div class="panel rounded-[20px] p-5"><h2 class="font-black text-lg">سجلات المنتجات</h2><p class="muted text-xs mt-1">كل منتج في المتجر له سجل تشغيل مستقل، حتى إن لم يصل له طلب بعد.</p><div id="service-registers" class="grid md:grid-cols-2 xl:grid-cols-3 gap-4 mt-5"></div></div></section>
-    <section id="view-service" class="view hidden space-y-5"><div class="panel rounded-[20px] p-5"><button class="btn mb-4" onclick="showTab('services')">← كل سجلات الخدمات</button><div id="service-workspace"></div></div></section>
+      <section id="view-overview" class="view space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 class="font-black text-lg">آخر الطلبات</h2>
+              <p class="muted text-xs mt-1">
+                أحدث ما وصل للمتجر مباشرة من قاعدة البيانات.
+              </p>
+            </div>
+            <button class="btn" onclick="showTab('orders')">عرض الكل</button>
+          </div>
+          <div id="recent-orders" class="table-wrap"></div>
+        </div>
+      </section>
+      <section id="view-services" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <h2 class="font-black text-lg">سجلات المنتجات</h2>
+          <p class="muted text-xs mt-1">
+            كل منتج في المتجر له سجل تشغيل مستقل، حتى إن لم يصل له طلب بعد.
+          </p>
+          <div
+            id="service-registers"
+            class="grid md:grid-cols-2 xl:grid-cols-3 gap-4 mt-5"
+          ></div>
+        </div>
+      </section>
+      <section id="view-service" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <button class="btn mb-4" onclick="showTab('services')">
+            ← كل سجلات الخدمات
+          </button>
+          <div id="service-workspace"></div>
+        </div>
+      </section>
 
-    <section id="view-inventory" class="view hidden space-y-5"><div class="panel rounded-[20px] p-5"><div class="flex flex-col md:flex-row gap-3 justify-between md:items-center"><div><h2 class="font-black text-lg">المخزون والحسابات</h2><p class="muted text-xs mt-1">ترتيب البروفايلات محفوظ؛ تغيير الحالة يمر عبر API الأدمن الآمن.</p></div><div class="flex flex-wrap gap-2"><select id="inventory-service" class="select w-auto" onchange="renderInventory()"><option value="">كل المنتجات</option></select><input id="inventory-search" class="input w-56 max-w-full" placeholder="ابحث بحساب أو بروفايل…" oninput="renderInventory()"></div></div><div id="inventory-list" class="mt-5"></div></div></section>
+      <section id="view-inventory" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <div
+            class="flex flex-col md:flex-row gap-3 justify-between md:items-center"
+          >
+            <div>
+              <h2 class="font-black text-lg">المخزون والحسابات</h2>
+              <p class="muted text-xs mt-1">
+                ترتيب البروفايلات محفوظ؛ تغيير الحالة يمر عبر API الأدمن الآمن.
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <select
+                id="inventory-service"
+                class="select w-auto"
+                onchange="renderInventory()"
+              >
+                <option value="">كل المنتجات</option></select
+              ><input
+                id="inventory-search"
+                class="input w-56 max-w-full"
+                placeholder="ابحث بحساب أو بروفايل…"
+                oninput="renderInventory()"
+              />
+            </div>
+          </div>
+          <div id="inventory-list" class="mt-5"></div>
+        </div>
+      </section>
 
-    <section id="view-activations" class="view hidden space-y-5"><div class="panel rounded-[20px] p-5"><div class="flex flex-col md:flex-row justify-between gap-3 mb-4"><div><h2 class="font-black text-lg">طلبات التفعيل اليدوي</h2><p class="muted text-xs mt-1">Spotify وأي منتج يحتاج بيانات من العميل.</p></div><select id="activation-filter" class="select w-auto" onchange="renderActivations()"><option value="">كل الحالات</option><option value="awaiting_admin">بانتظار الأدمن</option><option value="delivered">مكتمل</option><option value="problem">مشكلة</option></select></div><div id="activation-list" class="table-wrap"></div></div></section>
+      <section id="view-activations" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <div class="flex flex-col md:flex-row justify-between gap-3 mb-4">
+            <div>
+              <h2 class="font-black text-lg">طلبات التفعيل اليدوي</h2>
+              <p class="muted text-xs mt-1">
+                Spotify وأي منتج يحتاج بيانات من العميل.
+              </p>
+            </div>
+            <select
+              id="activation-filter"
+              class="select w-auto"
+              onchange="renderActivations()"
+            >
+              <option value="">كل الحالات</option>
+              <option value="awaiting_admin">بانتظار الأدمن</option>
+              <option value="delivered">مكتمل</option>
+              <option value="problem">مشكلة</option>
+            </select>
+          </div>
+          <div id="activation-list" class="table-wrap"></div>
+        </div>
+      </section>
 
-    <section id="view-problems" class="view hidden space-y-5"><div class="panel rounded-[20px] p-5"><div class="flex items-center justify-between gap-3 mb-4"><div><h2 class="font-black text-lg">بلاغات المشاكل</h2><p class="muted text-xs mt-1">الحل هنا يعيد حالة الطلب/المخزون بشكل منظم عبر الباك اند.</p></div><span id="problem-count" class="badge b-red">0 مفتوحة</span></div><div id="problem-list" class="table-wrap"></div></div></section>
+      <section id="view-problems" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 class="font-black text-lg">بلاغات المشاكل</h2>
+              <p class="muted text-xs mt-1">
+                الحل هنا يعيد حالة الطلب/المخزون بشكل منظم عبر الباك اند.
+              </p>
+            </div>
+            <span id="problem-count" class="badge b-red">0 مفتوحة</span>
+          </div>
+          <div id="problem-list" class="table-wrap"></div>
+        </div>
+      </section>
 
-    <section id="view-orders" class="view hidden space-y-5"><div class="panel rounded-[20px] p-5"><div class="flex flex-col md:flex-row gap-3 justify-between md:items-center mb-4"><div><h2 class="font-black text-lg">سجل الطلبات</h2><p class="muted text-xs mt-1">للعرض والبحث؛ حالة الدفع لا تُعدّل يدويًا من الواجهة.</p></div><input id="order-search" class="input w-72 max-w-full" placeholder="رقم الطلب، العميل، البريد أو الهاتف…" oninput="renderOrders()"></div><div id="orders-list" class="table-wrap"></div></div></section>
-  </main>
+      <section id="view-orders" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <div
+            class="flex flex-col md:flex-row gap-3 justify-between md:items-center mb-4"
+          >
+            <div>
+              <h2 class="font-black text-lg">سجل الطلبات</h2>
+              <p class="muted text-xs mt-1">
+                للعرض والبحث؛ حالة الدفع لا تُعدّل يدويًا من الواجهة.
+              </p>
+            </div>
+            <input
+              id="order-search"
+              class="input w-72 max-w-full"
+              placeholder="رقم الطلب، العميل، البريد أو الهاتف…"
+              oninput="renderOrders()"
+            />
+          </div>
+          <div id="orders-list" class="table-wrap"></div>
+        </div>
+      </section>
+    </main>
 
-  <div id="account-modal" class="hidden fixed inset-0 z-50 p-4 bg-black/75 backdrop-blur-sm flex items-center justify-center"><form id="account-form" class="panel rounded-[24px] w-full max-w-lg p-6"><div class="flex justify-between gap-4 items-start"><div><div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">SECURE ACCOUNT CHANGE</div><h2 id="account-modal-title" class="display text-xl font-black mt-1">تعديل بيانات الحساب</h2><p class="muted text-xs mt-2">اترك الحقل فارغًا إذا لا تريد تغييره. لا تظهر كلمة المرور القديمة في الصفحة.</p></div><button type="button" class="btn" onclick="closeAccountEditor()">إغلاق</button></div><div class="space-y-3 mt-5"><div><label class="muted text-xs block mb-1">إيميل الحساب الجديد</label><input id="account-email" type="email" class="input" placeholder="اتركه فارغًا للإبقاء على الإيميل الحالي"></div><div><label class="muted text-xs block mb-1">كلمة المرور الجديدة</label><input id="account-password" type="password" class="input" placeholder="اتركها فارغة للإبقاء على الحالية" autocomplete="new-password"></div><label class="flex gap-2 text-sm text-gray-300 bg-black/20 border border-white/5 p-3 rounded-xl"><input id="account-notify" type="checkbox" class="accent-[#39ff14]"><span>أرسل إشعارًا اختياريًا لكل العملاء ذوي الاشتراك النشط في هذا الحساب.</span></label></div><div class="flex justify-end gap-2 mt-6"><button type="button" class="btn" onclick="closeAccountEditor()">إلغاء</button><button class="btn neon" type="submit">حفظ التعديل</button></div></form></div>
-  <div id="toast" class="hidden fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm"></div>
-  <script src="supabase-client.js"></script>
-  <script>
-  var state={services:[],configs:[],orders:[],accounts:[],slots:[],licenses:[],allocations:[],fulfillments:[],problems:[]},editingAccount=null;
-  var $=function(id){return document.getElementById(id)};
-  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})}
-  function text(v){return esc(v||'—')}
-  function statusBadge(v){var s=String(v||'pending').toLowerCase(),cls=/paid|delivered|available|active|completed|resolved/.test(s)?'b-green':/problem|failed|cancelled|disabled/.test(s)?'b-red':/pending|awaiting|processing|review/.test(s)?'b-yellow':'b-gray';return '<span class="badge '+cls+'">'+esc(s.replaceAll('_',' '))+'</span>'}
-  function money(v){return Number(v||0).toLocaleString('en-US')+' دج'}
-  function date(v){try{return v?new Date(v).toLocaleString('ar-DZ',{dateStyle:'medium',timeStyle:'short'}):'—'}catch(_){return '—'}}
-  function profileNumber(v){var m=String(v||'').match(/\d+/);return m?Number(m[0]):9999}
-  function toast(message,bad){var el=$('toast');el.textContent=message;el.className='fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm '+(bad?'text-red-300':'text-[#39ff14]');setTimeout(function(){el.className='hidden'},4200)}
-  async function requireAdmin(){
-    try{var r=await window.supabaseClient.auth.getSession(),session=r.data&&r.data.session;if(!session){location.href='admin';return false}var a=await window.supabaseClient.from('admin_users').select('user_id').eq('user_id',session.user.id).maybeSingle();if(a.error||!a.data){await window.supabaseClient.auth.signOut();$('gate-msg').textContent='هذا الحساب غير مصرح له بالدخول.';return false}$('gate').classList.add('hidden');$('app').classList.remove('hidden');return true}catch(e){$('gate-msg').textContent='تعذر التحقق من الصلاحيات: '+e.message;return false}}
-  async function logout(){await window.supabaseClient.auth.signOut();location.href='admin'}
-  async function inventoryCall(body){var r=await window.supabaseClient.auth.getSession(),s=r.data&&r.data.session;if(!s)throw new Error('انتهت الجلسة');var response=await fetch(SUPABASE_URL+'/functions/v1/admin-inventory',{method:'POST',headers:{Authorization:'Bearer '+s.access_token,apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json','x-client-info':'strivio-operations'},body:JSON.stringify(body)});var data=await response.json().catch(function(){return null});if(!response.ok||!data||!data.success)throw new Error(data&&data.error||'تعذر تنفيذ الطلب');return data}
-  async function loadAll(){
-    try{
-      ['recent-orders','inventory-list','activation-list','problem-list','orders-list'].forEach(function(id){if($(id))$(id).innerHTML='<div class="loading">جاري تحميل البيانات…</div>'});
-      var results=await Promise.allSettled([
-        window.supabaseClient.from('services').select('id,n,fulfillment_mode,fulfillment_config').order('sort_order'),
-        window.supabaseClient.from('service_operations_config').select('*'),
-        window.supabaseClient.from('orders').select('*').order('created_at',{ascending:false}).limit(250),
-        window.supabaseClient.from('fulfillments').select('*').order('updated_at',{ascending:false}).limit(250),
-        window.supabaseClient.from('problem_reports').select('*').order('created_at',{ascending:false}).limit(250),
-        window.supabaseClient.from('fulfillment_allocations').select('id,account_id,slot_id,fulfillment_id,starts_at,ends_at,status,created_at').order('created_at',{ascending:false}).limit(500),
-        inventoryCall({action:'list'})
-      ]);
-      function value(i,fallback){var x=results[i];return x.status==='fulfilled'&&!x.value.error?(x.value.data||fallback):fallback}
-      state.services=value(0,[]);state.configs=value(1,[]);state.orders=value(2,[]);state.fulfillments=value(3,[]);state.problems=value(4,[]);state.allocations=value(5,[]);var inv=results[6].status==='fulfilled'?results[6].value:{accounts:[],slots:[],licenses:[]};state.accounts=inv.accounts||[];state.slots=inv.slots||[];state.licenses=inv.licenses||[];
-      if(results[3].status==='rejected'||results[4].status==='rejected')toast('بعض جداول العمليات لم تُحمّل. تحقق من صلاحيات الباك اند.',true);
-      fillServices();renderAll();$('last-sync').textContent='آخر تحديث: '+new Date().toLocaleTimeString('ar-DZ');
-    }catch(e){toast('تعذر تحميل مركز العمليات: '+e.message,true)}
-  }
-  function fillServices(){var select=$('inventory-service'),current=select.value;select.innerHTML='<option value="">كل المنتجات</option>'+state.services.map(function(s){return '<option value="'+esc(s.id)+'">'+esc((s.n&&s.n.ar)||s.id)+'</option>'}).join('');select.value=current}
-  function serviceName(id){var s=state.services.find(function(x){return x.id===id});return s&&s.n?(s.n.ar||s.n.en||id):id||'—'}
-  function serviceConfig(id){return state.configs.find(function(c){return c.service_id===id})||{inventory_model:'manual_delivery',profiles_per_account:0}}
-  function renderAll(){renderStats();renderRecent();renderServiceRegisters();renderInventory();renderActivations();renderProblems();renderOrders();var sid=new URLSearchParams(location.search).get('service');if(sid)openServiceRegister(sid,true)}
-  function modeLabel(mode){return({automatic_slot:'شاشات / بروفايلات',automatic_account:'حسابات كاملة',automatic_license:'أكواد وتراخيص',manual_activation:'تفعيل حساب العميل',email_invite:'دعوات بريدية',manual_delivery:'تسليم يدوي'})[mode]||'تسليم يدوي'}
-  function renderServiceRegisters(){var el=$('service-registers');if(!el)return;el.innerHTML=state.services.map(function(s){var mode=s.fulfillment_mode||serviceConfig(s.id).inventory_model||'manual_delivery',orders=state.fulfillments.filter(function(f){return f.service_id===s.id}).length,free=state.slots.filter(function(x){var a=state.accounts.find(function(y){return y.id===x.account_id});return a&&a.service_id===s.id&&x.status==='available'}).length;return '<article class="border border-[#2a2a2a] bg-black/20 rounded-2xl p-5"><div class="text-[#39ff14] text-[10px] font-black tracking-wider">'+esc(modeLabel(mode))+'</div><h3 class="display text-xl font-black mt-2">'+esc(serviceName(s.id))+'</h3><div class="flex gap-2 text-xs muted mt-3"><span>'+orders+' طلب</span><span>•</span><span>'+free+' متاح</span></div><button class="btn neon w-full mt-5" onclick="openServiceRegister(\''+esc(s.id)+'\')">فتح سجل الخدمة</button></article>'}).join('')||'<div class="loading">لا توجد خدمات.</div>'}
-  function orderFor(id){return state.orders.find(function(o){return o.id===id})||{}}
-  function customerFor(order){var c=order.customer_info||{};return [c.first_name||c.firstname,c.last_name||c.lastname].filter(Boolean).join(' ')||c.email||c.phone||'—'}
-  function allocationFor(slotId){return state.allocations.filter(function(a){return a.slot_id===slotId&&!['released','cancelled','expired'].includes(String(a.status||'').toLowerCase())}).sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at)})[0]||null}
-  function profileCustomer(slot){var a=allocationFor(slot.id);if(!a)return '<span class="muted">لا يوجد عميل — متاح للتسليم</span>';var f=state.fulfillments.find(function(x){return x.id===a.fulfillment_id})||{},o=orderFor(f.order_id),c=o.customer_info||{};return '<div><b>'+esc(customerFor(o))+'</b><div class="muted text-[11px] mt-1">'+esc(c.email||c.phone||'—')+'</div><div class="text-[10px] text-[#39ff14] mt-1">#'+esc(String(f.order_id||'').slice(0,8))+(a.ends_at?' · ينتهي '+esc(new Date(a.ends_at).toLocaleDateString('ar-DZ')):'')+'</div></div>'}
-  function serviceFulfillmentTable(rows,mode){if(!rows.length)return '<div class="loading">لا توجد عمليات لهذه الخدمة بعد.</div>';return '<table class="table"><thead><tr><th>رقم الطلب</th><th>العميل</th><th>تفاصيل التسليم</th><th>الحالة</th><th>آخر تحديث</th><th>إجراء</th></tr></thead><tbody>'+rows.map(function(f){var o=orderFor(f.order_id),input=f.customer_input||{},detail=mode==='manual_activation'?(input.account_email||'بانتظار بيانات العميل')+(input.note?' — '+input.note:''):(f.delivery_summary&&f.delivery_summary.message)||modeLabel(mode);return '<tr><td><b>#'+esc(String(f.order_id||'').slice(0,8))+'</b><div class="muted text-[10px]">'+esc(f.order_id||'')+'</div></td><td><b>'+esc(customerFor(o))+'</b><div class="muted text-[11px] mt-1">'+esc((o.customer_info||{}).email||'—')+'</div></td><td>'+esc(detail)+'</td><td>'+statusBadge(f.status)+'</td><td class="muted whitespace-nowrap">'+date(f.updated_at||f.created_at)+'</td><td>'+(['delivered','completed'].includes(String(f.status).toLowerCase())?'<span class="muted">مكتمل</span>':'<button class="btn neon" onclick="updateFulfillment(\''+esc(f.id)+'\',\'delivered\')">تأكيد الإنجاز</button>')+'</td></tr>'}).join('')+'</tbody></table>'}
-  function openServiceRegister(id,fromUrl){var s=state.services.find(function(x){return x.id===id});if(!s)return;var mode=s.fulfillment_mode||'manual_delivery',rows=state.fulfillments.filter(function(f){return f.service_id===id}),workspace=$('service-workspace');var intro='<div class="flex flex-col md:flex-row md:items-end justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">'+esc(modeLabel(mode))+'</div><h2 class="display text-2xl font-black mt-1">سجل '+esc(serviceName(id))+'</h2><p class="muted text-xs mt-2">سجل التشغيل الرسمي: تعدّل من هنا، وGoogle Sheets يعرض نسخة منظمة فقط.</p></div><button class="btn" onclick="loadAll()">↻ تحديث السجل</button></div>';if(mode==='automatic_slot'){var accounts=state.accounts.filter(function(a){return a.service_id===id});workspace.innerHTML=intro+'<div class="grid xl:grid-cols-2 gap-4 mt-5">'+accounts.map(function(a){var slots=state.slots.filter(function(x){return x.account_id===a.id}).sort(function(x,y){return profileNumber(x.label)-profileNumber(y.label)});return '<div class="border border-[#2a2a2a] rounded-2xl overflow-hidden"><div class="p-4 bg-black/30 flex justify-between gap-3"><div><b>'+esc(a.label||'حساب Netflix')+'</b><div class="muted text-xs mt-1">خمسة بروفايلات ثابتة بالترتيب 1 ← 5</div></div>'+statusBadge(a.status)+'</div><div class="table-wrap border-0 rounded-none"><table class="table min-w-[780px]"><thead><tr><th>البروفايل</th><th>العميل والاشتراك</th><th>الحالة</th><th>الإدارة</th></tr></thead><tbody>'+slots.map(function(x){return '<tr><td><b>'+esc(x.label||'Profile')+'</b></td><td>'+profileCustomer(x)+'</td><td>'+statusBadge(x.status)+'</td><td><button class="btn" onclick="setInventoryStatus(\'slots\',\''+esc(x.id)+'\',\''+(x.status==='available'?'maintenance':'available')+'\')">'+(x.status==='available'?'إيقاف مؤقت':'جعله متاحاً')+'</button></td></tr>'}).join('')+'</tbody></table></div></div>'}).join('')+'</div><div class="table-wrap mt-5">'+serviceFulfillmentTable(rows,mode)+'</div>';}else if(mode==='automatic_license'){var lic=state.licenses.filter(function(x){return x.service_id===id});workspace.innerHTML=intro+'<div class="table-wrap mt-5"><table class="table"><thead><tr><th>الترخيص</th><th>الحالة</th><th>آخر تحديث</th></tr></thead><tbody>'+lic.map(function(x){return '<tr><td><b>'+esc(x.label||'License')+'</b></td><td>'+statusBadge(x.status)+'</td><td>'+date(x.updated_at||x.created_at)+'</td></tr>'}).join('')+'</tbody></table></div><div class="table-wrap mt-5">'+serviceFulfillmentTable(rows,mode)+'</div>';}else{workspace.innerHTML=intro+'<div class="table-wrap mt-5">'+serviceFulfillmentTable(rows,mode)+'</div>';}if(!fromUrl){history.replaceState({},'',location.pathname+'?service='+encodeURIComponent(id));showTab('service')}}
-  function renderStats(){var paid=state.orders.filter(function(o){return ['paid','completed'].includes(String(o.status).toLowerCase())}),open=state.problems.filter(function(p){return !['resolved','closed'].includes(String(p.status).toLowerCase())}).length,free=state.slots.filter(function(s){return s.status==='available'}).length,waiting=state.fulfillments.filter(function(f){return f.status==='awaiting_admin'}).length,total=paid.reduce(function(a,o){return a+Number(o.total_payable||0)},0);var cards=[['مبيعات مدفوعة',money(total),'💳'],['طلبات بانتظار التفعيل',waiting,'⚡'],['مشاكل مفتوحة',open,'⚠️'],['بروفايلات متاحة',free,'◉'],['كل الطلبات',state.orders.length,'📦']];$('stats').innerHTML=cards.map(function(c){return '<div class="panel stat rounded-2xl p-4"><div class="text-xl">'+c[2]+'</div><div class="display text-2xl font-black mt-2">'+c[1]+'</div><div class="muted text-xs mt-1">'+c[0]+'</div></div>'}).join('')}
-  function ordersTable(rows){if(!rows.length)return '<div class="loading">لا توجد بيانات بعد.</div>';return '<table class="table"><thead><tr><th>الطلب</th><th>العميل</th><th>المبلغ</th><th>الدفع</th><th>التسليم</th><th>التاريخ</th></tr></thead><tbody>'+rows.map(function(o){var c=o.customer_info||{};return '<tr><td><b class="text-white">#'+esc(String(o.id||'').slice(0,8))+'</b><div class="muted text-[10px] mt-1">'+esc(o.payment_method||'—')+'</div></td><td><b>'+esc([c.first_name||c.firstname,c.last_name||c.lastname].filter(Boolean).join(' ')||'—')+'</b><div class="muted text-[11px] mt-1">'+esc(c.email||c.phone||'—')+'</div></td><td class="font-bold">'+money(o.total_payable)+'</td><td>'+statusBadge(o.status)+'</td><td>'+statusBadge(o.fulfillment_status)+'</td><td class="muted whitespace-nowrap">'+date(o.created_at)+'</td></tr>'}).join('')+'</tbody></table>'}
-  function renderRecent(){$('recent-orders').innerHTML=ordersTable(state.orders.slice(0,8))}
-  function renderOrders(){var q=String($('order-search').value||'').trim().toLowerCase(),rows=state.orders.filter(function(o){var c=o.customer_info||{},hay=[o.id,c.email,c.phone,c.first_name,c.firstname,c.last_name,c.lastname].join(' ').toLowerCase();return !q||hay.includes(q)});$('orders-list').innerHTML=ordersTable(rows)}
-  function renderInventory(){var service=$('inventory-service').value,q=String($('inventory-search').value||'').toLowerCase();var accounts=state.accounts.filter(function(a){return(!service||a.service_id===service)&&(!q||[a.label,a.email,a.service_id].join(' ').toLowerCase().includes(q))});if(!accounts.length){$('inventory-list').innerHTML='<div class="loading">لا توجد حسابات مطابقة.</div>';return}$('inventory-list').innerHTML='<div class="grid xl:grid-cols-2 gap-4">'+accounts.map(function(a){var slots=state.slots.filter(function(s){return s.account_id===a.id}).sort(function(x,y){return profileNumber(x.label)-profileNumber(y.label)}),available=slots.filter(function(s){return s.status==='available'}).length,cfg=serviceConfig(a.service_id),model=cfg.inventory_model==='profiles'?'حساب بروفايلات ('+(cfg.profiles_per_account||slots.length)+' شاشات)':'مخزون حسابات';return '<article class="border border-[#2a2a2a] rounded-2xl overflow-hidden bg-black/20"><div class="p-4 flex justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">'+esc(serviceName(a.service_id))+' · '+esc(model)+'</div><h3 class="font-black mt-1">'+esc(a.label||'حساب بدون اسم')+'</h3><p class="muted text-xs mt-1">'+available+' / '+slots.length+' متاح</p></div><div class="text-left">'+statusBadge(a.status)+'<div class="mt-2 flex gap-2"><button class="btn" onclick="openAccountEditor(\''+esc(a.id)+'\')">تعديل البيانات</button><button class="btn" onclick="setInventoryStatus(\'accounts\',\''+esc(a.id)+'\',\''+(a.status==='active'?'maintenance':'active')+'\')">'+(a.status==='active'?'إيقاف مؤقت':'تفعيل')+'</button></div></div></div><div class="border-t border-[#292929]">'+slots.map(function(s){return '<div class="px-4 py-3 border-b border-[#202020] last:border-0 flex items-center justify-between gap-3"><div><b>'+esc(s.label||'Profile')+'</b></div><div class="flex items-center gap-2">'+statusBadge(s.status)+'<button class="btn" onclick="setInventoryStatus(\'slots\',\''+esc(s.id)+'\',\''+(s.status==='available'?'maintenance':'available')+'\')">'+(s.status==='available'?'إيقاف':'إتاحة')+'</button></div></div>'}).join('')+'</div></article>'}).join('')+'</div>'}
-  async function setInventoryStatus(kind,id,status){try{await inventoryCall({action:'set_status',kind:kind,id:id,status:status});toast('تم حفظ حالة المخزون.');await loadAll()}catch(e){toast(e.message,true)}}
-  function openAccountEditor(id){editingAccount=state.accounts.find(function(a){return a.id===id})||null;if(!editingAccount)return;$('account-modal-title').textContent='تعديل بيانات: '+(editingAccount.label||'الحساب');$('account-email').value='';$('account-password').value='';$('account-notify').checked=false;$('account-modal').classList.remove('hidden')}
-  function closeAccountEditor(){editingAccount=null;$('account-modal').classList.add('hidden')}
-  $('account-form').addEventListener('submit',async function(e){e.preventDefault();if(!editingAccount)return;var email=$('account-email').value.trim(),password=$('account-password').value,body={action:'update_account_credentials',id:editingAccount.id,notify:$('account-notify').checked};if(email)body.email=email;if(password)body.password=password;if(!email&&!password){toast('اكتب الإيميل أو كلمة المرور التي تريد تغييرها.',true);return}try{var result=await inventoryCall(body);closeAccountEditor();toast('تم تحديث الحساب. تم تحديث '+(result.affected_orders||0)+' طلب نشط'+((result.notifications_queued||0)?' ووضع '+result.notifications_queued+' إشعارًا في الطابور.':'')+'.');await loadAll()}catch(err){toast('تعذر حفظ بيانات الحساب: '+err.message,true)}});
-  function renderActivations(){var filter=$('activation-filter').value,rows=state.fulfillments.filter(function(f){return f.mode==='manual_activation'||String(f.service_id||'').toLowerCase().includes('spotify')}).filter(function(f){return !filter||f.status===filter});$('activation-list').innerHTML=!rows.length?'<div class="loading">لا توجد طلبات تفعيل مطابقة.</div>':'<table class="table"><thead><tr><th>الطلب</th><th>المنتج</th><th>حساب العميل</th><th>ملاحظة</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>'+rows.map(function(f){var input=f.customer_input||{};return '<tr><td>#'+esc(String(f.order_id||'').slice(0,8))+'</td><td><b>'+esc(serviceName(f.service_id))+'</b></td><td>'+esc(input.account_email||'لم يرسل العميل بياناته')+'</td><td class="muted max-w-[260px]">'+esc(input.note||'—')+'</td><td>'+statusBadge(f.status)+'</td><td><button class="btn neon" onclick="updateFulfillment(\''+esc(f.id)+'\',\'delivered\')">تم التفعيل</button></td></tr>'}).join('')+'</tbody></table>'}
-  async function updateFulfillment(id,status){try{var notes=window.prompt('ملاحظة الأدمن (اختياري):','');if(notes===null)return;var r=await window.supabaseClient.rpc('ops_update_activation',{p_fulfillment_id:id,p_status:status,p_admin_notes:notes});if(r.error)throw r.error;toast('تم حفظ حالة التفعيل وتسجيلها.');await loadAll()}catch(e){toast('تعذر حفظ الحالة: '+e.message,true)}}
-  function renderProblems(){var rows=state.problems,open=rows.filter(function(p){return !['resolved','closed'].includes(String(p.status).toLowerCase())}).length;$('problem-count').textContent=open+' مفتوحة';$('problem-list').innerHTML=!rows.length?'<div class="loading">لا توجد بلاغات.</div>':'<table class="table"><thead><tr><th>الطلب</th><th>الخدمة</th><th>وصف العميل</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>'+rows.map(function(p){return '<tr><td>#'+esc(String(p.order_id||'').slice(0,8))+'</td><td><b>'+esc(serviceName(p.service_id))+'</b></td><td class="max-w-[430px]">'+esc(p.message||p.description||'—')+'</td><td>'+statusBadge(p.status)+'</td><td>'+(['resolved','closed'].includes(String(p.status).toLowerCase())?'<span class="muted">تمت المعالجة</span>':'<button class="btn neon" onclick="resolveProblem(\''+esc(p.id)+'\')">حل المشكلة</button>')+'</td></tr>'}).join('')+'</tbody></table>'}
-  async function resolveProblem(id){try{var notes=window.prompt('ما الذي تم عمله لحل المشكلة؟ سيظهر للعميل ويُرسل إلى الشيت.','');if(notes===null)return;var r=await window.supabaseClient.rpc('ops_resolve_problem',{p_problem_id:id,p_admin_notes:notes});if(r.error)throw r.error;try{await inventoryCall({action:'sync_sheet'})}catch(syncError){toast('حُلّت المشكلة في الموقع، لكن تعذر إرسال التحديث للشيت: '+syncError.message,true);await loadAll();return}toast('تم حل المشكلة وإرسال الحالة والملاحظة إلى الشيت.');await loadAll()}catch(e){toast('تعذر حل المشكلة: '+e.message,true)}}
-  function showTab(name){document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('hidden',v.id!=='view-'+name)});document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===name)})}
-  document.querySelectorAll('.tab').forEach(function(t){t.onclick=function(){showTab(t.dataset.tab)}});
-  (async function(){if(await requireAdmin())loadAll()})();
-  </script>
-</body></html>
+    <div
+      id="account-modal"
+      class="hidden fixed inset-0 z-50 p-4 bg-black/75 backdrop-blur-sm flex items-center justify-center"
+    >
+      <form id="account-form" class="panel rounded-[24px] w-full max-w-lg p-6">
+        <div class="flex justify-between gap-4 items-start">
+          <div>
+            <div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">
+              SECURE ACCOUNT CHANGE
+            </div>
+            <h2
+              id="account-modal-title"
+              class="display text-xl font-black mt-1"
+            >
+              تعديل بيانات الحساب
+            </h2>
+            <p class="muted text-xs mt-2">
+              اترك الحقل فارغًا إذا لا تريد تغييره. لا تظهر كلمة المرور القديمة
+              في الصفحة.
+            </p>
+          </div>
+          <button type="button" class="btn" onclick="closeAccountEditor()">
+            إغلاق
+          </button>
+        </div>
+        <div class="space-y-3 mt-5">
+          <div>
+            <label class="muted text-xs block mb-1">إيميل الحساب الجديد</label
+            ><input
+              id="account-email"
+              type="email"
+              class="input"
+              placeholder="اتركه فارغًا للإبقاء على الإيميل الحالي"
+            />
+          </div>
+          <div>
+            <label class="muted text-xs block mb-1">كلمة المرور الجديدة</label
+            ><input
+              id="account-password"
+              type="password"
+              class="input"
+              placeholder="اتركها فارغة للإبقاء على الحالية"
+              autocomplete="new-password"
+            />
+          </div>
+          <label
+            class="flex gap-2 text-sm text-gray-300 bg-black/20 border border-white/5 p-3 rounded-xl"
+            ><input
+              id="account-notify"
+              type="checkbox"
+              class="accent-[#39ff14]"
+            /><span
+              >أرسل إشعارًا اختياريًا لكل العملاء ذوي الاشتراك النشط في هذا
+              الحساب.</span
+            ></label
+          >
+        </div>
+        <div class="flex justify-end gap-2 mt-6">
+          <button type="button" class="btn" onclick="closeAccountEditor()">
+            إلغاء</button
+          ><button class="btn neon" type="submit">حفظ التعديل</button>
+        </div>
+      </form>
+    </div>
+    <div
+      id="toast"
+      class="hidden fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm"
+    ></div>
+    <div
+      id="problem-modal"
+      class="hidden fixed inset-0 z-[60] p-4 bg-black/80 backdrop-blur-sm flex items-center justify-center"
+    >
+      <div class="panel rounded-[24px] w-full max-w-2xl max-h-[92vh] overflow-auto p-6">
+        <div class="flex justify-between gap-4 items-start">
+          <div>
+            <div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">SUPPORT THREAD</div>
+            <h2 id="problem-modal-title" class="display text-xl font-black mt-1">محادثة البلاغ</h2>
+            <div id="problem-modal-status" class="mt-2"></div>
+          </div>
+          <button type="button" class="btn" onclick="closeProblemModal()">إغلاق</button>
+        </div>
+        <div id="problem-thread" class="mt-5 space-y-3 rounded-2xl border border-[#292929] bg-black/30 p-4 max-h-[45vh] overflow-auto"></div>
+        <div id="problem-reply-box" class="mt-4">
+          <label class="muted text-xs block mb-2">اكتب ردك للعميل — لن يتم إغلاق البلاغ</label>
+          <textarea id="problem-reply" class="input min-h-28" maxlength="2000" placeholder="اكتب الرد أو رسالة الحل النهائية…"></textarea>
+          <div class="flex flex-wrap justify-end gap-2 mt-3">
+            <button class="btn" onclick="sendProblemReply(false)">إرسال رد وإبقاء البلاغ مفتوحًا</button>
+            <button class="btn neon" onclick="sendProblemReply(true)">تم حل المشكلة</button>
+          </div>
+          <p class="muted text-[11px] mt-2">يمكن تعليم البلاغ كمحلول مع رسالة جديدة أو بدون رسالة.</p>
+        </div>
+      </div>
+    </div>
+    <div
+      id="inventory-add-modal"
+      class="hidden fixed inset-0 z-[60] p-4 bg-black/80 backdrop-blur-sm flex items-center justify-center"
+    >
+      <form id="inventory-add-form" class="panel rounded-[24px] w-full max-w-xl max-h-[92vh] overflow-auto p-6">
+        <div class="flex justify-between gap-4 items-start">
+          <div><div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">SERVICE INVENTORY</div><h2 id="inventory-add-title" class="display text-xl font-black mt-1">إضافة مخزون</h2></div>
+          <button type="button" class="btn" onclick="closeInventoryCreator()">إغلاق</button>
+        </div>
+        <input id="inventory-add-service" type="hidden" />
+        <input id="inventory-add-mode" type="hidden" />
+        <div id="inventory-account-fields" class="space-y-3 mt-5">
+          <input id="inventory-add-label" class="input" placeholder="اسم داخلي للحساب" />
+          <input id="inventory-add-email" type="email" class="input" placeholder="إيميل الحساب" />
+          <input id="inventory-add-password" type="password" class="input" placeholder="كلمة سر الحساب" autocomplete="new-password" />
+          <input id="inventory-add-capacity" type="number" min="1" max="20" value="5" class="input" />
+          <textarea id="inventory-add-profiles" class="input min-h-36" placeholder="كل بروفايل في سطر: Profile 1 | 1234"></textarea>
+        </div>
+        <div id="inventory-license-fields" class="hidden mt-5">
+          <textarea id="inventory-add-codes" class="input min-h-56 font-mono" placeholder="كل كود أو ترخيص في سطر"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 mt-5"><button type="button" class="btn" onclick="closeInventoryCreator()">إلغاء</button><button class="btn neon" type="submit">حفظ وإرسال أحدث نسخة للشيت</button></div>
+      </form>
+    </div>
+    <script src="supabase-client.js"></script>
+    <script>
+      var state = {
+          services: [],
+          configs: [],
+          orders: [],
+          accounts: [],
+          slots: [],
+          licenses: [],
+          allocations: [],
+          fulfillments: [],
+          problems: [],
+          problemMessages: [],
+          audit: [],
+        },
+        editingAccount = null,
+        editingProblem = null;
+      var $ = function (id) {
+        return document.getElementById(id);
+      };
+      function esc(v) {
+        return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+          return {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;",
+          }[c];
+        });
+      }
+      function text(v) {
+        return esc(v || "—");
+      }
+      function statusBadge(v) {
+        var s = String(v || "pending").toLowerCase(),
+          cls = /paid|delivered|available|active|completed|resolved/.test(s)
+            ? "b-green"
+            : /problem|failed|cancelled|disabled/.test(s)
+              ? "b-red"
+              : /pending|awaiting|processing|review/.test(s)
+                ? "b-yellow"
+                : "b-gray";
+        return (
+          '<span class="badge ' +
+          cls +
+          '">' +
+          esc(s.replaceAll("_", " ")) +
+          "</span>"
+        );
+      }
+      function money(v) {
+        return Number(v || 0).toLocaleString("en-US") + " دج";
+      }
+      function date(v) {
+        try {
+          return v
+            ? new Date(v).toLocaleString("ar-DZ", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })
+            : "—";
+        } catch (_) {
+          return "—";
+        }
+      }
+      function profileNumber(v) {
+        var m = String(v || "").match(/\d+/);
+        return m ? Number(m[0]) : 9999;
+      }
+      function toast(message, bad) {
+        var el = $("toast");
+        el.textContent = message;
+        el.className =
+          "fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm " +
+          (bad ? "text-red-300" : "text-[#39ff14]");
+        setTimeout(function () {
+          el.className = "hidden";
+        }, 4200);
+      }
+      async function requireAdmin() {
+        try {
+          var r = await window.supabaseClient.auth.getSession(),
+            session = r.data && r.data.session;
+          if (!session) {
+            location.href = "admin";
+            return false;
+          }
+          var a = await window.supabaseClient
+            .from("admin_users")
+            .select("user_id")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          if (a.error || !a.data) {
+            await window.supabaseClient.auth.signOut();
+            $("gate-msg").textContent = "هذا الحساب غير مصرح له بالدخول.";
+            return false;
+          }
+          $("gate").classList.add("hidden");
+          $("app").classList.remove("hidden");
+          return true;
+        } catch (e) {
+          $("gate-msg").textContent = "تعذر التحقق من الصلاحيات: " + e.message;
+          return false;
+        }
+      }
+      async function logout() {
+        await window.supabaseClient.auth.signOut();
+        location.href = "admin";
+      }
+      async function inventoryCall(body) {
+        var r = await window.supabaseClient.auth.getSession(),
+          s = r.data && r.data.session;
+        if (!s) throw new Error("انتهت الجلسة");
+        var response = await fetch(
+          SUPABASE_URL + "/functions/v1/admin-inventory",
+          {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + s.access_token,
+              apikey: SUPABASE_ANON_KEY,
+              "Content-Type": "application/json",
+              "x-client-info": "strivio-operations",
+            },
+            body: JSON.stringify(body),
+          },
+        );
+        var data = await response.json().catch(function () {
+          return null;
+        });
+        if (!response.ok || !data || !data.success)
+          throw new Error((data && data.error) || "تعذر تنفيذ الطلب");
+        return data;
+      }
+      async function loadAll() {
+        try {
+          [
+            "recent-orders",
+            "inventory-list",
+            "activation-list",
+            "problem-list",
+            "orders-list",
+          ].forEach(function (id) {
+            if ($(id))
+              $(id).innerHTML =
+                '<div class="loading">جاري تحميل البيانات…</div>';
+          });
+          var results = await Promise.allSettled([
+            window.supabaseClient
+              .from("services")
+              .select("id,n,fulfillment_mode,fulfillment_config")
+              .order("sort_order"),
+            window.supabaseClient.from("service_operations_config").select("*"),
+            window.supabaseClient
+              .from("orders")
+              .select("*")
+              .order("created_at", { ascending: false })
+              .limit(250),
+            window.supabaseClient
+              .from("fulfillments")
+              .select("*")
+              .order("updated_at", { ascending: false })
+              .limit(250),
+            window.supabaseClient
+              .from("problem_reports")
+              .select("*")
+              .order("created_at", { ascending: false })
+              .limit(250),
+            window.supabaseClient
+              .from("fulfillment_allocations")
+              .select(
+                "id,account_id,slot_id,fulfillment_id,starts_at,ends_at,status,created_at",
+              )
+              .order("created_at", { ascending: false })
+              .limit(500),
+            window.supabaseClient
+              .from("problem_messages")
+              .select("*")
+              .order("created_at", { ascending: true })
+              .limit(1000),
+            window.supabaseClient
+              .from("operations_audit_log")
+              .select("*")
+              .eq("entity_type", "inventory_account")
+              .order("created_at", { ascending: false })
+              .limit(500),
+            inventoryCall({ action: "list" }),
+          ]);
+          function value(i, fallback) {
+            var x = results[i];
+            return x.status === "fulfilled" && !x.value.error
+              ? x.value.data || fallback
+              : fallback;
+          }
+          state.services = value(0, []);
+          state.configs = value(1, []);
+          state.orders = value(2, []);
+          state.fulfillments = value(3, []);
+          state.problems = value(4, []);
+          state.allocations = value(5, []);
+          state.problemMessages = value(6, []);
+          state.audit = value(7, []);
+          var inv =
+            results[8].status === "fulfilled"
+              ? results[8].value
+              : { accounts: [], slots: [], licenses: [] };
+          state.accounts = inv.accounts || [];
+          state.slots = inv.slots || [];
+          state.licenses = inv.licenses || [];
+          if (
+            results[3].status === "rejected" ||
+            results[4].status === "rejected"
+          )
+            toast(
+              "بعض جداول العمليات لم تُحمّل. تحقق من صلاحيات الباك اند.",
+              true,
+            );
+          fillServices();
+          renderAll();
+          $("last-sync").textContent =
+            "آخر تحديث: " + new Date().toLocaleTimeString("ar-DZ");
+        } catch (e) {
+          toast("تعذر تحميل مركز العمليات: " + e.message, true);
+        }
+      }
+      function fillServices() {
+        var select = $("inventory-service"),
+          current = select.value;
+        select.innerHTML =
+          '<option value="">كل المنتجات</option>' +
+          state.services
+            .map(function (s) {
+              return (
+                '<option value="' +
+                esc(s.id) +
+                '">' +
+                esc((s.n && s.n.ar) || s.id) +
+                "</option>"
+              );
+            })
+            .join("");
+        select.value = current;
+      }
+      function serviceName(id) {
+        var s = state.services.find(function (x) {
+          return x.id === id;
+        });
+        return s && s.n ? s.n.ar || s.n.en || id : id || "—";
+      }
+      function serviceConfig(id) {
+        return (
+          state.configs.find(function (c) {
+            return c.service_id === id;
+          }) || { inventory_model: "manual_delivery", profiles_per_account: 0 }
+        );
+      }
+      function renderAll() {
+        renderStats();
+        renderRecent();
+        renderServiceRegisters();
+        renderInventory();
+        renderActivations();
+        renderProblems();
+        renderOrders();
+        var sid = new URLSearchParams(location.search).get("service");
+        if (sid) openServiceRegister(sid, true);
+      }
+      function modeLabel(mode) {
+        return (
+          {
+            automatic_slot: "شاشات / بروفايلات",
+            automatic_account: "حسابات كاملة",
+            automatic_license: "أكواد وتراخيص",
+            manual_activation: "تفعيل حساب العميل",
+            email_invite: "دعوات بريدية",
+            manual_delivery: "تسليم يدوي",
+          }[mode] || "تسليم يدوي"
+        );
+      }
+      function renderServiceRegisters() {
+        var el = $("service-registers");
+        if (!el) return;
+        el.innerHTML =
+          state.services
+            .map(function (s) {
+              var mode =
+                  s.fulfillment_mode ||
+                  serviceConfig(s.id).inventory_model ||
+                  "manual_delivery",
+                orders = state.fulfillments.filter(function (f) {
+                  return f.service_id === s.id;
+                }).length,
+                free = state.slots.filter(function (x) {
+                  var a = state.accounts.find(function (y) {
+                    return y.id === x.account_id;
+                  });
+                  return a && a.service_id === s.id && x.status === "available";
+                }).length;
+              return (
+                '<article class="border border-[#2a2a2a] bg-black/20 rounded-2xl p-5"><div class="text-[#39ff14] text-[10px] font-black tracking-wider">' +
+                esc(modeLabel(mode)) +
+                '</div><h3 class="display text-xl font-black mt-2">' +
+                esc(serviceName(s.id)) +
+                '</h3><div class="flex gap-2 text-xs muted mt-3"><span>' +
+                orders +
+                " طلب</span><span>•</span><span>" +
+                free +
+                ' متاح</span></div><button class="btn neon w-full mt-5" onclick="openServiceRegister(\'' +
+                esc(s.id) +
+                "')\">فتح سجل الخدمة</button></article>"
+              );
+            })
+            .join("") || '<div class="loading">لا توجد خدمات.</div>';
+      }
+      function orderFor(id) {
+        return (
+          state.orders.find(function (o) {
+            return o.id === id;
+          }) || {}
+        );
+      }
+      function customerFor(order) {
+        var c = order.customer_info || {};
+        return (
+          [c.first_name || c.firstname, c.last_name || c.lastname]
+            .filter(Boolean)
+            .join(" ") ||
+          c.email ||
+          c.phone ||
+          "—"
+        );
+      }
+      function allocationFor(slotId) {
+        return (
+          state.allocations
+            .filter(function (a) {
+              return (
+                a.slot_id === slotId &&
+                !["released", "cancelled", "expired"].includes(
+                  String(a.status || "").toLowerCase(),
+                )
+              );
+            })
+            .sort(function (a, b) {
+              return new Date(b.created_at) - new Date(a.created_at);
+            })[0] || null
+        );
+      }
+      function profileCustomer(slot) {
+        var a = allocationFor(slot.id);
+        if (!a) return '<span class="muted">لا يوجد عميل — متاح للتسليم</span>';
+        var f =
+            state.fulfillments.find(function (x) {
+              return x.id === a.fulfillment_id;
+            }) || {},
+          o = orderFor(f.order_id),
+          c = o.customer_info || {};
+        return (
+          "<div><b>" +
+          esc(customerFor(o)) +
+          '</b><div class="muted text-[11px] mt-1">' +
+          esc(c.email || c.phone || "—") +
+          '</div><div class="text-[10px] text-[#39ff14] mt-1">#' +
+          esc(String(f.order_id || "").slice(0, 8)) +
+          (a.ends_at
+            ? " · ينتهي " + esc(new Date(a.ends_at).toLocaleDateString("ar-DZ"))
+            : "") +
+          "</div></div>"
+        );
+      }
+      function accountHistoryHtml(accountId) {
+        var rows = state.audit.filter(function (entry) {
+          return entry.entity_id === accountId;
+        });
+        if (!rows.length)
+          return '<div class="muted text-xs p-3">لا توجد تغييرات مسجلة لهذا الحساب بعد.</div>';
+        return (
+          '<div class="border-t border-[#292929] bg-black/20 p-3"><b class="text-xs">سجل تغييرات الحساب</b><div class="space-y-2 mt-2">' +
+          rows
+            .slice(0, 12)
+            .map(function (entry) {
+              var before = entry.before_data || {},
+                after = entry.after_data || {},
+                changes = [];
+              if (before.email !== after.email)
+                changes.push(
+                  "الإيميل: " +
+                    (before.email || "—") +
+                    " ← " +
+                    (after.email || "—"),
+                );
+              if (entry.metadata?.password_changed)
+                changes.push("تم تغيير كلمة السر");
+              return (
+                '<div class="rounded-xl border border-[#252525] p-2 text-[11px]"><div class="text-white">' +
+                esc(changes.join(" • ") || "تحديث بيانات الحساب") +
+                '</div><div class="muted mt-1">' +
+                esc(date(entry.created_at)) +
+                "</div></div>"
+              );
+            })
+            .join("") +
+          "</div></div>"
+        );
+      }
+      function serviceFulfillmentTable(rows, mode) {
+        if (!rows.length)
+          return '<div class="loading">لا توجد عمليات لهذه الخدمة بعد.</div>';
+        return (
+          '<table class="table"><thead><tr><th>رقم الطلب</th><th>العميل</th><th>تفاصيل التسليم</th><th>الحالة</th><th>آخر تحديث</th><th>إجراء</th></tr></thead><tbody>' +
+          rows
+            .map(function (f) {
+              var o = orderFor(f.order_id),
+                input = f.customer_input || {},
+                detail =
+                  mode === "manual_activation"
+                    ? (input.account_email || "بانتظار بيانات العميل") +
+                      (input.note ? " — " + input.note : "")
+                    : (f.delivery_summary && f.delivery_summary.message) ||
+                      modeLabel(mode);
+              return (
+                "<tr><td><b>#" +
+                esc(String(f.order_id || "").slice(0, 8)) +
+                '</b><div class="muted text-[10px]">' +
+                esc(f.order_id || "") +
+                "</div></td><td><b>" +
+                esc(customerFor(o)) +
+                '</b><div class="muted text-[11px] mt-1">' +
+                esc((o.customer_info || {}).email || "—") +
+                "</div></td><td>" +
+                esc(detail) +
+                "</td><td>" +
+                statusBadge(f.status) +
+                '</td><td class="muted whitespace-nowrap">' +
+                date(f.updated_at || f.created_at) +
+                "</td><td>" +
+                (["delivered", "completed"].includes(
+                  String(f.status).toLowerCase(),
+                )
+                  ? '<span class="muted">مكتمل</span>'
+                  : '<button class="btn neon" onclick="updateFulfillment(\'' +
+                    esc(f.id) +
+                    "','delivered')\">تأكيد الإنجاز</button>") +
+                "</td></tr>"
+              );
+            })
+            .join("") +
+          "</tbody></table>"
+        );
+      }
+      function openServiceRegister(id, fromUrl) {
+        var s = state.services.find(function (x) {
+          return x.id === id;
+        });
+        if (!s) return;
+        var mode = s.fulfillment_mode || "manual_delivery",
+          rows = state.fulfillments.filter(function (f) {
+            return f.service_id === id;
+          }),
+          workspace = $("service-workspace");
+        var inventoryButton =
+          mode === "automatic_slot" || mode === "automatic_account"
+            ? '<button class="btn neon" onclick="openInventoryCreator(\'' +
+              esc(id) +
+              "','account')\">+ إضافة حساب ومخزون</button>"
+            : mode === "automatic_license"
+              ? '<button class="btn neon" onclick="openInventoryCreator(\'' +
+                esc(id) +
+                "','license')\">+ إضافة أكواد</button>"
+              : "";
+        var intro =
+          '<div class="flex flex-col md:flex-row md:items-end justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">' +
+          esc(modeLabel(mode)) +
+          '</div><h2 class="display text-2xl font-black mt-1">سجل ' +
+          esc(serviceName(id)) +
+          '</h2><p class="muted text-xs mt-2">هذا هو مكان إضافة وتعديل المخزون الرسمي. Google Sheets يعرض أحدث نسخة فقط.</p></div><div class="flex flex-wrap gap-2">' +
+          inventoryButton +
+          '<button class="btn" onclick="syncServiceSheet(\'' +
+          esc(id) +
+          '\')">↻ تحديث السجل والشيت</button></div></div>';
+        if (mode === "automatic_slot" || mode === "automatic_account") {
+          var accounts = state.accounts.filter(function (a) {
+            return a.service_id === id;
+          });
+          workspace.innerHTML =
+            intro +
+            '<div class="grid xl:grid-cols-2 gap-4 mt-5">' +
+            accounts
+              .map(function (a) {
+                var slots = state.slots
+                  .filter(function (x) {
+                    return x.account_id === a.id;
+                  })
+                  .sort(function (x, y) {
+                    return profileNumber(x.label) - profileNumber(y.label);
+                  });
+                return (
+                  '<div class="border border-[#2a2a2a] rounded-2xl overflow-hidden"><div class="p-4 bg-black/30 flex justify-between gap-3"><div><b>' +
+                  esc(a.label || "حساب Netflix") +
+                  '</b><div class="muted text-xs mt-1">المخزون مرتب وثابت، والتعديلات تُسجل وتُرسل للشيت.</div></div><div class="flex flex-wrap gap-2"><button class="btn" onclick="openAccountEditor(\'' +
+                  esc(a.id) +
+                  '\')">تعديل الحساب</button>' +
+                  statusBadge(a.status) +
+                  '</div></div><div class="table-wrap border-0 rounded-none"><table class="table min-w-[780px]"><thead><tr><th>البروفايل</th><th>العميل والاشتراك</th><th>الحالة</th><th>الإدارة</th></tr></thead><tbody>' +
+                  slots
+                    .map(function (x) {
+                      return (
+                        "<tr><td><b>" +
+                        esc(x.label || "Profile") +
+                        "</b></td><td>" +
+                        profileCustomer(x) +
+                        "</td><td>" +
+                        statusBadge(x.status) +
+                        "</td><td><button class=\"btn\" onclick=\"setInventoryStatus('slots','" +
+                        esc(x.id) +
+                        "','" +
+                        (x.status === "available"
+                          ? "maintenance"
+                          : "available") +
+                        "')\">" +
+                        (x.status === "available"
+                          ? "إيقاف مؤقت"
+                          : "جعله متاحاً") +
+                        "</button></td></tr>"
+                      );
+                    })
+                    .join("") +
+                  "</tbody></table></div>" +
+                  accountHistoryHtml(a.id) +
+                  "</div>"
+                );
+              })
+              .join("") +
+            '</div><div class="table-wrap mt-5">' +
+            serviceFulfillmentTable(rows, mode) +
+            "</div>";
+        } else if (mode === "automatic_license") {
+          var lic = state.licenses.filter(function (x) {
+            return x.service_id === id;
+          });
+          workspace.innerHTML =
+            intro +
+            '<div class="table-wrap mt-5"><table class="table"><thead><tr><th>الترخيص</th><th>الحالة</th><th>آخر تحديث</th></tr></thead><tbody>' +
+            lic
+              .map(function (x) {
+                return (
+                  "<tr><td><b>" +
+                  esc(x.label || "License") +
+                  "</b></td><td>" +
+                  statusBadge(x.status) +
+                  "</td><td>" +
+                  date(x.updated_at || x.created_at) +
+                  "</td></tr>"
+                );
+              })
+              .join("") +
+            '</tbody></table></div><div class="table-wrap mt-5">' +
+            serviceFulfillmentTable(rows, mode) +
+            "</div>";
+        } else {
+          workspace.innerHTML =
+            intro +
+            '<div class="table-wrap mt-5">' +
+            serviceFulfillmentTable(rows, mode) +
+            "</div>";
+        }
+        if (!fromUrl) {
+          history.replaceState(
+            {},
+            "",
+            location.pathname + "?service=" + encodeURIComponent(id),
+          );
+          showTab("service");
+        }
+      }
+      function renderStats() {
+        var paid = state.orders.filter(function (o) {
+            return ["paid", "completed"].includes(
+              String(o.status).toLowerCase(),
+            );
+          }),
+          open = state.problems.filter(function (p) {
+            return !["resolved", "closed"].includes(
+              String(p.status).toLowerCase(),
+            );
+          }).length,
+          free = state.slots.filter(function (s) {
+            return s.status === "available";
+          }).length,
+          waiting = state.fulfillments.filter(function (f) {
+            return f.status === "awaiting_admin";
+          }).length,
+          total = paid.reduce(function (a, o) {
+            return a + Number(o.total_payable || 0);
+          }, 0);
+        var cards = [
+          ["مبيعات مدفوعة", money(total), "💳"],
+          ["طلبات بانتظار التفعيل", waiting, "⚡"],
+          ["مشاكل مفتوحة", open, "⚠️"],
+          ["بروفايلات متاحة", free, "◉"],
+          ["كل الطلبات", state.orders.length, "📦"],
+        ];
+        $("stats").innerHTML = cards
+          .map(function (c) {
+            return (
+              '<div class="panel stat rounded-2xl p-4"><div class="text-xl">' +
+              c[2] +
+              '</div><div class="display text-2xl font-black mt-2">' +
+              c[1] +
+              '</div><div class="muted text-xs mt-1">' +
+              c[0] +
+              "</div></div>"
+            );
+          })
+          .join("");
+      }
+      function ordersTable(rows) {
+        if (!rows.length)
+          return '<div class="loading">لا توجد بيانات بعد.</div>';
+        return (
+          '<table class="table"><thead><tr><th>الطلب</th><th>العميل</th><th>المبلغ</th><th>الدفع</th><th>التسليم</th><th>التاريخ</th></tr></thead><tbody>' +
+          rows
+            .map(function (o) {
+              var c = o.customer_info || {};
+              return (
+                '<tr><td><b class="text-white">#' +
+                esc(String(o.id || "").slice(0, 8)) +
+                '</b><div class="muted text-[10px] mt-1">' +
+                esc(o.payment_method || "—") +
+                "</div></td><td><b>" +
+                esc(
+                  [c.first_name || c.firstname, c.last_name || c.lastname]
+                    .filter(Boolean)
+                    .join(" ") || "—",
+                ) +
+                '</b><div class="muted text-[11px] mt-1">' +
+                esc(c.email || c.phone || "—") +
+                '</div></td><td class="font-bold">' +
+                money(o.total_payable) +
+                "</td><td>" +
+                statusBadge(o.status) +
+                "</td><td>" +
+                statusBadge(o.fulfillment_status) +
+                '</td><td class="muted whitespace-nowrap">' +
+                date(o.created_at) +
+                "</td></tr>"
+              );
+            })
+            .join("") +
+          "</tbody></table>"
+        );
+      }
+      function renderRecent() {
+        $("recent-orders").innerHTML = ordersTable(state.orders.slice(0, 8));
+      }
+      function renderOrders() {
+        var q = String($("order-search").value || "")
+            .trim()
+            .toLowerCase(),
+          rows = state.orders.filter(function (o) {
+            var c = o.customer_info || {},
+              hay = [
+                o.id,
+                c.email,
+                c.phone,
+                c.first_name,
+                c.firstname,
+                c.last_name,
+                c.lastname,
+              ]
+                .join(" ")
+                .toLowerCase();
+            return !q || hay.includes(q);
+          });
+        $("orders-list").innerHTML = ordersTable(rows);
+      }
+      function renderInventory() {
+        var service = $("inventory-service").value,
+          q = String($("inventory-search").value || "").toLowerCase();
+        var accounts = state.accounts.filter(function (a) {
+          return (
+            (!service || a.service_id === service) &&
+            (!q ||
+              [a.label, a.email, a.service_id]
+                .join(" ")
+                .toLowerCase()
+                .includes(q))
+          );
+        });
+        if (!accounts.length) {
+          $("inventory-list").innerHTML =
+            '<div class="loading">لا توجد حسابات مطابقة.</div>';
+          return;
+        }
+        $("inventory-list").innerHTML =
+          '<div class="grid xl:grid-cols-2 gap-4">' +
+          accounts
+            .map(function (a) {
+              var slots = state.slots
+                  .filter(function (s) {
+                    return s.account_id === a.id;
+                  })
+                  .sort(function (x, y) {
+                    return profileNumber(x.label) - profileNumber(y.label);
+                  }),
+                available = slots.filter(function (s) {
+                  return s.status === "available";
+                }).length,
+                cfg = serviceConfig(a.service_id),
+                model =
+                  cfg.inventory_model === "profiles"
+                    ? "حساب بروفايلات (" +
+                      (cfg.profiles_per_account || slots.length) +
+                      " شاشات)"
+                    : "مخزون حسابات";
+              return (
+                '<article class="border border-[#2a2a2a] rounded-2xl overflow-hidden bg-black/20"><div class="p-4 flex justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">' +
+                esc(serviceName(a.service_id)) +
+                " · " +
+                esc(model) +
+                '</div><h3 class="font-black mt-1">' +
+                esc(a.label || "حساب بدون اسم") +
+                '</h3><p class="muted text-xs mt-1">' +
+                available +
+                " / " +
+                slots.length +
+                ' متاح</p></div><div class="text-left">' +
+                statusBadge(a.status) +
+                '<div class="mt-2 flex gap-2"><button class="btn" onclick="openAccountEditor(\'' +
+                esc(a.id) +
+                "')\">تعديل البيانات</button><button class=\"btn\" onclick=\"setInventoryStatus('accounts','" +
+                esc(a.id) +
+                "','" +
+                (a.status === "active" ? "maintenance" : "active") +
+                "')\">" +
+                (a.status === "active" ? "إيقاف مؤقت" : "تفعيل") +
+                '</button></div></div></div><div class="border-t border-[#292929]">' +
+                slots
+                  .map(function (s) {
+                    return (
+                      '<div class="px-4 py-3 border-b border-[#202020] last:border-0 flex items-center justify-between gap-3"><div><b>' +
+                      esc(s.label || "Profile") +
+                      '</b></div><div class="flex items-center gap-2">' +
+                      statusBadge(s.status) +
+                      "<button class=\"btn\" onclick=\"setInventoryStatus('slots','" +
+                      esc(s.id) +
+                      "','" +
+                      (s.status === "available" ? "maintenance" : "available") +
+                      "')\">" +
+                      (s.status === "available" ? "إيقاف" : "إتاحة") +
+                      "</button></div></div>"
+                    );
+                  })
+                  .join("") +
+                "</div></article>"
+              );
+            })
+            .join("") +
+          "</div>";
+      }
+      async function setInventoryStatus(kind, id, status) {
+        try {
+          await inventoryCall({
+            action: "set_status",
+            kind: kind,
+            id: id,
+            status: status,
+          });
+          toast("تم حفظ حالة المخزون.");
+          await loadAll();
+        } catch (e) {
+          toast(e.message, true);
+        }
+      }
+      function openAccountEditor(id) {
+        editingAccount =
+          state.accounts.find(function (a) {
+            return a.id === id;
+          }) || null;
+        if (!editingAccount) return;
+        $("account-modal-title").textContent =
+          "تعديل بيانات: " + (editingAccount.label || "الحساب");
+        $("account-email").value = "";
+        $("account-password").value = "";
+        $("account-notify").checked = false;
+        $("account-modal").classList.remove("hidden");
+      }
+      function closeAccountEditor() {
+        editingAccount = null;
+        $("account-modal").classList.add("hidden");
+      }
+      async function syncServiceSheet(serviceId) {
+        try {
+          var result = await inventoryCall({
+            action: "sync_sheet",
+            scope: "inventory",
+            service_id: serviceId || null,
+          });
+          toast(
+            "تم إرسال أحدث بيانات قاعدة البيانات إلى الشيت (" +
+              ((result.sync && result.sync.sent) || 0) +
+              " تحديث).",
+          );
+          await loadAll();
+        } catch (error) {
+          toast("تعذر تحديث الشيت: " + error.message, true);
+        }
+      }
+      function openInventoryCreator(serviceId, kind) {
+        $("inventory-add-service").value = serviceId;
+        $("inventory-add-mode").value = kind;
+        $("inventory-add-title").textContent =
+          (kind === "license" ? "إضافة أكواد إلى " : "إضافة حساب إلى ") +
+          serviceName(serviceId);
+        $("inventory-account-fields").classList.toggle(
+          "hidden",
+          kind === "license",
+        );
+        $("inventory-license-fields").classList.toggle(
+          "hidden",
+          kind !== "license",
+        );
+        if (kind !== "license") {
+          var service = state.services.find(function (item) {
+            return item.id === serviceId;
+          });
+          $("inventory-add-capacity").value =
+            service && service.fulfillment_mode === "automatic_account" ? 1 : 5;
+        }
+        $("inventory-add-modal").classList.remove("hidden");
+      }
+      function closeInventoryCreator() {
+        $("inventory-add-modal").classList.add("hidden");
+        $("inventory-add-form").reset();
+      }
+      $("inventory-add-form").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        var serviceId = $("inventory-add-service").value,
+          kind = $("inventory-add-mode").value;
+        try {
+          if (kind === "license") {
+            var codes = $("inventory-add-codes")
+              .value.split(/\r?\n/)
+              .map(function (value) {
+                return value.trim();
+              })
+              .filter(Boolean);
+            if (!codes.length) throw new Error("أضف كودًا واحدًا على الأقل.");
+            await inventoryCall({
+              action: "add_licenses",
+              service_id: serviceId,
+              codes: codes,
+            });
+          } else {
+            var profileLines = $("inventory-add-profiles")
+                .value.split(/\r?\n/)
+                .filter(Boolean),
+              profiles = profileLines.map(function (line, index) {
+                var parts = line.split("|");
+                return {
+                  name: (parts[0] || "Profile " + (index + 1)).trim(),
+                  pin: (parts[1] || "").trim(),
+                };
+              }),
+              capacity = Number(
+                $("inventory-add-capacity").value || profiles.length || 1,
+              );
+            if (!$("inventory-add-email").value.trim())
+              throw new Error("إيميل الحساب مطلوب.");
+            if (!$("inventory-add-password").value)
+              throw new Error("كلمة سر الحساب مطلوبة.");
+            await inventoryCall({
+              action: "add_account",
+              service_id: serviceId,
+              label: $("inventory-add-label").value.trim(),
+              email: $("inventory-add-email").value.trim(),
+              password: $("inventory-add-password").value,
+              capacity: capacity,
+              profiles: profiles,
+            });
+          }
+          closeInventoryCreator();
+          toast("تمت إضافة المخزون وتسجيل أحدث نسخة للشيت.");
+          await syncServiceSheet(serviceId);
+        } catch (error) {
+          toast("تعذر إضافة المخزون: " + error.message, true);
+        }
+      });
+      $("account-form").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        if (!editingAccount) return;
+        var email = $("account-email").value.trim(),
+          password = $("account-password").value,
+          body = {
+            action: "update_account_credentials",
+            id: editingAccount.id,
+            notify: $("account-notify").checked,
+          };
+        if (email) body.email = email;
+        if (password) body.password = password;
+        if (!email && !password) {
+          toast("اكتب الإيميل أو كلمة المرور التي تريد تغييرها.", true);
+          return;
+        }
+        try {
+          var result = await inventoryCall(body);
+          await inventoryCall({ action: "sync_sheet", scope: "inventory" });
+          closeAccountEditor();
+          toast(
+            "تم تحديث الحساب. تم تحديث " +
+              (result.affected_orders || 0) +
+              " طلب نشط" +
+              (result.notifications_queued || 0
+                ? " ووضع " +
+                  result.notifications_queued +
+                  " إشعارًا في الطابور."
+                : "") +
+              ".",
+          );
+          await loadAll();
+        } catch (err) {
+          toast("تعذر حفظ بيانات الحساب: " + err.message, true);
+        }
+      });
+      function renderActivations() {
+        var filter = $("activation-filter").value,
+          rows = state.fulfillments
+            .filter(function (f) {
+              return (
+                f.mode === "manual_activation" ||
+                String(f.service_id || "")
+                  .toLowerCase()
+                  .includes("spotify")
+              );
+            })
+            .filter(function (f) {
+              return !filter || f.status === filter;
+            });
+        $("activation-list").innerHTML = !rows.length
+          ? '<div class="loading">لا توجد طلبات تفعيل مطابقة.</div>'
+          : '<table class="table"><thead><tr><th>الطلب</th><th>المنتج</th><th>حساب العميل</th><th>ملاحظة</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>' +
+            rows
+              .map(function (f) {
+                var input = f.customer_input || {};
+                return (
+                  "<tr><td>#" +
+                  esc(String(f.order_id || "").slice(0, 8)) +
+                  "</td><td><b>" +
+                  esc(serviceName(f.service_id)) +
+                  "</b></td><td>" +
+                  esc(input.account_email || "لم يرسل العميل بياناته") +
+                  '</td><td class="muted max-w-[260px]">' +
+                  esc(input.note || "—") +
+                  "</td><td>" +
+                  statusBadge(f.status) +
+                  '</td><td><button class="btn neon" onclick="updateFulfillment(\'' +
+                  esc(f.id) +
+                  "','delivered')\">تم التفعيل</button></td></tr>"
+                );
+              })
+              .join("") +
+            "</tbody></table>";
+      }
+      async function updateFulfillment(id, status) {
+        try {
+          var notes = window.prompt("ملاحظة الأدمن (اختياري):", "");
+          if (notes === null) return;
+          var r = await window.supabaseClient.rpc("ops_update_activation", {
+            p_fulfillment_id: id,
+            p_status: status,
+            p_admin_notes: notes,
+          });
+          if (r.error) throw r.error;
+          toast("تم حفظ حالة التفعيل وتسجيلها.");
+          await loadAll();
+        } catch (e) {
+          toast("تعذر حفظ الحالة: " + e.message, true);
+        }
+      }
+      function renderProblems() {
+        var rows = state.problems,
+          open = rows.filter(function (p) {
+            return !["resolved", "closed"].includes(
+              String(p.status).toLowerCase(),
+            );
+          }).length;
+        $("problem-count").textContent = open + " مفتوحة";
+        $("problem-list").innerHTML = !rows.length
+          ? '<div class="loading">لا توجد بلاغات.</div>'
+          : '<table class="table"><thead><tr><th>الطلب</th><th>الخدمة</th><th>آخر رسالة</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>' +
+            rows
+              .map(function (p) {
+                var messages = state.problemMessages.filter(function (message) {
+                    return message.problem_id === p.id;
+                  }),
+                  latest = messages.length
+                    ? messages[messages.length - 1].message
+                    : p.admin_notes || p.message || p.description || "—";
+                return (
+                  "<tr><td>#" +
+                  esc(String(p.order_id || "").slice(0, 8)) +
+                  "</td><td><b>" +
+                  esc(serviceName(p.service_id)) +
+                  '</b></td><td class="max-w-[430px]">' +
+                  esc(latest) +
+                  "</td><td>" +
+                  statusBadge(p.status) +
+                  "</td><td>" +
+                  '<button class="btn neon" onclick="openProblemModal(\'' +
+                  esc(p.id) +
+                  "')\">فتح المحادثة</button>" +
+                  "</td></tr>"
+                );
+              })
+              .join("") +
+            "</tbody></table>";
+      }
+      function openProblemModal(id) {
+        editingProblem = state.problems.find(function (problem) {
+          return problem.id === id;
+        });
+        if (!editingProblem) return;
+        var closed = ["resolved", "closed", "cancelled"].includes(
+            String(editingProblem.status || "").toLowerCase(),
+          ),
+          messages = state.problemMessages.filter(function (message) {
+            return message.problem_id === id;
+          }),
+          hasAdminMessage = messages.some(function (message) {
+            return message.sender_role === "admin";
+          }),
+          thread = [
+            {
+              sender_role: "customer",
+              message:
+                editingProblem.message || editingProblem.description || "—",
+              created_at: editingProblem.created_at,
+            },
+          ].concat(messages);
+        if (editingProblem.admin_notes && !hasAdminMessage)
+          thread.push({
+            sender_role: "admin",
+            message: editingProblem.admin_notes,
+            created_at: editingProblem.updated_at,
+          });
+        $("problem-modal-title").textContent =
+          "بلاغ الطلب #" + String(editingProblem.order_id || "").slice(0, 8);
+        $("problem-modal-status").innerHTML = statusBadge(
+          editingProblem.status,
+        );
+        $("problem-thread").innerHTML = thread
+          .map(function (message) {
+            var admin = message.sender_role === "admin";
+            return (
+              '<div class="max-w-[88%] rounded-2xl p-3 ' +
+              (admin
+                ? "mr-auto bg-[#171717] border border-[#333]"
+                : "ml-auto bg-[#39ff14] text-black") +
+              '"><b class="text-[10px] block mb-1 ' +
+              (admin ? "text-[#39ff14]" : "text-black/60") +
+              '">' +
+              (admin ? "فريق Strivio" : "العميل") +
+              '</b><div class="text-sm whitespace-pre-wrap">' +
+              esc(message.message) +
+              '</div><div class="text-[10px] opacity-60 mt-2">' +
+              esc(date(message.created_at)) +
+              "</div></div>"
+            );
+          })
+          .join("");
+        $("problem-reply").value = "";
+        $("problem-reply-box").classList.toggle("hidden", closed);
+        $("problem-modal").classList.remove("hidden");
+      }
+      function closeProblemModal() {
+        editingProblem = null;
+        $("problem-modal").classList.add("hidden");
+      }
+      async function sendProblemReply(resolve) {
+        if (!editingProblem) return;
+        var message = $("problem-reply").value.trim();
+        if (!resolve && !message) {
+          toast("اكتب الرد قبل الإرسال.", true);
+          return;
+        }
+        try {
+          var r = resolve
+            ? await window.supabaseClient.rpc("ops_resolve_problem", {
+                p_problem_id: editingProblem.id,
+                p_admin_notes: message,
+              })
+            : await window.supabaseClient.rpc("ops_reply_problem", {
+                p_problem_id: editingProblem.id,
+                p_message: message,
+              });
+          if (r.error) throw r.error;
+          try {
+            await inventoryCall({ action: "sync_sheet", scope: "problems" });
+          } catch (syncError) {
+            toast(
+              "تم حفظ التحديث في الموقع، لكن تعذر إرسال أحدث نسخة للشيت: " +
+                syncError.message,
+              true,
+            );
+            closeProblemModal();
+            await loadAll();
+            return;
+          }
+          closeProblemModal();
+          toast(
+            resolve
+              ? "تم تعليم المشكلة كمحلولة وتحديث الشيت."
+              : "تم إرسال الرد وبقي البلاغ مفتوحًا وتحدث الشيت.",
+          );
+          await loadAll();
+        } catch (e) {
+          toast("تعذر حفظ رد البلاغ: " + e.message, true);
+        }
+      }
+      function showTab(name) {
+        document.querySelectorAll(".view").forEach(function (v) {
+          v.classList.toggle("hidden", v.id !== "view-" + name);
+        });
+        document.querySelectorAll(".tab").forEach(function (t) {
+          t.classList.toggle("active", t.dataset.tab === name);
+        });
+      }
+      document.querySelectorAll(".tab").forEach(function (t) {
+        t.onclick = function () {
+          showTab(t.dataset.tab);
+        };
+      });
+      (async function () {
+        if (await requireAdmin()) loadAll();
+      })();
+    </script>
+  </body>
+</html>

@@ -469,6 +469,7 @@
         profile = {},
         orders = [],
         problems = [],
+        problemMessages = [],
         lang = localStorage.getItem("strivio_lang") || "ar";
       const esc = (v) =>
         String(v ?? "").replace(
@@ -620,7 +621,7 @@
             '</div><div class="secret"><b>المنتجات</b><br>' +
             itemNames(o) +
             '</div></div><div class="mt-4">' +
-            renderDelivery(d.fulfillments || []) +
+            renderDelivery(d.fulfillments || [], o.id) +
             '</div><div class="flex flex-wrap gap-2 mt-5"><button class="ghost" onclick="openReport(\'' +
             esc(o.id) +
             '\')">الإبلاغ أو متابعة البلاغ</button><a class="btn" target="_blank" rel="noopener" href="https://wa.me/213562961410?text=' +
@@ -631,13 +632,13 @@
           alert("تعذر فتح تفاصيل الطلب. تأكد أنك داخل الحساب الذي أجرى الطلب.");
         }
       }
-      function renderDelivery(fs) {
+      function renderDelivery(fs, orderId) {
         if (!fs.length)
           return '<div class="secret muted">التسليم قيد التحضير.</div>';
         return fs
           .map((f) => {
             let entries = f.delivery?.entries || [],
-              end = f.delivery?.ends_at || f.delivery_summary?.ends_at,
+              end = f.delivery_summary?.ends_at || f.delivery?.ends_at,
               note =
                 f.delivery?.problem_resolution_note ||
                 f.delivery_summary?.problem_resolution_note ||
@@ -680,10 +681,140 @@
                   esc(note) +
                   "</div>"
                 : "") +
+              ((f.renewal_targets || []).length
+                ? '<button class="btn mt-3" onclick="openRenewal(\'' +
+                  esc(orderId) +
+                  "','" +
+                  esc(f.id) +
+                  "')\">تجديد هذا الاشتراك</button>"
+                : "") +
               "</div>"
             );
           })
           .join("");
+      }
+      async function openRenewal(orderId, fulfillmentId) {
+        try {
+          var data = await delivery(orderId),
+            fulfillment = (data.fulfillments || []).find(function (item) {
+              return item.id === fulfillmentId;
+            });
+          if (!fulfillment || !(fulfillment.renewal_targets || []).length)
+            throw new Error("هذا الاشتراك غير متاح للتجديد الآن.");
+          document.getElementById("renewal")?.remove();
+          var targets = fulfillment.renewal_targets || [],
+            durations =
+              fulfillment.renewal_options?.durations?.[lang] ||
+              fulfillment.renewal_options?.durations?.ar ||
+              [],
+            wrap = document.createElement("div");
+          wrap.id = "renewal";
+          wrap.className =
+            "fixed inset-0 z-[70] bg-black/85 backdrop-blur-sm p-4 flex items-center justify-center";
+          wrap.innerHTML =
+            '<form id="renewalForm" class="panel rounded-[26px] max-w-xl w-full max-h-[92vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">SUBSCRIPTION RENEWAL</div><h2 class="display text-2xl font-black mt-1">تجديد الاشتراك</h2><p class="muted text-xs mt-2">اختر البروفيلات أو الاشتراكات التي تريد تمديدها فقط.</p></div><button type="button" class="ghost" onclick="document.getElementById(\'renewal\').remove()">×</button></div><div class="space-y-2 mt-5">' +
+            targets
+              .map(function (target) {
+                return (
+                  '<label class="secret flex items-center justify-between gap-3 cursor-pointer"><div><b>' +
+                  esc(target.label || "الاشتراك") +
+                  '</b><div class="muted text-xs mt-1">ينتهي: ' +
+                  date(target.ends_at) +
+                  '</div></div><input type="checkbox" name="renew_target" value="' +
+                  esc(target.id) +
+                  '" data-kind="' +
+                  esc(target.kind) +
+                  '" checked class="accent-[#39ff14] w-5 h-5"></label>'
+                );
+              })
+              .join("") +
+            '</div><label class="block text-xs font-black mt-5 mb-2">مدة التمديد</label><select id="renewal-duration" class="input">' +
+            durations
+              .map(function (label, index) {
+                return (
+                  '<option value="' + index + '">' + esc(label) + "</option>"
+                );
+              })
+              .join("") +
+            '</select><div class="secret mt-4 text-xs">سيتم إنشاء طلب تجديد منفصل وحساب السعر من قاعدة البيانات، ثم نقلك إلى بوابة الدفع الآمنة. بعد تأكيد الدفع يتحدث تاريخ كل عنصر اخترته تلقائيًا.</div><button class="btn w-full mt-4" type="submit">المتابعة إلى الدفع</button></form>';
+          document.body.appendChild(wrap);
+          document.getElementById("renewalForm").onsubmit = function (event) {
+            return submitRenewal(event, orderId, fulfillmentId);
+          };
+        } catch (error) {
+          alert(error.message || "تعذر فتح التجديد.");
+        }
+      }
+      async function submitRenewal(event, orderId, fulfillmentId) {
+        event.preventDefault();
+        var selected = Array.from(
+            event.target.querySelectorAll(
+              'input[name="renew_target"]:checked',
+            ),
+          ),
+          button = event.target.querySelector('button[type="submit"]');
+        if (!selected.length) return alert("اختر اشتراكًا واحدًا على الأقل.");
+        var kinds = Array.from(
+          new Set(
+            selected.map(function (input) {
+              return input.dataset.kind;
+            }),
+          ),
+        );
+        if (kinds.length !== 1)
+          return alert("جدّد نوعًا واحدًا من الاشتراكات في كل عملية.");
+        button.disabled = true;
+        button.textContent = "جاري إنشاء طلب التجديد…";
+        try {
+          var customer = {
+              first_name: profile.first_name || "",
+              last_name: profile.last_name || "",
+              email: user.email || "",
+              phone: profile.phone || "",
+              lang: lang,
+            },
+            result = await window.supabaseClient.rpc("create_renewal_order", {
+              p_target_ids: selected.map(function (input) {
+                return input.value;
+              }),
+              p_target_kind: kinds[0],
+              p_duration_idx: Number(
+                document.getElementById("renewal-duration").value,
+              ),
+              p_payment_method: "cib",
+              p_customer_info: customer,
+            });
+          if (result.error || !result.data?.success)
+            throw new Error(
+              result.error?.message ||
+                result.data?.error ||
+                "تعذر إنشاء طلب التجديد.",
+            );
+          var payment = await window.supabaseClient.functions.invoke(
+            "create-payment",
+            {
+              body: {
+                order_id: result.data.order_id,
+                origin_url: window.location.origin,
+              },
+            },
+          );
+          if (payment.error || !payment.data?.payment_url)
+            throw new Error(
+              payment.error?.message ||
+                payment.data?.error ||
+                "تعذر إنشاء رابط الدفع.",
+            );
+          localStorage.setItem(
+            "strivio_pending_order_id",
+            String(result.data.order_id),
+          );
+          window.location.href = payment.data.payment_url;
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = "المتابعة إلى الدفع";
+          alert("تعذر بدء التجديد: " + error.message);
+        }
       }
       function orderCard(o, small = false) {
         const report = activeProblem(o.id);
@@ -764,6 +895,37 @@
             ),
           old = document.getElementById("report");
         old?.remove();
+        let thread = [];
+        if (p) {
+          const messages = problemMessages.filter(
+            (item) => item.problem_id === p.id,
+          );
+          const hasInitial = messages.some(
+            (item) =>
+              item.sender_role === "customer" &&
+              item.message === (p.message || p.description),
+          );
+          if (!hasInitial)
+            thread.push({
+              sender_role: "customer",
+              message: p.message || p.description || "—",
+              created_at: p.created_at,
+            });
+          thread = thread.concat(messages);
+          if (
+            p.admin_notes &&
+            !thread.some(
+              (item) =>
+                item.sender_role === "admin" &&
+                item.message === p.admin_notes,
+            )
+          )
+            thread.push({
+              sender_role: "admin",
+              message: p.admin_notes,
+              created_at: p.updated_at,
+            });
+        }
         let wrap = document.createElement("div");
         wrap.id = "report";
         wrap.dataset.existing = p ? "1" : "0";
@@ -779,26 +941,42 @@
           (p
             ? '<div class="flex items-center justify-between gap-3 mt-4"><b class="text-sm">محادثة البلاغ</b>' +
               badge(p.status) +
-              '</div><div class="report-thread mt-3 space-y-3"><div class="thread-bubble thread-customer"><b data-thread-label="customer" class="block text-[10px] opacity-70 mb-1">رسالتك</b>' +
-              esc(p.message || p.description || "—") +
-              '</div><div class="thread-bubble thread-admin"><b data-thread-label="admin" class="block text-[10px] text-[#39ff14] mb-1">رد فريق Strivio</b>' +
-              (p.admin_notes
-                ? esc(p.admin_notes)
-                : '<span data-waiting-reply>تم استلام البلاغ، وسيظهر رد الفريق هنا فور تحديثه.</span>') +
-              "</div></div>"
+              '</div><div class="report-thread mt-3 space-y-3">' +
+              thread
+                .map(
+                  (item) =>
+                    '<div class="thread-bubble ' +
+                    (item.sender_role === "admin"
+                      ? "thread-admin"
+                      : "thread-customer") +
+                    '"><b class="block text-[10px] opacity-70 mb-1">' +
+                    (item.sender_role === "admin"
+                      ? "فريق Strivio"
+                      : "أنت") +
+                    "</b>" +
+                    esc(item.message) +
+                    '<div class="text-[10px] opacity-50 mt-2">' +
+                    date(item.created_at) +
+                    "</div></div>",
+                )
+                .join("") +
+              (!thread.some((item) => item.sender_role === "admin")
+                ? '<div class="thread-bubble thread-admin"><span data-waiting-reply>تم استلام البلاغ، وسيظهر رد الفريق هنا فور تحديثه.</span></div>'
+                : "") +
+              "</div>"
             : "") +
           (closed
             ? '<div data-report-closed class="secret mt-4 text-sm text-[#39ff14]">تم إغلاق هذا البلاغ. يمكنك الرجوع للطلب وفتح بلاغ جديد إذا ظهرت مشكلة أخرى.</div>'
             : '<label data-report-editor-label class="block text-xs font-black mt-4">' +
-              (p ? "تعديل رسالتك الحالية" : "وصف المشكلة") +
+              (p ? "إضافة رد جديد" : "وصف المشكلة") +
               '</label><textarea name="message" required minlength="3" maxlength="2000" rows="5" class="input mt-2" placeholder="اشرح المشكلة بالتفصيل">' +
-          esc(p?.message || p?.description || "") +
+          "" +
               '</textarea>') +
           '<div class="flex flex-wrap gap-2 mt-4">' +
           (closed
             ? ""
             : '<button class="btn">' +
-          (p ? "حفظ التعديل" : "إرسال البلاغ") +
+          (p ? "إرسال الرد" : "إرسال البلاغ") +
               "</button>") +
           '<a class="ghost" target="_blank" rel="noopener" href="https://wa.me/213562961410?text=' +
           encodeURIComponent("مرحباً، أحتاج دعماً للطلب #" + orderId) +
@@ -829,10 +1007,10 @@
           if (alreadyOpen) existingId = alreadyOpen.id;
         }
         if (existingId)
-          result = await window.supabaseClient
-            .from("problem_reports")
-            .update({ message, updated_at: new Date().toISOString() })
-            .eq("id", existingId);
+          result = await window.supabaseClient.rpc("customer_reply_problem", {
+            p_problem_id: existingId,
+            p_message: message,
+          });
         else
           result = await window.supabaseClient.rpc("report_order_problem", {
             p_order_id: orderId,
@@ -854,14 +1032,21 @@
         renderOrders();
         if (window.accountPortalApply) window.accountPortalApply();
         document.getElementById("report")?.remove();
-        alert(existingId ? "تم تعديل البلاغ." : "تم إرسال البلاغ.");
+        alert(existingId ? "تم إرسال ردك داخل البلاغ." : "تم إرسال البلاغ.");
       }
       async function loadProblems() {
-        let r = await window.supabaseClient
-          .from("problem_reports")
-          .select("*")
-          .order("created_at", { ascending: false });
+        let [r, m] = await Promise.all([
+          window.supabaseClient
+            .from("problem_reports")
+            .select("*")
+            .order("created_at", { ascending: false }),
+          window.supabaseClient
+            .from("problem_messages")
+            .select("*")
+            .order("created_at", { ascending: true }),
+        ]);
         problems = r.data || [];
+        problemMessages = m.data || [];
         document.getElementById("statProblems").textContent = problems.filter(
           (p) =>
             !["resolved", "closed", "cancelled"].includes(
@@ -1435,16 +1620,18 @@
             if (btn) btn.textContent = t.securityLogout;
           }
         }
-        function renewSubscription(id) {
-          var t = x();
-          window.open(
-            "https://wa.me/213562961410?text=" +
-              encodeURIComponent(
-                (t.renew || "Renew subscription") + " — Strivio order #" + id,
-              ),
-            "_blank",
-            "noopener",
-          );
+        async function renewSubscription(id) {
+          try {
+            var data = await window.delivery(id),
+              eligible = (data.fulfillments || []).filter(function (item) {
+                return (item.renewal_targets || []).length;
+              });
+            if (eligible.length === 1)
+              return window.openRenewal(id, eligible[0].id);
+            return window.showDetails(id);
+          } catch (error) {
+            alert(error.message || "Renewal is not available right now.");
+          }
         }
         window.renewSubscription = renewSubscription;
         function applyRenewalButtons() {
