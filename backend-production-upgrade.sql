@@ -289,43 +289,56 @@ $$;
 revoke all on function public.ops_ack_sheet_snapshot(text,uuid) from public;
 grant execute on function public.ops_ack_sheet_snapshot(text,uuid) to service_role;
 
+drop function if exists public.ops_update_allocation_end(uuid,timestamptz,boolean);
 create or replace function public.ops_update_allocation_end(
   p_allocation_id uuid,
   p_ends_at timestamptz,
-  p_notify boolean default false
+  p_notify boolean default false,
+  p_actor_id uuid default null
 ) returns jsonb language plpgsql security definer set search_path=public as $$
 declare
   a public.fulfillment_allocations%rowtype;
   f public.fulfillments%rowtype;
   old_end timestamptz;
   new_end timestamptz;
+  actor uuid;
+  updated_count integer;
 begin
-  if not public.is_admin() then raise exception 'Admin only'; end if;
+  -- The Edge Function authenticates the caller before invoking this RPC with
+  -- its service-role client. Keep direct authenticated RPC calls admin-only,
+  -- while allowing the already-gated server call to complete.
+  if auth.role()<>'service_role' and not public.is_admin() then raise exception 'Admin only'; end if;
   if p_ends_at is null then raise exception 'End date is required'; end if;
   select * into a from public.fulfillment_allocations where id=p_allocation_id for update;
   if not found then raise exception 'Subscription allocation not found'; end if;
-  if a.starts_at is not null and p_ends_at<a.starts_at then raise exception 'End date cannot be before the start date'; end if;
   select * into f from public.fulfillments where id=a.fulfillment_id for update;
+  if exists (
+    select 1 from public.fulfillment_allocations
+    where fulfillment_id=a.fulfillment_id and status='active'
+      and starts_at is not null and p_ends_at<starts_at
+  ) then raise exception 'End date cannot be before the start date'; end if;
   old_end=a.ends_at;
   update public.fulfillment_allocations
     set ends_at=p_ends_at,sheet_version=coalesce(sheet_version,0)+1
-    where id=a.id;
+    where fulfillment_id=a.fulfillment_id and status='active';
+  get diagnostics updated_count=row_count;
   select max(ends_at) into new_end from public.fulfillment_allocations where fulfillment_id=a.fulfillment_id and status='active';
   if f.id is not null then
     update public.fulfillments
       set delivery_summary=coalesce(delivery_summary,'{}'::jsonb)||jsonb_build_object('ends_at',new_end),updated_at=now()
       where id=f.id;
   end if;
+  actor=case when auth.role()='service_role' then p_actor_id else auth.uid() end;
   insert into public.operations_audit_log(actor_id,action,entity_type,entity_id,order_id,service_id,before_data,after_data,metadata)
-  values(auth.uid(),'update_subscription_end','allocation',a.id::text,f.order_id,f.service_id,
-    jsonb_build_object('ends_at',old_end),jsonb_build_object('ends_at',p_ends_at),jsonb_build_object('notify',p_notify));
+  values(actor,'update_subscription_end','fulfillment',a.fulfillment_id::text,f.order_id,f.service_id,
+    jsonb_build_object('ends_at',old_end),jsonb_build_object('ends_at',p_ends_at),jsonb_build_object('notify',p_notify,'updated_allocations',updated_count));
   insert into public.integration_outbox(event_type,aggregate_id,payload)
   values('subscription_updated',a.id::text,jsonb_build_object('order_id',f.order_id,'allocation_id',a.id,'ends_at',p_ends_at,'inventory',true,'source','operations_center'));
-  return jsonb_build_object('success',true,'allocation_id',a.id,'fulfillment_id',a.fulfillment_id,'old_ends_at',old_end,'ends_at',p_ends_at,'notify',p_notify);
+  return jsonb_build_object('success',true,'allocation_id',a.id,'fulfillment_id',a.fulfillment_id,'service_id',f.service_id,'updated_allocations',updated_count,'old_ends_at',old_end,'ends_at',p_ends_at,'notify',p_notify);
 end;
 $$;
-revoke all on function public.ops_update_allocation_end(uuid,timestamptz,boolean) from public;
-grant execute on function public.ops_update_allocation_end(uuid,timestamptz,boolean) to authenticated;
+revoke all on function public.ops_update_allocation_end(uuid,timestamptz,boolean,uuid) from public;
+grant execute on function public.ops_update_allocation_end(uuid,timestamptz,boolean,uuid) to authenticated,service_role;
 
 create or replace function public.ops_enqueue_sheet_projection()
 returns trigger language plpgsql security definer set search_path=public as $$
