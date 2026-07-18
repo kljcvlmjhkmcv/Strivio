@@ -69,12 +69,12 @@ begin
   insert into public.problem_messages(problem_id,sender_id,sender_role,message)
   values(p.id,auth.uid(),'admin',clean_message);
   update public.problem_reports
-    set status='processing',admin_notes=clean_message,updated_at=now()
+    set status='reviewing',admin_notes=clean_message,updated_at=now()
     where id=p.id;
   insert into public.integration_outbox(event_type,aggregate_id,payload)
-  values('problem_updated',p.id::text,jsonb_build_object('order_id',p.order_id,'problem_report_id',p.id,'status','processing','source','admin_reply'));
+  values('problem_updated',p.id::text,jsonb_build_object('order_id',p.order_id,'problem_report_id',p.id,'status','reviewing','source','admin_reply'));
   insert into public.operations_audit_log(actor_id,action,entity_type,entity_id,order_id,service_id,before_data,after_data)
-  values(auth.uid(),'reply_problem','problem',p.id::text,p.order_id,p.service_id,jsonb_build_object('status',p.status),jsonb_build_object('status','processing','message',clean_message));
+  values(auth.uid(),'reply_problem','problem',p.id::text,p.order_id,p.service_id,jsonb_build_object('status',p.status),jsonb_build_object('status','reviewing','message',clean_message));
   return jsonb_build_object('success',true,'problem_id',p.id,'order_id',p.order_id);
 end;
 $$;
@@ -164,7 +164,7 @@ begin
   if p_payment_method<>'cib' then raise exception 'Renewals currently require online payment'; end if;
 
   if p_target_kind='allocation' then
-    select count(*),min(f.service_id),min(o.id)
+    select count(*),min(f.service_id),min(o.id::text)::uuid
       into target_count,v_service_id,v_source_order
     from public.fulfillment_allocations a
     join public.fulfillments f on f.id=a.fulfillment_id
@@ -176,7 +176,7 @@ begin
     from public.fulfillment_allocations a join public.fulfillments f on f.id=a.fulfillment_id join public.orders o on o.id=f.order_id
     where a.id=any(p_target_ids) limit 1;
   else
-    select count(*),min(f.service_id),min(o.id)
+    select count(*),min(f.service_id),min(o.id::text)::uuid
       into target_count,v_service_id,v_source_order
     from public.fulfillments f join public.orders o on o.id=f.order_id
     where f.id=any(p_target_ids) and f.status in ('delivered','completed','awaiting_admin')
