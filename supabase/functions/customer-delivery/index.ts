@@ -41,7 +41,16 @@ serve(async req=>{
     if(userError||!user||!user.email_confirmed_at)return new Response(JSON.stringify({success:false,error:'A verified account is required'}),{status:401,headers:cors});
     const {data:admin}=await db.from('admin_users').select('user_id').eq('user_id',user.id).maybeSingle();
     const isAdmin=!!admin;
-    const {order_id}=await req.json();
+    const body=await req.json();
+    if(Array.isArray(body?.order_ids)){
+      const requested=[...new Set(body.order_ids.map((id:any)=>String(id||'')).filter(Boolean))].slice(0,500);
+      if(!requested.length)return new Response(JSON.stringify({success:true,fulfillments:[]}),{headers:cors});
+      const {data:requestedOrders}=await db.from('orders').select('id,user_id,customer_info').in('id',requested);
+      const allowed=(requestedOrders||[]).filter((item:any)=>isAdmin||item.user_id===user.id||String(item.customer_info?.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()).map((item:any)=>item.id);
+      const {data:summaries}=allowed.length?await db.from('fulfillments').select('id,order_id,status,delivery_summary,service_id,mode,quantity').in('order_id',allowed).order('order_item_index'): {data:[]};
+      return new Response(JSON.stringify({success:true,fulfillments:summaries||[]}),{headers:cors});
+    }
+    const {order_id}=body;
     const {data:order}=await db.from('orders').select('id,user_id,status,total_payable,items,created_at,fulfillment_status,customer_info').eq('id',order_id).single();
     const emailMatches=!!order&&String(order.customer_info?.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase();
     if(!order||(!isAdmin&&order.user_id!==user.id&&!emailMatches))return new Response(JSON.stringify({success:false,error:'Order not found'}),{status:404,headers:cors});
@@ -63,10 +72,11 @@ serve(async req=>{
         : Promise.resolve({data:[]})
     ]);
     const serviceById=new Map((services||[]).map((item:any)=>[item.id,item]));
+    // Renewal is available for any active, non-expired subscription. The
+    // payment flow itself still validates the selected targets and ownership.
     const eligible=(endsAt?:string|null)=>{
-      if(!endsAt)return false;
-      const days=Math.ceil((new Date(endsAt).getTime()-Date.now())/86400000);
-      return days>=0&&days<=7;
+      if(!endsAt)return true;
+      return new Date(endsAt).getTime()>=Date.now();
     };
     const fulfillments=[];
     for(const row of rows||[]){

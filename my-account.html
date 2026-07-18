@@ -468,6 +468,7 @@
       let user,
         profile = {},
         orders = [],
+        fulfillments = [],
         problems = [],
         problemMessages = [],
         lang = localStorage.getItem("strivio_lang") || "ar";
@@ -495,6 +496,7 @@
           open: "جديد",
           processing: "قيد المراجعة",
           reviewing: "قيد المراجعة",
+          reported: "مُبلّغ عنه",
         },
         fr: {
           paid: "Payée",
@@ -507,6 +509,7 @@
           open: "Nouveau",
           processing: "En cours",
           reviewing: "En cours",
+          reported: "Signalée",
         },
         en: {
           paid: "Paid",
@@ -519,6 +522,7 @@
           open: "New",
           processing: "In review",
           reviewing: "In review",
+          reported: "Reported",
         },
       };
       function L(v) {
@@ -531,7 +535,7 @@
         s = String(s || "pending").toLowerCase();
         let c = /paid|completed|delivered|resolved/.test(s)
           ? "ok"
-          : /cancel|failed|problem/.test(s)
+          : /cancel|failed|problem|reported/.test(s)
             ? "bad"
             : "wait";
         return '<span class="badge ' + c + '">' + esc(L(s)) + "</span>";
@@ -605,6 +609,21 @@
           d = await r.json().catch(() => null);
         if (!r.ok || !d?.success) throw Error(d?.error || "Delivery failed");
         return d;
+      }
+      async function loadFulfillmentSummaries(orderIds) {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (!session || !orderIds.length) return [];
+        const response = await fetch(SUPABASE_URL + "/functions/v1/customer-delivery", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + session.access_token,
+            apikey: SUPABASE_ANON_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ order_ids: orderIds }),
+        });
+        const data = await response.json().catch(function () { return null; });
+        return response.ok && data?.success ? data.fulfillments || [] : [];
       }
       async function showDetails(id) {
         try {
@@ -819,17 +838,37 @@
           showAppNotice("تعذر بدء التجديد: " + error.message, { tone: "error" });
         }
       }
+      async function openRenewalForOrder(orderId) {
+        try {
+          var data = await delivery(orderId),
+            target = (data.fulfillments || []).find(function (item) {
+              return (item.renewal_targets || []).length;
+            });
+          if (!target) throw new Error("هذا الطلب لا يحتوي على اشتراك قابل للتجديد.");
+          await openRenewal(orderId, target.id);
+        } catch (error) {
+          showAppNotice(error.message || "تعذر فتح التجديد.", { tone: "error" });
+        }
+      }
       function orderCard(o, small = false) {
         const report = activeProblem(o.id);
+        const statusBadges = badge(o.status || "pending") +
+          (o.fulfillment_status ? badge(o.fulfillment_status) : "") +
+          (report ? badge("reported") : "");
+        const expiry = fulfillments
+          .filter(function (f) { return f.order_id === o.id && f.delivery_summary?.ends_at; })
+          .map(function (f) { return f.delivery_summary.ends_at; })
+          .sort(function (a, b) { return new Date(a).getTime() - new Date(b).getTime(); })[0] || null;
         return (
           '<article class="order panel rounded-2xl p-5"><div class="flex flex-wrap justify-between gap-3"><div>' +
-          badge(o.status) +
+          '<div class="flex flex-wrap gap-2">' + statusBadges + '</div>' +
           '<h3 class="font-black mt-3">' +
           itemNames(o) +
           '</h3><p class="muted text-xs mt-2">' +
           date(o.created_at) +
           " · #" +
           esc(String(o.id).slice(0, 8)) +
+          (expiry ? ' · الانتهاء: <span class="text-[#39ff14] font-black">' + date(expiry) + '</span>' : '') +
           '</p></div><div class="text-left"><b class="display text-xl text-[#39ff14]">' +
           money(o.total_payable) +
           "</b></div></div>" +
@@ -837,7 +876,11 @@
             ? ""
             : '<div class="flex flex-wrap gap-2 mt-4"><button class="btn" onclick="showDetails(\'' +
               esc(o.id) +
-              '\')">عرض التفاصيل</button><button class="ghost" onclick="openReport(\'' +
+              '\')">عرض التفاصيل</button>' +
+              (['paid','completed'].includes(String(o.status || '').toLowerCase())
+                ? '<button class="btn" onclick="openRenewalForOrder(\'' + esc(o.id) + '\')">تجديد الاشتراك</button>'
+                : '') +
+              '<button class="ghost" onclick="openReport(\'' +
               esc(o.id) +
               "')\" data-report-order=\"" +
               esc(o.id) +
@@ -1146,6 +1189,7 @@
         ]);
         profile = p.data || {};
         orders = o.data || [];
+        fulfillments = await loadFulfillmentSummaries(orders.map(function (order) { return order.id; }));
         let name =
           (
             (profile.first_name || "") +

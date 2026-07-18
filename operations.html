@@ -124,6 +124,11 @@
         color: #facc15;
         border-color: rgba(250, 204, 21, 0.25);
       }
+      .b-orange {
+        background: rgba(249, 115, 22, 0.12);
+        color: #fb923c;
+        border-color: rgba(249, 115, 22, 0.3);
+      }
       .b-gray {
         background: #171717;
         color: #aaa;
@@ -230,7 +235,8 @@
         ><button class="tab" data-tab="services">سجلات الخدمات</button
         ><button class="tab" data-tab="activations">طلبات التفعيل</button
         ><button class="tab" data-tab="problems">المشاكل</button
-        ><button class="tab" data-tab="orders">كل الطلبات</button>
+        ><button class="tab" data-tab="orders">كل الطلبات</button
+        ><button class="tab" data-tab="expiring">قريبة الانتهاء</button>
       </section>
 
       <section id="view-overview" class="view space-y-5">
@@ -356,6 +362,24 @@
             />
           </div>
           <div id="orders-list" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section id="view-expiring" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <div class="flex flex-col md:flex-row justify-between gap-3 mb-4">
+            <div>
+              <h2 class="font-black text-lg">الاشتراكات القريبة من الانتهاء</h2>
+              <p class="muted text-xs mt-1">قائمة جاهزة للتواصل مع العملاء قبل انتهاء اشتراكاتهم.</p>
+            </div>
+            <select id="expiry-window" class="select w-auto" onchange="renderExpiring()">
+              <option value="7">خلال 7 أيام</option>
+              <option value="14">خلال 14 يومًا</option>
+              <option value="30" selected>خلال 30 يومًا</option>
+              <option value="all">كل المنتهية والقريبة</option>
+            </select>
+          </div>
+          <div id="expiring-list" class="table-wrap"></div>
         </div>
       </section>
     </main>
@@ -633,6 +657,7 @@
             "activation-list",
             "problem-list",
             "orders-list",
+            "expiring-list",
           ].forEach(function (id) {
             if ($(id))
               $(id).innerHTML =
@@ -648,12 +673,12 @@
               .from("orders")
               .select("*")
               .order("created_at", { ascending: false })
-              .limit(250),
+              .limit(1500),
             window.supabaseClient
               .from("fulfillments")
               .select("*")
               .order("updated_at", { ascending: false })
-              .limit(250),
+              .limit(1500),
             window.supabaseClient
               .from("problem_reports")
               .select("*")
@@ -665,7 +690,7 @@
                 "id,account_id,slot_id,fulfillment_id,starts_at,ends_at,status,created_at",
               )
               .order("created_at", { ascending: false })
-              .limit(500),
+              .limit(3000),
             window.supabaseClient
               .from("problem_messages")
               .select("*")
@@ -755,6 +780,7 @@
         renderActivations();
         renderProblems();
         renderOrders();
+        renderExpiring();
         var sid = new URLSearchParams(location.search).get("service");
         if (sid) openServiceRegister(sid, true);
       }
@@ -1175,6 +1201,35 @@
             return !q || hay.includes(q);
           });
         $("orders-list").innerHTML = ordersTable(rows);
+      }
+      function renderExpiring() {
+        var windowValue = $("expiry-window") ? $("expiry-window").value : "30",
+          maxDays = windowValue === "all" ? 36500 : Number(windowValue || 30),
+          now = Date.now(),
+          orderMap = new Map(state.orders.map(function (o) { return [o.id, o]; })),
+          rows = [];
+        state.fulfillments.forEach(function (f) {
+          var summaryEnd = f.delivery_summary && f.delivery_summary.ends_at;
+          if (!summaryEnd) {
+            var ends = state.allocations.filter(function (a) { return a.fulfillment_id === f.id && a.status === "active" && a.ends_at; }).map(function (a) { return a.ends_at; });
+            summaryEnd = ends.sort(function (a, b) { return new Date(a).getTime() - new Date(b).getTime(); })[0] || null;
+          }
+          if (!summaryEnd) return;
+          var days = Math.ceil((new Date(summaryEnd).getTime() - now) / 86400000);
+          if (days > maxDays) return;
+          var order = orderMap.get(f.order_id) || {}, customer = order.customer_info || {}, tone = days < 0 ? "bad" : days <= 3 ? "b-red" : days <= 7 ? "b-orange" : "b-yellow";
+          rows.push({ f: f, order: order, customer: customer, days: days, end: summaryEnd, tone: tone });
+        });
+        rows.sort(function (a, b) { return a.days - b.days; });
+        if (!rows.length) {
+          $("expiring-list").innerHTML = '<div class="loading">لا توجد اشتراكات ضمن هذه الفترة.</div>';
+          return;
+        }
+        $("expiring-list").innerHTML = '<table class="w-full text-sm min-w-[900px]"><thead><tr><th>الطلب</th><th>المنتج</th><th>العميل</th><th>الهاتف</th><th>ينتهي</th><th>المتبقي</th><th>تواصل</th></tr></thead><tbody>' + rows.map(function (row) {
+          var name = [row.customer.first_name || row.customer.firstname, row.customer.last_name || row.customer.lastname].filter(Boolean).join(" ") || "—";
+          var remaining = row.days < 0 ? "منتهٍ" : row.days === 0 ? "اليوم" : row.days + " يوم";
+          return '<tr class="border-t border-white/5"><td class="p-3 font-mono text-xs">#' + esc(String(row.order.id || "").slice(0, 8)) + '</td><td class="p-3">' + esc(serviceName(row.f.service_id)) + '</td><td class="p-3"><b>' + esc(name) + '</b><div class="muted text-[11px]">' + esc(row.customer.email || "—") + '</div></td><td class="p-3">' + esc(row.customer.phone || "—") + '</td><td class="p-3">' + date(row.end) + '</td><td class="p-3"><span class="badge ' + row.tone + '">' + remaining + '</span></td><td class="p-3"><a class="btn" target="_blank" rel="noopener" href="https://wa.me/' + esc(String(row.customer.phone || "").replace(/[^0-9]/g, "")) + '?text=' + encodeURIComponent("مرحبًا، نذكركم بقرب انتهاء اشتراككم في Strivio للطلب #" + String(row.order.id || "").slice(0, 8)) + '">WhatsApp</a></td></tr>';
+        }).join("") + '</tbody></table>';
       }
       function renderInventory() {
         var service = $("inventory-service").value,

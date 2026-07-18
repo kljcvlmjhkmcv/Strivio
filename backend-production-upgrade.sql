@@ -170,7 +170,7 @@ begin
     join public.fulfillments f on f.id=a.fulfillment_id
     join public.orders o on o.id=f.order_id
     where a.id=any(p_target_ids) and a.status='active'
-      and (a.ends_at is null or a.ends_at<=now()+interval '7 days')
+      and (a.ends_at is null or a.ends_at>=now())
       and (o.user_id=v_user or lower(coalesce(o.customer_info->>'email',''))=lower(coalesce(auth.jwt()->>'email','')));
     select o.items->f.order_item_index into v_source_item
     from public.fulfillment_allocations a join public.fulfillments f on f.id=a.fulfillment_id join public.orders o on o.id=f.order_id
@@ -182,7 +182,7 @@ begin
     where f.id=any(p_target_ids) and f.status in ('delivered','completed','awaiting_admin')
       and (
         nullif(f.delivery_summary->>'ends_at','') is null
-        or (f.delivery_summary->>'ends_at')::timestamptz<=now()+interval '7 days'
+        or (f.delivery_summary->>'ends_at')::timestamptz>=now()
       )
       and (o.user_id=v_user or lower(coalesce(o.customer_info->>'email',''))=lower(coalesce(auth.jwt()->>'email','')));
     select o.items->f.order_item_index into v_source_item
@@ -206,7 +206,11 @@ begin
   );
   v_label=coalesce(v_service.f->'en'->>p_duration_idx,v_service.f->'fr'->>p_duration_idx,v_service.f->'ar'->>p_duration_idx,'');
   v_digits=regexp_replace(v_label,'[^0-9]','','g');
-  v_months=case when v_digits<>'' then greatest(1,least(36,v_digits::integer)) else (array[1,2,3,6,12])[least(p_duration_idx+1,5)] end;
+  v_months=case
+    when lower(v_label) ~ '(year|yr|an|année|annee|سنة|عام)' then greatest(1,least(3,case when v_digits<>'' then v_digits::integer else 1 end))*12
+    when v_digits<>'' then greatest(1,least(36,v_digits::integer))
+    else (array[1,2,3,6,12])[least(p_duration_idx+1,5)]
+  end;
   v_mode=coalesce(v_service.fulfillment_mode,'manual_delivery');
   v_type_idx=case when v_mode in ('automatic_slot','automatic_account') then target_count-1 else coalesce((v_source_item->>'typeIdx')::integer,0) end;
   v_item=coalesce(v_source_item,'{}'::jsonb)||jsonb_build_object(

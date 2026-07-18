@@ -15,6 +15,15 @@ async function decrypt(value?:string|null){
 }
 function label(value:any){return value?.ar||value?.fr||value?.en||value||'';}
 function profileNo(value:any){const match=String(value||'').match(/\d+/);return match?Number(match[0]):9999;}
+function expiryMeta(value:any){
+  if(!value)return {days_remaining:null,expiry_state:'none',expiry_color:'#171717'};
+  const days=Math.ceil((new Date(value).getTime()-Date.now())/86400000);
+  if(days<0)return {days_remaining:days,expiry_state:'expired',expiry_color:'#5b1111'};
+  if(days<=3)return {days_remaining:days,expiry_state:'critical',expiry_color:'#ff4d4d'};
+  if(days<=7)return {days_remaining:days,expiry_state:'warning',expiry_color:'#ff9f43'};
+  if(days<=14)return {days_remaining:days,expiry_state:'soon',expiry_color:'#ffd166'};
+  return {days_remaining:days,expiry_state:'active',expiry_color:'#39ff14'};
+}
 function itemName(item:any){return label(item?.nameData)||item?.name||item?.title||item?.id||'';}
 function deliveryDetails(value:any){
   if(!value)return '';
@@ -83,7 +92,7 @@ async function inventorySnapshot(db:any){
       account_email:account.credentials.email||'',password:account.credentials.password||'',
       allocation_id:allocation?.id||'',order_id:allocation?order?.id||'':'',sheet_version:allocation?.sheet_version||0,
       order_created_at:allocation?order?.created_at||'':'',client_name:allocation?[customer.first_name||customer.firstname,customer.last_name||customer.lastname].filter(Boolean).join(' '):'',
-      duration:label(item.durLabelData)||item.durLabel||'',ends_at:allocation?.ends_at||'',
+      duration:label(item.durLabelData)||item.durLabel||'',ends_at:allocation?.ends_at||'',...expiryMeta(allocation?.ends_at),
       unit_price:Number(item.unitPrice||item.price||0),pay:allocation?.status==='active'?'paid':'unpaid',
       profile_status:allocation?.status==='active'?(String(allocation?.admin_notes||'').includes('[PROBLEM OPEN]')?'problem':'sold'):slot.status==='available'?'available':slot.status==='maintenance'?'maintenance':slot.status==='disabled'?'disabled':slot.status,
       client_number:allocation?customer.phone||'':'',client_email:allocation?customer.email||'':'',admin_notes:allocation?.admin_notes||''
@@ -177,7 +186,8 @@ serve(async req=>{
       const problemIds=(problems||[]).map((problem:any)=>problem.id);
       const {data:problemMessages}=problemIds.length?await db.from('problem_messages').select('problem_id,sender_role,message,created_at').in('problem_id',problemIds).order('created_at'):{data:[]};
       const safeFulfillments=(fulfillments||[]).map((f:any)=>({...f,encrypted_delivery:undefined}));
-      const payload={secret,event:{id:ev.id,type:ev.event_type,source:ev.payload?.source||requestBody?.source||'',scope:requestBody?.refresh_scope||requestBody?.scope||''},order:order?{...order,customer_info:{first_name:order.customer_info?.first_name,last_name:order.customer_info?.last_name,email:order.customer_info?.email,phone:order.customer_info?.phone,marketing_email_opt_in:!!order.customer_info?.marketing_email_opt_in,marketing_whatsapp_opt_in:!!order.customer_info?.marketing_whatsapp_opt_in}}:null,subscriptions:allocations||[],fulfillments:safeFulfillments,problems:await enrichProblems(problems||[],fulfillments||[],order,problemMessages||[]),problem_messages:problemMessages||[],inventory:idx===0?sharedInventory:[]};
+      const safeSubscriptions=(allocations||[]).map((a:any)=>({...a,...expiryMeta(a.ends_at)}));
+      const payload={secret,event:{id:ev.id,type:ev.event_type,source:ev.payload?.source||requestBody?.source||'',scope:requestBody?.refresh_scope||requestBody?.scope||''},order:order?{...order,customer_info:{first_name:order.customer_info?.first_name,last_name:order.customer_info?.last_name,email:order.customer_info?.email,phone:order.customer_info?.phone,marketing_email_opt_in:!!order.customer_info?.marketing_email_opt_in,marketing_whatsapp_opt_in:!!order.customer_info?.marketing_whatsapp_opt_in}}:null,subscriptions:safeSubscriptions,fulfillments:safeFulfillments,problems:await enrichProblems(problems||[],fulfillments||[],order,problemMessages||[]),problem_messages:problemMessages||[],inventory:idx===0?sharedInventory:[]};
       try{
         const response=await fetch(webhook,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
         const responseText=await response.text();
