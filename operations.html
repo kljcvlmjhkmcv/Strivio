@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
+  <script src="clean-url.js"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#080808">
@@ -15,12 +16,12 @@
   </style>
 </head>
 <body class="grid-bg min-h-screen">
-  <div id="gate" class="min-h-screen flex items-center justify-center p-5"><div class="panel rounded-[28px] p-8 max-w-md w-full text-center"><div class="text-4xl mb-4">🛡️</div><h1 class="display text-2xl font-black">مركز عمليات Strivio</h1><p id="gate-msg" class="muted text-sm mt-3">جاري التحقق من صلاحيات الأدمن…</p><a href="admin.html" class="btn inline-block mt-6">العودة للوحة الأدمن</a></div></div>
+  <div id="gate" class="min-h-screen flex items-center justify-center p-5"><div class="panel rounded-[28px] p-8 max-w-md w-full text-center"><div class="text-4xl mb-4">🛡️</div><h1 class="display text-2xl font-black">مركز عمليات Strivio</h1><p id="gate-msg" class="muted text-sm mt-3">جاري التحقق من صلاحيات الأدمن…</p><a href="admin" class="btn inline-block mt-6">العودة للوحة الأدمن</a></div></div>
 
   <main id="app" class="hidden max-w-[1600px] mx-auto px-4 py-5 sm:px-6 sm:py-7">
     <header class="panel rounded-[24px] p-5 sm:p-6 mb-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
       <div><div class="text-[11px] font-black text-[#39ff14] tracking-[.18em]">DATABASE-FIRST OPERATIONS</div><h1 class="display text-3xl font-black mt-1">مركز العمليات</h1><p class="muted text-sm mt-2">الإدارة من هنا فقط — Google Sheets للعرض والمتابعة.</p></div>
-      <div class="flex flex-wrap items-center gap-2"><span id="last-sync" class="muted text-xs px-2"></span><button class="btn" onclick="loadAll()">↻ تحديث البيانات</button><a class="btn" href="admin.html">لوحة الإدارة</a><button class="btn danger" onclick="logout()">تسجيل الخروج</button></div>
+      <div class="flex flex-wrap items-center gap-2"><span id="last-sync" class="muted text-xs px-2"></span><button class="btn" onclick="loadAll()">↻ تحديث البيانات</button><a class="btn" href="admin">لوحة الإدارة</a><button class="btn danger" onclick="logout()">تسجيل الخروج</button></div>
     </header>
 
     <section id="stats" class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5"></section>
@@ -53,8 +54,8 @@
   function profileNumber(v){var m=String(v||'').match(/\d+/);return m?Number(m[0]):9999}
   function toast(message,bad){var el=$('toast');el.textContent=message;el.className='fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm '+(bad?'text-red-300':'text-[#39ff14]');setTimeout(function(){el.className='hidden'},4200)}
   async function requireAdmin(){
-    try{var r=await window.supabaseClient.auth.getSession(),session=r.data&&r.data.session;if(!session){location.href='admin.html';return false}var a=await window.supabaseClient.from('admin_users').select('user_id').eq('user_id',session.user.id).maybeSingle();if(a.error||!a.data){await window.supabaseClient.auth.signOut();$('gate-msg').textContent='هذا الحساب غير مصرح له بالدخول.';return false}$('gate').classList.add('hidden');$('app').classList.remove('hidden');return true}catch(e){$('gate-msg').textContent='تعذر التحقق من الصلاحيات: '+e.message;return false}}
-  async function logout(){await window.supabaseClient.auth.signOut();location.href='admin.html'}
+    try{var r=await window.supabaseClient.auth.getSession(),session=r.data&&r.data.session;if(!session){location.href='admin';return false}var a=await window.supabaseClient.from('admin_users').select('user_id').eq('user_id',session.user.id).maybeSingle();if(a.error||!a.data){await window.supabaseClient.auth.signOut();$('gate-msg').textContent='هذا الحساب غير مصرح له بالدخول.';return false}$('gate').classList.add('hidden');$('app').classList.remove('hidden');return true}catch(e){$('gate-msg').textContent='تعذر التحقق من الصلاحيات: '+e.message;return false}}
+  async function logout(){await window.supabaseClient.auth.signOut();location.href='admin'}
   async function inventoryCall(body){var r=await window.supabaseClient.auth.getSession(),s=r.data&&r.data.session;if(!s)throw new Error('انتهت الجلسة');var response=await fetch(SUPABASE_URL+'/functions/v1/admin-inventory',{method:'POST',headers:{Authorization:'Bearer '+s.access_token,apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json','x-client-info':'strivio-operations'},body:JSON.stringify(body)});var data=await response.json().catch(function(){return null});if(!response.ok||!data||!data.success)throw new Error(data&&data.error||'تعذر تنفيذ الطلب');return data}
   async function loadAll(){
     try{

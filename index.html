@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr" id="HR" class="scroll-smooth">
 <head>
+  <script src="clean-url.js"></script>
 <meta charset="UTF-8"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
@@ -584,7 +585,7 @@ function buildSocials(){
   });
   $('FCON').innerHTML=conHtml;
 
-  var trackLink='my-account.html';
+  var trackLink='my-account';
   [$('NTB'),$('MTB')].forEach(function(el){if(el)el.href=trackLink});
 }
 

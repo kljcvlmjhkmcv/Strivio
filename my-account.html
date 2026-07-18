@@ -1,37 +1,1609 @@
 <!doctype html>
-<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080808"><meta name="robots" content="noindex,nofollow"><title>Strivio — My Account</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"><style>:root{--n:#39ff14;--panel:#121212;--line:#282828}*{box-sizing:border-box}body{margin:0;background:#090909;color:#eee;font-family:Tajawal,Outfit,Arial,sans-serif;opacity:0;transition:opacity .16s ease}.display{font-family:'Space Grotesk',Inter,sans-serif}.grid-bg{background-image:linear-gradient(rgba(57,255,20,.024) 1px,transparent 1px),linear-gradient(90deg,rgba(57,255,20,.024) 1px,transparent 1px);background-size:46px 46px}.panel{background:linear-gradient(145deg,rgba(25,25,25,.98),rgba(13,13,13,.98));border:1px solid var(--line);box-shadow:0 20px 70px rgba(0,0,0,.24)}.side{background:#0e0e0e;border:1px solid #252525}.nav{width:100%;display:flex;gap:11px;align-items:center;padding:14px 16px;border-radius:12px;border:1px solid transparent;background:transparent;color:#aaa;font-size:15px;font-weight:800;text-align:right;cursor:pointer}.nav:hover{background:#171717;color:#fff}.nav.active{background:var(--n);color:#061006}.btn,.ghost{border-radius:12px;padding:10px 14px;font-size:12px;font-weight:900;cursor:pointer}.btn{background:var(--n);color:#071007;border:1px solid var(--n)}.ghost{background:#151515;border:1px solid #333;color:#ddd}.ghost:hover{border-color:var(--n);color:var(--n)}.input{width:100%;background:#0c0c0c;border:1px solid #303030;border-radius:12px;color:#fff;padding:12px;outline:none}.input:focus{border-color:var(--n)}.badge{display:inline-flex;align-items:center;border:1px solid #333;border-radius:999px;padding:4px 9px;font-size:10px;font-weight:900}.ok{color:var(--n);background:rgba(57,255,20,.08);border-color:rgba(57,255,20,.25)}.wait{color:#facc15;background:rgba(250,204,21,.09);border-color:rgba(250,204,21,.24)}.bad{color:#ff8585;background:rgba(255,70,70,.1);border-color:rgba(255,70,70,.25)}.muted{color:#898989}.hidden{display:none!important}.order:hover{border-color:rgba(57,255,20,.3);transform:translateY(-2px)}.order{transition:.2s}.secret{background:#0b0b0b;border:1px solid #313131;border-radius:13px;padding:13px;word-break:break-word}.lang{border:1px solid #343434;border-radius:8px;padding:5px 7px;color:#999;font-size:10px;font-weight:800}.lang.active{background:var(--n);color:#061006;border-color:var(--n)}@media(max-width:768px){.shell{display:block}.sidebar{position:static!important;margin-bottom:15px}.sidebar{display:grid;grid-template-columns:1fr;gap:6px}.nav{display:flex;width:100%;margin:0}.nav span{display:inline}}</style></head>
-<body class="grid-bg min-h-screen"><header class="sticky top-0 z-40 bg-black/80 backdrop-blur-xl border-b border-white/5"><div class="max-w-7xl h-16 px-4 mx-auto flex items-center justify-between gap-3"><a class="display text-2xl font-black text-[#39ff14]" href="./">Strivio</a><div class="flex items-center gap-2"><a href="./" class="ghost hidden sm:block">متابعة التسوق</a><a href="cart.html" class="ghost">السلة</a><button class="lang" data-lang="ar">AR</button><button class="lang" data-lang="fr">FR</button><button class="lang" data-lang="en">EN</button></div></div></header>
-<main class="max-w-7xl mx-auto px-4 py-5 sm:py-7"><section class="panel rounded-[28px] p-6 sm:p-8 mb-5 relative overflow-hidden"><div class="absolute -top-24 -left-20 w-72 h-72 rounded-full bg-[#39ff14]/10 blur-3xl"></div><div class="relative flex flex-col md:flex-row justify-between gap-5 md:items-end"><div><div class="badge ok">● حساب Strivio محمي</div><p class="muted text-sm mt-4">مرحباً بعودتك</p><h1 id="customerName" class="display text-3xl sm:text-4xl font-black mt-1">—</h1><p id="customerEmail" class="muted mt-2"></p></div><div class="grid grid-cols-3 gap-2 sm:gap-3"><div class="side rounded-2xl p-3 min-w-[86px]"><b id="statOrders" class="display text-2xl">0</b><div class="muted text-[10px] mt-1">طلبات</div></div><div class="side rounded-2xl p-3 min-w-[86px]"><b id="statActive" class="display text-2xl text-[#39ff14]">0</b><div class="muted text-[10px] mt-1">نشطة</div></div><div class="side rounded-2xl p-3 min-w-[86px]"><b id="statProblems" class="display text-2xl text-yellow-300">0</b><div class="muted text-[10px] mt-1">بلاغات</div></div></div></div></section>
-<div class="shell grid md:grid-cols-[280px_minmax(0,1fr)] gap-5"><aside class="sidebar rounded-2xl p-3 h-fit sticky top-24"><button class="nav active" data-view="overview"><span>نظرة عامة</span></button><button class="nav" data-view="orders"><span>المنتجات والطلبات</span></button><button class="nav" data-view="payments"><span>مدفوعاتي</span></button><button class="nav" data-view="support"><span>الدعم والبلاغات</span></button><button class="nav" data-view="profile"><span>الملف الشخصي</span></button><button class="nav" data-view="security"><span>الأمان وتسجيل الدخول</span></button><hr class="border-white/5 my-3"><a class="nav text-[#39ff14]" href="https://wa.me/213562961410" target="_blank" rel="noopener"><span>WhatsApp للدعم</span></a><button class="nav text-red-300" onclick="logout()"><span>تسجيل الخروج</span></button></aside>
-<section class="min-w-0"><div id="view-overview" class="view space-y-5"><div><h2 class="display text-2xl font-black">لوحة الحساب</h2><p class="muted text-sm mt-1">تابع طلباتك، اشتراكاتك وبلاغاتك من مكان واحد.</p></div><div id="expiryAlert"></div><div class="panel rounded-2xl p-5"><div class="flex justify-between gap-3 items-center mb-4"><h3 class="font-black">آخر الطلبات</h3><button class="ghost" onclick="showView('orders')">عرض الكل</button></div><div id="overviewOrders" class="space-y-3"></div></div></div>
-<div id="view-orders" class="view hidden"><h2 class="display text-2xl font-black">المنتجات والطلبات</h2><p class="muted text-sm mt-1 mb-5">التفاصيل والتسليم وموعد الانتهاء محفوظة بأمان داخل كل طلب.</p><div id="ordersList" class="space-y-4"></div></div>
-<div id="view-payments" class="view hidden"><h2 class="display text-2xl font-black">مدفوعاتي</h2><p class="muted text-sm mt-1 mb-5">سجل المبالغ والعمليات التي تمت عبر المتجر.</p><div id="paymentsList" class="panel rounded-2xl overflow-auto"></div></div>
-<div id="view-support" class="view hidden"><div class="flex flex-wrap justify-between gap-3"><div><h2 class="display text-2xl font-black">الدعم والبلاغات</h2><p class="muted text-sm mt-1">لكل طلب بلاغ مفتوح واحد فقط؛ يمكنك تعديل وصفه ومتابعة حالته.</p></div><a id="generalWhatsApp" class="btn h-fit" target="_blank" rel="noopener">التواصل عبر WhatsApp</a></div><div id="problemsList" class="space-y-3 mt-5"></div></div>
-<div id="view-profile" class="view hidden"><h2 class="display text-2xl font-black">الملف الشخصي</h2><p class="muted text-sm mt-1 mb-5">بياناتك التي نستعملها للتواصل والتسليم.</p><form id="profileForm" class="panel rounded-2xl p-5 grid sm:grid-cols-2 gap-3"><input id="first" class="input" placeholder="الاسم"><input id="last" class="input" placeholder="اللقب"><input id="phone" class="input" placeholder="رقم الهاتف"><input id="wilaya" class="input" placeholder="الولاية"><div class="secret sm:col-span-2"><b>البريد الإلكتروني</b><br><span id="profileEmail" class="muted"></span></div><label class="sm:col-span-2 flex gap-2 text-sm muted p-3 rounded-xl bg-black/20"><input id="mEmail" type="checkbox" class="accent-[#39ff14]"><span>أوافق على استقبال العروض عبر البريد الإلكتروني.</span></label><label class="sm:col-span-2 flex gap-2 text-sm muted p-3 rounded-xl bg-black/20"><input id="mWa" type="checkbox" class="accent-[#39ff14]"><span>أوافق على استقبال العروض عبر WhatsApp.</span></label><button class="btn sm:col-span-2">حفظ التغييرات</button></form></div>
-<div id="view-security" class="view hidden"><h2 class="display text-2xl font-black">الأمان وتسجيل الدخول</h2><p class="muted text-sm mt-1 mb-5">تأكد دائماً من استخدام بريدك الشخصي للدخول إلى الطلبات.</p><div class="panel rounded-2xl p-5 space-y-4"><div class="secret"><b>الجلسة الحالية</b><br><span id="securityEmail" class="muted"></span><br><span class="text-[#39ff14] text-xs">جلسة محمية عبر Supabase Auth</span></div><div class="secret"><b>سجل الدخول</b><p class="muted text-sm mt-2">سيظهر هنا سجل الجلسات والأجهزة بعد تفعيل سجل الأمان في قاعدة البيانات. حالياً لا نعرض سجلاً وهمياً.</p></div><button class="ghost text-red-300" onclick="logout()">تسجيل الخروج من هذا الجهاز</button></div></div></section></div></main>
-<script src="supabase-client.js"></script><script>
-let user,profile={},orders=[],problems=[],lang=localStorage.getItem('strivio_lang')||'ar';const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const labels={ar:{paid:'مدفوع',completed:'مكتمل',pending:'قيد الانتظار',pending_payment:'بانتظار الدفع',cancelled:'ملغي',delivered:'تم التسليم',resolved:'تم الحل',open:'جديد',processing:'قيد المراجعة'},fr:{paid:'Payée',completed:'Terminée',pending:'En attente',pending_payment:'Paiement en attente',cancelled:'Annulée',delivered:'Livrée',resolved:'Résolu',open:'Nouveau',processing:'En cours'},en:{paid:'Paid',completed:'Completed',pending:'Pending',pending_payment:'Awaiting payment',cancelled:'Cancelled',delivered:'Delivered',resolved:'Resolved',open:'New',processing:'In review'}};function L(v){return labels[lang]?.[String(v||'').toLowerCase()]||String(v||'—').replaceAll('_',' ')}function badge(s){s=String(s||'pending').toLowerCase();let c=/paid|completed|delivered|resolved/.test(s)?'ok':/cancel|failed|problem/.test(s)?'bad':'wait';return '<span class="badge '+c+'">'+esc(L(s))+'</span>'}function money(v){return Number(v||0).toLocaleString()+' DZD'}function date(v){return v?new Date(v).toLocaleDateString(lang==='ar'?'ar-DZ':lang==='fr'?'fr-FR':'en-GB'):'—'}function itemNames(o){return (o.items||[]).map(i=>esc(i.nameData?.[lang]||i.nameData?.ar||i.name||i.id)+' ×'+(i.qty||1)).join(' • ')}function showView(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('hidden',x.id!=='view-'+v));document.querySelectorAll('.nav[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===v));location.hash=v}document.querySelectorAll('.nav[data-view]').forEach(b=>b.onclick=()=>showView(b.dataset.view));document.querySelectorAll('.lang').forEach(b=>b.onclick=()=>{lang=b.dataset.lang;localStorage.setItem('strivio_lang',lang);document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';document.querySelectorAll('.lang').forEach(x=>x.classList.toggle('active',x===b));renderAll()});async function logout(){await window.supabaseClient.auth.signOut();location.href='./'}async function delivery(id){const{data:{session}}=await window.supabaseClient.auth.getSession();if(!session)throw Error('Authentication required');const r=await fetch(SUPABASE_URL+'/functions/v1/customer-delivery',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({order_id:id})}),d=await r.json().catch(()=>null);if(!r.ok||!d?.success)throw Error(d?.error||'Delivery failed');return d}async function showDetails(id){try{let d=await delivery(id),o=d.order||{},old=document.getElementById('details');old?.remove();let wrap=document.createElement('div');wrap.id='details';wrap.className='fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center';wrap.innerHTML='<div class="panel rounded-[26px] max-w-2xl w-full max-h-[90vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><h2 class="display text-2xl font-black">تفاصيل الطلب</h2><p class="muted text-xs mt-2 font-mono">'+esc(o.id)+'</p></div><button class="ghost" onclick="document.getElementById(\'details\').remove()">×</button></div><div class="grid sm:grid-cols-2 gap-3 mt-5"><div class="secret"><b>المبلغ</b><br>'+money(o.total_payable)+'</div><div class="secret"><b>المنتجات</b><br>'+itemNames(o)+'</div></div><div class="mt-4">'+renderDelivery(d.fulfillments||[])+'</div><div class="flex flex-wrap gap-2 mt-5"><button class="ghost" onclick="openReport(\''+esc(o.id)+'\')">الإبلاغ أو متابعة البلاغ</button><a class="btn" target="_blank" rel="noopener" href="https://wa.me/213562961410?text='+encodeURIComponent('مرحباً، أحتاج دعماً للطلب #'+o.id)+'">WhatsApp لهذا الطلب</a></div></div>';document.body.appendChild(wrap)}catch(e){alert('تعذر فتح تفاصيل الطلب. تأكد أنك داخل الحساب الذي أجرى الطلب.')}}function renderDelivery(fs){if(!fs.length)return '<div class="secret muted">التسليم قيد التحضير.</div>';return fs.map(f=>{let entries=f.delivery?.entries||[],end=f.delivery?.ends_at||f.delivery_summary?.ends_at,note=f.delivery?.problem_resolution_note||f.delivery_summary?.problem_resolution_note||'';let body=entries.length?entries.map(x=>'<div class="secret mt-2">'+(x.email?'البريد: '+esc(x.email)+'<br>كلمة السر: '+esc(x.password)+'<br>البروفايل: '+esc(x.profile)+'<br>PIN: '+esc(x.pin||'—'):'الكود: '+esc(x.code))+'</div>').join(''):'<div class="secret mt-2">'+esc(f.delivery_summary?.message||L(f.status))+'</div>';return '<div class="mt-4"><div class="flex justify-between gap-3"><b class="text-[#39ff14]">'+esc(f.delivery?.product_name||f.service_id||'المنتج')+'</b>'+badge(f.status)+'</div>'+(end?'<p class="muted text-xs mt-1">ينتهي الاشتراك: '+date(end)+'</p>':'')+body+(note?'<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]">تحديث الإدارة</b><br>'+esc(note)+'</div>':'')+'</div>'}).join('')}function orderCard(o,small=false){return '<article class="order panel rounded-2xl p-5"><div class="flex flex-wrap justify-between gap-3"><div>'+badge(o.status)+'<h3 class="font-black mt-3">'+itemNames(o)+'</h3><p class="muted text-xs mt-2">'+date(o.created_at)+' · #'+esc(String(o.id).slice(0,8))+'</p></div><div class="text-left"><b class="display text-xl text-[#39ff14]">'+money(o.total_payable)+'</b></div></div>'+(small?'':'<div class="flex flex-wrap gap-2 mt-4"><button class="btn" onclick="showDetails(\''+esc(o.id)+'\')">عرض التفاصيل</button><button class="ghost" onclick="openReport(\''+esc(o.id)+'\')">بلاغ / دعم</button></div>')+'</article>'}function renderOrders(){document.getElementById('ordersList').innerHTML=orders.length?orders.map(o=>orderCard(o)).join(''):'<div class="panel rounded-2xl p-12 text-center muted">لا توجد طلبات حتى الآن.</div>';const overviewBox=document.getElementById('overviewOrders');if(overviewBox)overviewBox.innerHTML=orders.length?orders.slice(0,3).map(o=>orderCard(o,true)).join(''):'<p class="muted">لا توجد طلبات بعد.</p>';document.getElementById('paymentsList').innerHTML=orders.length?'<table class="w-full text-sm min-w-[620px]"><thead class="text-right text-xs text-gray-500 bg-black/30"><tr><th class="p-4">الطلب</th><th class="p-4">التاريخ</th><th class="p-4">المبلغ</th><th class="p-4">الحالة</th></tr></thead><tbody>'+orders.map(o=>'<tr class="border-t border-white/5"><td class="p-4 font-mono text-xs">#'+esc(String(o.id).slice(0,8))+'</td><td class="p-4 muted">'+date(o.created_at)+'</td><td class="p-4 font-bold">'+money(o.total_payable)+'</td><td class="p-4">'+badge(o.status)+'</td></tr>').join('')+'</tbody></table>':'<p class="p-8 muted">لا توجد مدفوعات بعد.</p>'}function activeProblem(o){return problems.find(p=>p.order_id===o&&!['resolved','closed','cancelled'].includes(String(p.status||'').toLowerCase()))}async function openReport(orderId){let p=activeProblem(orderId),old=document.getElementById('report');old?.remove();let wrap=document.createElement('div');wrap.id='report';wrap.className='fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center';wrap.innerHTML='<form id="reportForm" class="panel rounded-[26px] max-w-xl w-full p-6"><div class="flex justify-between"><div><h2 class="display text-2xl font-black">'+(p?'تعديل ومتابعة البلاغ':'الإبلاغ عن مشكلة')+'</h2><p class="muted text-xs mt-2">طلب #'+esc(String(orderId).slice(0,8))+'</p></div><button type="button" class="ghost" onclick="document.getElementById(\'report\').remove()">×</button></div>'+(p?'<div class="secret mt-4">الحالة: '+badge(p.status)+(p.admin_notes?'<br><br><b class="text-[#39ff14]">رد الإدارة:</b><br>'+esc(p.admin_notes):'')+'</div>':'')+'<textarea name="message" required minlength="3" maxlength="2000" rows="6" class="input mt-4" placeholder="اشرح المشكلة بالتفصيل">'+esc(p?.message||p?.description||'')+'</textarea><div class="flex gap-2 mt-4"><button class="btn">'+(p?'حفظ التعديل':'إرسال البلاغ')+'</button><a class="ghost" target="_blank" rel="noopener" href="https://wa.me/213562961410?text='+encodeURIComponent('مرحباً، أحتاج دعماً للطلب #'+orderId)+'">WhatsApp</a></div></form>';document.body.appendChild(wrap);document.getElementById('reportForm').onsubmit=e=>submitReport(e,orderId,p?.id)}async function submitReport(e,orderId,existingId){e.preventDefault();let message=new FormData(e.target).get('message'),btn=e.target.querySelector('button');btn.disabled=true;let result;if(existingId)result=await window.supabaseClient.from('problem_reports').update({message,updated_at:new Date().toISOString()}).eq('id',existingId);else result=await window.supabaseClient.rpc('report_order_problem',{p_order_id:orderId,p_fulfillment_id:null,p_message:message});if(result.error){btn.disabled=false;return alert('تعذر حفظ البلاغ: '+result.error.message)}await loadProblems();document.getElementById('report')?.remove();alert(existingId?'تم تعديل البلاغ.':'تم إرسال البلاغ.')}async function loadProblems(){let r=await window.supabaseClient.from('problem_reports').select('*').order('created_at',{ascending:false});problems=r.data||[];document.getElementById('statProblems').textContent=problems.filter(p=>!['resolved','closed','cancelled'].includes(String(p.status||'').toLowerCase())).length;document.getElementById('problemsList').innerHTML=problems.length?problems.map(p=>'<article class="panel rounded-2xl p-5"><div class="flex flex-wrap justify-between gap-3"><div><b>طلب #'+esc(String(p.order_id||'').slice(0,8))+'</b><p class="muted text-sm mt-2">'+esc(p.message||p.description||'—')+'</p></div>'+badge(p.status)+'</div>'+(p.admin_notes?'<div class="secret mt-3 border-[#39ff14]/30"><b class="text-[#39ff14]">تحديث الإدارة</b><br>'+esc(p.admin_notes)+'</div>':'')+'<button class="ghost mt-3" onclick="openReport(\''+esc(p.order_id)+'\')">'+(!['resolved','closed'].includes(String(p.status||'').toLowerCase())?'تعديل البلاغ':'عرض البلاغ')+'</button></article>').join(''):'<div class="panel rounded-2xl p-10 text-center muted">لا توجد بلاغات. إذا احتجت مساعدة افتح الطلب ثم اختر بلاغ / دعم.</div>'}function renderAll(){renderOrders();let paid=orders.filter(o=>['paid','completed'].includes(String(o.status).toLowerCase()));document.getElementById('statOrders').textContent=orders.length;document.getElementById('statActive').textContent=paid.length;document.getElementById('expiryAlert').innerHTML=paid.length?'<div class="panel rounded-2xl p-4 border-[#39ff14]/20"><b class="text-[#39ff14]">اشتراكاتك ومعلومات انتهائها</b><p class="muted text-sm mt-1">افتح تفاصيل أي طلب لرؤية تاريخ انتهاء الاشتراك عند توفره.</p></div>':'';document.getElementById('generalWhatsApp').href='https://wa.me/213562961410?text='+encodeURIComponent('مرحباً، أحتاج مساعدة في حسابي على Strivio')}document.getElementById('profileForm').addEventListener('submit',async e=>{e.preventDefault();let q=id=>document.getElementById(id),data={id:user.id,first_name:q('first').value.trim(),last_name:q('last').value.trim(),phone:q('phone').value.trim(),wilaya:q('wilaya').value.trim(),marketing_email_opt_in:q('mEmail').checked,marketing_whatsapp_opt_in:q('mWa').checked,consent_updated_at:new Date().toISOString(),updated_at:new Date().toISOString()},r=await window.supabaseClient.from('profiles').upsert(data);alert(r.error?'تعذر حفظ البيانات: '+r.error.message:'تم حفظ بياناتك بنجاح')});async function init(){let s=(await window.supabaseClient.auth.getSession()).data.session;if(!s){location.href='auth.html?next=my-account.html';return}user=s.user;let [p,o]=await Promise.all([window.supabaseClient.from('profiles').select('*').eq('id',user.id).maybeSingle(),window.supabaseClient.from('orders').select('*').order('created_at',{ascending:false})]);profile=p.data||{};orders=o.data||[];let name=((profile.first_name||'')+' '+(profile.last_name||'')).trim()||user.email;document.getElementById('customerName').textContent=name;['customerEmail','profileEmail','securityEmail'].forEach(id=>document.getElementById(id).textContent=user.email||'');document.getElementById('first').value=profile.first_name||'';document.getElementById('last').value=profile.last_name||'';document.getElementById('phone').value=profile.phone||'';document.getElementById('wilaya').value=profile.wilaya||'';document.getElementById('mEmail').checked=!!profile.marketing_email_opt_in;document.getElementById('mWa').checked=!!profile.marketing_whatsapp_opt_in;document.querySelectorAll('.lang').forEach(x=>x.classList.toggle('active',x.dataset.lang===lang));await loadProblems();renderAll();document.querySelector('[data-view=overview]')?.remove();document.getElementById('view-overview')?.remove();let initialView=location.hash.slice(1)||'orders';if(initialView==='overview'||!document.getElementById('view-'+initialView))initialView='orders';showView(initialView)}window.accountInitPromise=init();
-</script><script>
-(function(){
-  var ui={
-    ar:{secure:'حساب Strivio محمي',welcome:'مرحباً بك',orders:'المنتجات والطلبات',payments:'مدفوعاتي',support:'الدعم والبلاغات',profile:'الملف الشخصي',security:'الأمان وتسجيل الدخول',logout:'تسجيل الخروج',shop:'متابعة التسوق',cart:'السلة',title:'المنتجات والطلبات',sub:'التفاصيل والتسليم وموعد الانتهاء محفوظة بأمان داخل كل طلب.',payTitle:'مدفوعاتي',paySub:'سجل المبالغ والعمليات التي تمت عبر المتجر.',supportTitle:'الدعم والبلاغات',supportSub:'لكل طلب بلاغ مفتوح واحد فقط؛ يمكنك تعديل وصفه ومتابعة حالته.',profileTitle:'الملف الشخصي',profileSub:'بياناتك التي نستعملها للتواصل والتسليم.',securityTitle:'الأمان وتسجيل الدخول',securitySub:'تأكد دائماً من استخدام بريدك الشخصي للدخول إلى الطلبات.',statOrders:'طلبات',statActive:'نشطة',statProblems:'بلاغات',details:'عرض التفاصيل',report:'بلاغ / دعم',paymentOrder:'الطلب',paymentDate:'التاريخ',paymentAmount:'المبلغ',paymentStatus:'الحالة',whatsapp:'التواصل عبر WhatsApp',renew:'تجديد الاشتراك',renewTitle:'اشتراكك ينتهي قريباً',renewText:'يمكنك طلب التجديد قبل انتهاء الاشتراك بأسبوع حتى لا ينقطع عليك.',renewSoon:'ينتهي خلال',days:'أيام',profileEmail:'البريد الإلكتروني',emailConsent:'أوافق على استقبال العروض عبر البريد الإلكتروني.',waConsent:'أوافق على استقبال العروض عبر WhatsApp.'},
-    fr:{secure:'Compte Strivio protégé',welcome:'Bienvenue',orders:'Produits et commandes',payments:'Mes paiements',support:'Support et signalements',profile:'Mon profil',security:'Sécurité et connexion',logout:'Déconnexion',shop:'Continuer mes achats',cart:'Panier',title:'Produits et commandes',sub:'Les détails, la livraison et la date d’expiration sont protégés dans chaque commande.',payTitle:'Mes paiements',paySub:'Historique de vos montants et transactions dans la boutique.',supportTitle:'Support et signalements',supportSub:'Un seul signalement ouvert par commande : vous pouvez le modifier et suivre son statut.',profileTitle:'Mon profil',profileSub:'Vos informations pour le contact et la livraison.',securityTitle:'Sécurité et connexion',securitySub:'Utilisez toujours votre adresse e-mail personnelle pour accéder à vos commandes.',statOrders:'Commandes',statActive:'Actives',statProblems:'Signalements',details:'Voir les détails',report:'Support / signalement',paymentOrder:'Commande',paymentDate:'Date',paymentAmount:'Montant',paymentStatus:'Statut',whatsapp:'Contacter sur WhatsApp',renew:'Renouveler',renewTitle:'Votre abonnement expire bientôt',renewText:'Vous pouvez demander le renouvellement une semaine avant l’expiration.',renewSoon:'Expire dans',days:'jours',profileEmail:'Adresse e-mail',emailConsent:'J’accepte de recevoir les offres par e-mail.',waConsent:'J’accepte de recevoir les offres par WhatsApp.'},
-    en:{secure:'Protected Strivio account',welcome:'Welcome back',orders:'Products & orders',payments:'My payments',support:'Support & reports',profile:'My profile',security:'Security & login',logout:'Sign out',shop:'Continue shopping',cart:'Cart',title:'Products & orders',sub:'Delivery details and expiry information are protected inside every order.',payTitle:'My payments',paySub:'Your payment and transaction history in the store.',supportTitle:'Support & reports',supportSub:'One open report per order. You can edit it and follow its progress.',profileTitle:'My profile',profileSub:'Your contact and delivery information.',securityTitle:'Security & login',securitySub:'Always use your personal email address to access your orders.',statOrders:'Orders',statActive:'Active',statProblems:'Reports',details:'View details',report:'Report / support',paymentOrder:'Order',paymentDate:'Date',paymentAmount:'Amount',paymentStatus:'Status',whatsapp:'Contact on WhatsApp',renew:'Renew subscription',renewTitle:'Your subscription ends soon',renewText:'You can request renewal one week before expiry to avoid interruption.',renewSoon:'Expires in',days:'days',profileEmail:'Email address',emailConsent:'I agree to receive offers by email.',waConsent:'I agree to receive offers through WhatsApp.'}
-  };
-  function lang(){return localStorage.getItem('strivio_lang')||'ar'}
-  function x(){return ui[lang()]||ui.ar}
-  function set(sel,value){var e=document.querySelector(sel);if(e)e.textContent=value}
-  function apply(){var t=x(),l=lang();document.documentElement.lang=l;document.documentElement.dir=l==='ar'?'rtl':'ltr';set('.panel .badge.ok',t.secure);set('.panel .badge.ok + p',t.welcome);var nav=document.querySelectorAll('.nav[data-view] span');[t.orders,t.payments,t.support,t.profile,t.security].forEach(function(v,i){if(nav[i])nav[i].textContent=v});[['orders',t.title,t.sub],['payments',t.payTitle,t.paySub],['support',t.supportTitle,t.supportSub],['profile',t.profileTitle,t.profileSub],['security',t.securityTitle,t.securitySub]].forEach(function(a){var el=document.getElementById('view-'+a[0]);if(!el)return;set('#view-'+a[0]+' h2',a[1]);var p=el.querySelector('p');if(p)p.textContent=a[2]});var stat=document.querySelectorAll('.side div');[t.statOrders,t.statActive,t.statProblems].forEach(function(v,i){if(stat[i])stat[i].textContent=v});set('header a.ghost[href="./"]',t.shop);set('header a[href="cart.html"]',t.cart);var out=document.querySelector('button[onclick="logout()"] span');if(out)out.textContent=t.logout;var pf=document.getElementById('profileEmail');if(pf&&pf.previousElementSibling)pf.previousElementSibling.textContent=t.profileEmail;var labels=document.querySelectorAll('#profileForm label span');if(labels[0])labels[0].textContent=t.emailConsent;if(labels[1])labels[1].textContent=t.waConsent;document.querySelectorAll('#ordersList .order button.btn').forEach(function(b){b.textContent=t.details});document.querySelectorAll('#ordersList .order button.ghost').forEach(function(b){if((b.getAttribute('onclick')||'').indexOf('openReport')>=0)b.textContent=t.report});var heads=document.querySelectorAll('#paymentsList th');[t.paymentOrder,t.paymentDate,t.paymentAmount,t.paymentStatus].forEach(function(v,i){if(heads[i])heads[i].textContent=v});var wa=document.getElementById('generalWhatsApp');if(wa)wa.textContent=t.whatsapp;applyRenewalButtons()}
-  function extra(){return {ar:{detailsTitle:'تفاصيل الطلب',amount:'المبلغ',products:'المنتجات',admin:'تحديث الإدارة',email:'البريد',password:'كلمة السر',profileLabel:'البروفايل',pin:'PIN',code:'الكود',close:'إغلاق',reportDetails:'الإبلاغ أو متابعة البلاغ'},fr:{detailsTitle:'Détails de la commande',amount:'Montant',products:'Produits',admin:'Mise à jour de l’équipe',email:'E-mail',password:'Mot de passe',profileLabel:'Profil',pin:'PIN',code:'Code',close:'Fermer',reportDetails:'Signaler ou suivre'},en:{detailsTitle:'Order details',amount:'Amount',products:'Products',admin:'Team update',email:'Email',password:'Password',profileLabel:'Profile',pin:'PIN',code:'Code',close:'Close',reportDetails:'Report or follow up'}}[lang()]}
-  function texts(){return {ar:{reportTitle:'الإبلاغ عن مشكلة',reportPlaceholder:'اشرح المشكلة بالتفصيل',sendReport:'إرسال البلاغ',first:'الاسم',last:'اللقب',phone:'رقم الهاتف',wilaya:'الولاية',save:'حفظ التغييرات',emptyOrders:'لا توجد طلبات حتى الآن.',emptyPayments:'لا توجد مدفوعات بعد.',emptyProblems:'لا توجد بلاغات. افتح الطلب ثم اختر بلاغ / دعم.',session:'الجلسة الحالية',loginHistory:'سجل الدخول',securityLogout:'تسجيل الخروج من هذا الجهاز'},fr:{reportTitle:'Signaler un problème',reportPlaceholder:'Décrivez le problème en détail',sendReport:'Envoyer le signalement',first:'Prénom',last:'Nom',phone:'Téléphone',wilaya:'Wilaya',save:'Enregistrer',emptyOrders:'Aucune commande pour le moment.',emptyPayments:'Aucun paiement pour le moment.',emptyProblems:'Aucun signalement. Ouvrez une commande pour demander de l’aide.',session:'Session actuelle',loginHistory:'Historique de connexion',securityLogout:'Se déconnecter de cet appareil'},en:{reportTitle:'Report a problem',reportPlaceholder:'Describe the problem in detail',sendReport:'Send report',first:'First name',last:'Last name',phone:'Phone number',wilaya:'Wilaya',save:'Save changes',emptyOrders:'No orders yet.',emptyPayments:'No payments yet.',emptyProblems:'No reports. Open an order to request support.',session:'Current session',loginHistory:'Login history',securityLogout:'Sign out of this device'}}[lang()]}
-  function translateDynamic(){var t=Object.assign({},x(),extra(),texts()),d=document.getElementById('details');if(d){var h=d.querySelector('h2');if(h)h.textContent=t.detailsTitle;var s=d.querySelectorAll('.secret b');if(s[0])s[0].textContent=t.amount;if(s[1])s[1].textContent=t.products;d.querySelectorAll('.secret').forEach(function(e){var old=e.innerHTML,nw=old.replaceAll('البريد:',t.email+': ').replaceAll('كلمة السر:',t.password+': ').replaceAll('البروفايل:',t.profileLabel+': ').replaceAll('الكود:',t.code+': ').replaceAll('تحديث الإدارة',t.admin);if(nw!==old)e.innerHTML=nw});var rb=d.querySelector('button[onclick*="openReport"]');if(rb)rb.textContent=t.reportDetails}var r=document.getElementById('report');if(r){var rh=r.querySelector('h2');if(rh)rh.textContent=t.reportTitle||t.reportDetails;var ta=r.querySelector('textarea');if(ta)ta.placeholder=t.reportPlaceholder||'Describe the problem';var b=r.querySelector('button.btn');if(b)b.textContent=t.sendReport||t.reportDetails}var first=document.getElementById('first'),last=document.getElementById('last'),phone=document.getElementById('phone'),wilaya=document.getElementById('wilaya');if(first)first.placeholder=t.first||'First name';if(last)last.placeholder=t.last||'Last name';if(phone)phone.placeholder=t.phone||'Phone';if(wilaya)wilaya.placeholder=t.wilaya||'Wilaya';var save=document.querySelector('#profileForm button.btn');if(save)save.textContent=t.save||'Save changes'}
-  function translateStaticExtras(){var t=Object.assign({},x(),texts()),ordersBox=document.getElementById('ordersList'),payments=document.getElementById('paymentsList'),problemBox=document.getElementById('problemsList');if(ordersBox&&!ordersBox.querySelector('.order'))ordersBox.textContent=t.emptyOrders;if(payments&&payments.querySelector('p'))payments.querySelector('p').textContent=t.emptyPayments;if(problemBox&&!problemBox.querySelector('article'))problemBox.textContent=t.emptyProblems;var sec=document.getElementById('view-security');if(sec){var titles=sec.querySelectorAll('.secret b');if(titles[0])titles[0].textContent=t.session;if(titles[1])titles[1].textContent=t.loginHistory;var btn=sec.querySelector('button[onclick="logout()"]');if(btn)btn.textContent=t.securityLogout}}
-  function renewSubscription(id){var t=x();window.open('https://wa.me/213562961410?text='+encodeURIComponent((t.renew||'Renew subscription')+' — Strivio order #'+id),'_blank','noopener')}
-  window.renewSubscription=renewSubscription;
-  function applyRenewalButtons(){var t=x();document.querySelectorAll('[data-renew-order]').forEach(function(b){b.textContent=t.renew})}
-  function setupLanguageMenu(){var old=Array.from(document.querySelectorAll('.lang'));if(!old.length)return;var parent=old[0].parentElement,wrap=document.createElement('div');wrap.style.cssText='position:relative';var toggle=document.createElement('button');toggle.type='button';toggle.className='ghost';toggle.style.cssText='display:flex;align-items:center;gap:7px;padding:8px 11px;min-width:86px;justify-content:center';var menu=document.createElement('div');menu.style.cssText='display:none;position:absolute;top:calc(100% + 8px);inset-inline-end:0;z-index:80;min-width:150px;padding:6px;background:#151515;border:1px solid #303030;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.55)';var meta={ar:['🇩🇿','العربية'],fr:['🇫🇷','Français'],en:['🇬🇧','English']};function paint(){var l=lang(),m=meta[l]||meta.ar;toggle.innerHTML='<span>'+m[0]+'</span><b>'+m[1]+'</b><span class="muted">⌄</span>'}Object.keys(meta).forEach(function(l){var b=document.createElement('button');b.type='button';b.style.cssText='width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:#eee;font-weight:700;cursor:pointer;text-align:start';b.innerHTML='<span>'+meta[l][0]+'</span><span>'+meta[l][1]+'</span>';b.onclick=function(){var source=old.find(function(x){return x.dataset.lang===l});if(source)source.click();localStorage.setItem('strivio_lang',l);menu.style.display='none';setTimeout(function(){paint();apply();translateDynamic();translateStaticExtras();applyRenewalButtons()},0)};menu.appendChild(b)});toggle.onclick=function(){menu.style.display=menu.style.display==='none'?'block':'none'};wrap.appendChild(toggle);wrap.appendChild(menu);parent.insertBefore(wrap,old[0]);old.forEach(function(b){b.style.display='none'});paint();document.addEventListener('click',function(e){if(!wrap.contains(e.target))menu.style.display='none'})}
-  async function loadRenewals(){var tries=0;while((typeof orders==='undefined'||!orders.length)&&tries++<30)await new Promise(function(r){setTimeout(r,250)});if(typeof orders==='undefined')return;var soon=[];await Promise.all(orders.filter(function(o){return ['paid','completed'].includes(String(o.status||'').toLowerCase())}).map(async function(o){try{var d=await window.delivery(o.id),end=null;(d.fulfillments||[]).forEach(function(f){var e=f.delivery?.ends_at||f.delivery_summary?.ends_at;if(e&&(!end||new Date(e)<new Date(end)))end=e});if(end){var days=Math.ceil((new Date(end)-new Date())/86400000);if(days>=0&&days<=7)soon.push({id:o.id,days:days,end:end})}}catch(_){} }));window.__renewals=soon;var t=x(),box=document.getElementById('expiryAlert');if(box&&soon.length){box.innerHTML='<div class="panel rounded-2xl p-4 border-yellow-400/25"><b class="text-yellow-300">'+t.renewTitle+'</b><p class="muted text-sm mt-1">'+t.renewText+'</p>'+soon.map(function(r){return '<div class="flex flex-wrap items-center justify-between gap-2 mt-3"><span class="text-sm">'+t.renewSoon+' '+r.days+' '+t.days+' ('+r.end.slice(0,10)+')</span><button class="btn" data-renew-order="'+r.id+'" onclick="renewSubscription(\''+r.id+'\')">'+t.renew+'</button></div>'}).join('')+'</div>';applyRenewalButtons()}}
-  document.addEventListener('DOMContentLoaded',async function(){try{if(window.accountInitPromise)await window.accountInitPromise}catch(_){}setupLanguageMenu();apply();translateDynamic();translateStaticExtras();document.body.style.opacity='1';var baseDetails=window.showDetails,baseReport=window.openReport;if(typeof baseDetails==='function')window.showDetails=async function(id){await baseDetails(id);translateDynamic()};if(typeof baseReport==='function')window.openReport=function(id){baseReport(id);translateDynamic()};setTimeout(function(){translateStaticExtras();loadRenewals()},700)});
-})();
-
-</script></body></html>
+<html lang="ar" dir="rtl">
+  <head>
+    <script src="clean-url.js"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#080808" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Strivio — My Account</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --n: #39ff14;
+        --panel: #121212;
+        --line: #282828;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #090909;
+        color: #eee;
+        font-family: Tajawal, Outfit, Arial, sans-serif;
+        opacity: 0;
+        transition: opacity 0.16s ease;
+      }
+      .display {
+        font-family: "Space Grotesk", Inter, sans-serif;
+      }
+      .grid-bg {
+        background-image:
+          linear-gradient(rgba(57, 255, 20, 0.024) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(57, 255, 20, 0.024) 1px, transparent 1px);
+        background-size: 46px 46px;
+      }
+      .panel {
+        background: linear-gradient(
+          145deg,
+          rgba(25, 25, 25, 0.98),
+          rgba(13, 13, 13, 0.98)
+        );
+        border: 1px solid var(--line);
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.24);
+      }
+      .side {
+        background: #0e0e0e;
+        border: 1px solid #252525;
+      }
+      .sidebar {
+        overflow: hidden;
+        background: linear-gradient(160deg, rgba(23, 23, 23, 0.98), rgba(10, 10, 10, 0.98));
+        border: 1px solid #292929;
+        box-shadow: 0 18px 55px rgba(0, 0, 0, 0.26);
+      }
+      .menu-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 2px 4px 10px;
+        color: #f2f2f2;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+      }
+      .menu-title::after {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: var(--n);
+        box-shadow: 0 0 14px rgba(57, 255, 20, 0.65);
+      }
+      .nav {
+        width: 100%;
+        display: flex;
+        gap: 11px;
+        align-items: center;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid #272727;
+        background: rgba(255, 255, 255, 0.018);
+        color: #aaa;
+        font-size: 15px;
+        font-weight: 800;
+        text-align: right;
+        cursor: pointer;
+      }
+      .nav:hover {
+        background: #171717;
+        color: #fff;
+      }
+      .nav.active {
+        background: var(--n);
+        border-color: var(--n);
+        color: #061006;
+        box-shadow: 0 10px 30px rgba(57, 255, 20, 0.12);
+      }
+      .report-thread {
+        max-height: 44vh;
+        overflow: auto;
+        padding: 14px;
+        border: 1px solid #2d2d2d;
+        border-radius: 16px;
+        background: #0a0a0a;
+      }
+      .thread-bubble {
+        max-width: 88%;
+        padding: 12px 14px;
+        border-radius: 15px;
+        font-size: 13px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .thread-customer {
+        margin-inline-start: auto;
+        color: #071007;
+        background: var(--n);
+        border-end-end-radius: 4px;
+      }
+      .thread-admin {
+        margin-inline-end: auto;
+        color: #eee;
+        background: #1b1b1b;
+        border: 1px solid #333;
+        border-end-start-radius: 4px;
+      }
+      .btn,
+      .ghost {
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+      .btn {
+        background: var(--n);
+        color: #071007;
+        border: 1px solid var(--n);
+      }
+      .ghost {
+        background: #151515;
+        border: 1px solid #333;
+        color: #ddd;
+      }
+      .ghost:hover {
+        border-color: var(--n);
+        color: var(--n);
+      }
+      .input {
+        width: 100%;
+        background: #0c0c0c;
+        border: 1px solid #303030;
+        border-radius: 12px;
+        color: #fff;
+        padding: 12px;
+        outline: none;
+      }
+      .input:focus {
+        border-color: var(--n);
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #333;
+        border-radius: 999px;
+        padding: 4px 9px;
+        font-size: 10px;
+        font-weight: 900;
+      }
+      .ok {
+        color: var(--n);
+        background: rgba(57, 255, 20, 0.08);
+        border-color: rgba(57, 255, 20, 0.25);
+      }
+      .wait {
+        color: #facc15;
+        background: rgba(250, 204, 21, 0.09);
+        border-color: rgba(250, 204, 21, 0.24);
+      }
+      .bad {
+        color: #ff8585;
+        background: rgba(255, 70, 70, 0.1);
+        border-color: rgba(255, 70, 70, 0.25);
+      }
+      .muted {
+        color: #898989;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .order:hover {
+        border-color: rgba(57, 255, 20, 0.3);
+        transform: translateY(-2px);
+      }
+      .order {
+        transition: 0.2s;
+      }
+      .secret {
+        background: #0b0b0b;
+        border: 1px solid #313131;
+        border-radius: 13px;
+        padding: 13px;
+        word-break: break-word;
+      }
+      .lang {
+        border: 1px solid #343434;
+        border-radius: 8px;
+        padding: 5px 7px;
+        color: #999;
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .lang.active {
+        background: var(--n);
+        color: #061006;
+        border-color: var(--n);
+      }
+      @media (max-width: 768px) {
+        .shell {
+          display: block;
+        }
+        .sidebar {
+          position: static !important;
+          margin-bottom: 15px;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 8px;
+          padding: 12px !important;
+        }
+        .nav {
+          display: flex;
+          width: 100%;
+          margin: 0;
+          min-height: 50px;
+          padding: 13px 15px;
+          border-radius: 13px;
+          font-size: 14px;
+          justify-content: flex-start;
+        }
+        .nav span {
+          display: inline;
+        }
+      }
+    </style>
+  </head>
+  <body class="grid-bg min-h-screen">
+    <header
+      class="sticky top-0 z-40 bg-black/80 backdrop-blur-xl border-b border-white/5"
+    >
+      <div
+        class="max-w-7xl h-16 px-4 mx-auto flex items-center justify-between gap-3"
+      >
+        <a class="display text-2xl font-black text-[#39ff14]" href="./"
+          >Strivio</a
+        >
+        <div class="flex items-center gap-2">
+          <a href="./" class="ghost hidden sm:block">متابعة التسوق</a
+          ><a href="cart" class="ghost">السلة</a
+          ><button class="lang" data-lang="ar">AR</button
+          ><button class="lang" data-lang="fr">FR</button
+          ><button class="lang" data-lang="en">EN</button>
+        </div>
+      </div>
+    </header>
+    <main class="max-w-7xl mx-auto px-4 py-5 sm:py-7">
+      <section
+        class="panel rounded-[28px] p-6 sm:p-8 mb-5 relative overflow-hidden"
+      >
+        <div
+          class="absolute -top-24 -left-20 w-72 h-72 rounded-full bg-[#39ff14]/10 blur-3xl"
+        ></div>
+        <div
+          class="relative flex flex-col md:flex-row justify-between gap-5 md:items-end"
+        >
+          <div>
+            <div class="badge ok">● حساب Strivio محمي</div>
+            <p class="muted text-sm mt-4">مرحباً بعودتك</p>
+            <h1
+              id="customerName"
+              class="display text-3xl sm:text-4xl font-black mt-1"
+            >
+              —
+            </h1>
+            <p id="customerEmail" class="muted mt-2"></p>
+          </div>
+          <div class="grid grid-cols-3 gap-2 sm:gap-3">
+            <div class="side rounded-2xl p-3 min-w-[86px]">
+              <b id="statOrders" class="display text-2xl">0</b>
+              <div class="muted text-[10px] mt-1">طلبات</div>
+            </div>
+            <div class="side rounded-2xl p-3 min-w-[86px]">
+              <b id="statActive" class="display text-2xl text-[#39ff14]">0</b>
+              <div class="muted text-[10px] mt-1">نشطة</div>
+            </div>
+            <div class="side rounded-2xl p-3 min-w-[86px]">
+              <b id="statProblems" class="display text-2xl text-yellow-300"
+                >0</b
+              >
+              <div class="muted text-[10px] mt-1">بلاغات</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="shell grid md:grid-cols-[280px_minmax(0,1fr)] gap-5">
+        <aside class="sidebar rounded-2xl p-3 h-fit sticky top-24">
+          <div id="accountMenuTitle" class="menu-title">قائمة الحساب</div>
+          <button class="nav active" data-view="overview">
+            <span>نظرة عامة</span></button
+          ><button class="nav" data-view="orders">
+            <span>المنتجات والطلبات</span></button
+          ><button class="nav" data-view="payments">
+            <span>مدفوعاتي</span></button
+          ><button class="nav" data-view="support">
+            <span>الدعم والبلاغات</span></button
+          ><button class="nav" data-view="profile">
+            <span>الملف الشخصي</span></button
+          ><button class="nav" data-view="security">
+            <span>الأمان وتسجيل الدخول</span>
+          </button>
+          <hr class="border-white/5 my-3" />
+          <a
+            class="nav text-[#39ff14]"
+            href="https://wa.me/213562961410"
+            target="_blank"
+            rel="noopener"
+            ><span>WhatsApp للدعم</span></a
+          ><button class="nav text-red-300" onclick="logout()">
+            <span>تسجيل الخروج</span>
+          </button>
+        </aside>
+        <section class="min-w-0">
+          <div id="view-overview" class="view space-y-5">
+            <div>
+              <h2 class="display text-2xl font-black">لوحة الحساب</h2>
+              <p class="muted text-sm mt-1">
+                تابع طلباتك، اشتراكاتك وبلاغاتك من مكان واحد.
+              </p>
+            </div>
+            <div id="expiryAlert"></div>
+            <div class="panel rounded-2xl p-5">
+              <div class="flex justify-between gap-3 items-center mb-4">
+                <h3 class="font-black">آخر الطلبات</h3>
+                <button class="ghost" onclick="showView('orders')">
+                  عرض الكل
+                </button>
+              </div>
+              <div id="overviewOrders" class="space-y-3"></div>
+            </div>
+          </div>
+          <div id="view-orders" class="view hidden">
+            <h2 class="display text-2xl font-black">المنتجات والطلبات</h2>
+            <p class="muted text-sm mt-1 mb-5">
+              التفاصيل والتسليم وموعد الانتهاء محفوظة بأمان داخل كل طلب.
+            </p>
+            <div id="ordersList" class="space-y-4"></div>
+          </div>
+          <div id="view-payments" class="view hidden">
+            <h2 class="display text-2xl font-black">مدفوعاتي</h2>
+            <p class="muted text-sm mt-1 mb-5">
+              سجل المبالغ والعمليات التي تمت عبر المتجر.
+            </p>
+            <div
+              id="paymentsList"
+              class="panel rounded-2xl overflow-auto"
+            ></div>
+          </div>
+          <div id="view-support" class="view hidden">
+            <div class="flex flex-wrap justify-between gap-3">
+              <div>
+                <h2 class="display text-2xl font-black">الدعم والبلاغات</h2>
+                <p class="muted text-sm mt-1">
+                  لكل طلب بلاغ مفتوح واحد فقط؛ يمكنك تعديل وصفه ومتابعة حالته.
+                </p>
+              </div>
+              <a
+                id="generalWhatsApp"
+                class="btn h-fit"
+                target="_blank"
+                rel="noopener"
+                >التواصل عبر WhatsApp</a
+              >
+            </div>
+            <div id="problemsList" class="space-y-3 mt-5"></div>
+          </div>
+          <div id="view-profile" class="view hidden">
+            <h2 class="display text-2xl font-black">الملف الشخصي</h2>
+            <p class="muted text-sm mt-1 mb-5">
+              بياناتك التي نستعملها للتواصل والتسليم.
+            </p>
+            <form
+              id="profileForm"
+              class="panel rounded-2xl p-5 grid sm:grid-cols-2 gap-3"
+            >
+              <input id="first" class="input" placeholder="الاسم" /><input
+                id="last"
+                class="input"
+                placeholder="اللقب"
+              /><input
+                id="phone"
+                class="input"
+                placeholder="رقم الهاتف"
+              /><input id="wilaya" class="input" placeholder="الولاية" />
+              <div class="secret sm:col-span-2">
+                <b>البريد الإلكتروني</b><br /><span
+                  id="profileEmail"
+                  class="muted"
+                ></span>
+              </div>
+              <label
+                class="sm:col-span-2 flex gap-2 text-sm muted p-3 rounded-xl bg-black/20"
+                ><input
+                  id="mEmail"
+                  type="checkbox"
+                  class="accent-[#39ff14]"
+                /><span
+                  >أوافق على استقبال العروض عبر البريد الإلكتروني.</span
+                ></label
+              ><label
+                class="sm:col-span-2 flex gap-2 text-sm muted p-3 rounded-xl bg-black/20"
+                ><input
+                  id="mWa"
+                  type="checkbox"
+                  class="accent-[#39ff14]"
+                /><span>أوافق على استقبال العروض عبر WhatsApp.</span></label
+              ><button class="btn sm:col-span-2">حفظ التغييرات</button>
+            </form>
+          </div>
+          <div id="view-security" class="view hidden">
+            <h2 class="display text-2xl font-black">الأمان وتسجيل الدخول</h2>
+            <p class="muted text-sm mt-1 mb-5">
+              تأكد دائماً من استخدام بريدك الشخصي للدخول إلى الطلبات.
+            </p>
+            <div class="panel rounded-2xl p-5 space-y-4">
+              <div class="secret">
+                <b>الجلسة الحالية</b><br /><span
+                  id="securityEmail"
+                  class="muted"
+                ></span
+                ><br /><span class="text-[#39ff14] text-xs"
+                  >جلسة محمية عبر Supabase Auth</span
+                >
+              </div>
+              <div class="secret">
+                <b>سجل الدخول</b>
+                <p class="muted text-sm mt-2">
+                  سيظهر هنا سجل الجلسات والأجهزة بعد تفعيل سجل الأمان في قاعدة
+                  البيانات. حالياً لا نعرض سجلاً وهمياً.
+                </p>
+              </div>
+              <button class="ghost text-red-300" onclick="logout()">
+                تسجيل الخروج من هذا الجهاز
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script src="supabase-client.js"></script>
+    <script>
+      let user,
+        profile = {},
+        orders = [],
+        problems = [],
+        lang = localStorage.getItem("strivio_lang") || "ar";
+      const esc = (v) =>
+        String(v ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const labels = {
+        ar: {
+          paid: "مدفوع",
+          completed: "مكتمل",
+          pending: "قيد الانتظار",
+          pending_payment: "بانتظار الدفع",
+          cancelled: "ملغي",
+          delivered: "تم التسليم",
+          resolved: "تم الحل",
+          open: "جديد",
+          processing: "قيد المراجعة",
+        },
+        fr: {
+          paid: "Payée",
+          completed: "Terminée",
+          pending: "En attente",
+          pending_payment: "Paiement en attente",
+          cancelled: "Annulée",
+          delivered: "Livrée",
+          resolved: "Résolu",
+          open: "Nouveau",
+          processing: "En cours",
+        },
+        en: {
+          paid: "Paid",
+          completed: "Completed",
+          pending: "Pending",
+          pending_payment: "Awaiting payment",
+          cancelled: "Cancelled",
+          delivered: "Delivered",
+          resolved: "Resolved",
+          open: "New",
+          processing: "In review",
+        },
+      };
+      function L(v) {
+        return (
+          labels[lang]?.[String(v || "").toLowerCase()] ||
+          String(v || "—").replaceAll("_", " ")
+        );
+      }
+      function badge(s) {
+        s = String(s || "pending").toLowerCase();
+        let c = /paid|completed|delivered|resolved/.test(s)
+          ? "ok"
+          : /cancel|failed|problem/.test(s)
+            ? "bad"
+            : "wait";
+        return '<span class="badge ' + c + '">' + esc(L(s)) + "</span>";
+      }
+      function money(v) {
+        return Number(v || 0).toLocaleString() + " DZD";
+      }
+      function date(v) {
+        return v
+          ? new Date(v).toLocaleDateString(
+              lang === "ar" ? "ar-DZ" : lang === "fr" ? "fr-FR" : "en-GB",
+            )
+          : "—";
+      }
+      function itemNames(o) {
+        return (o.items || [])
+          .map(
+            (i) =>
+              esc(i.nameData?.[lang] || i.nameData?.ar || i.name || i.id) +
+              " ×" +
+              (i.qty || 1),
+          )
+          .join(" • ");
+      }
+      function showView(v) {
+        document
+          .querySelectorAll(".view")
+          .forEach((x) => x.classList.toggle("hidden", x.id !== "view-" + v));
+        document
+          .querySelectorAll(".nav[data-view]")
+          .forEach((x) => x.classList.toggle("active", x.dataset.view === v));
+        location.hash = v;
+      }
+      document
+        .querySelectorAll(".nav[data-view]")
+        .forEach((b) => (b.onclick = () => showView(b.dataset.view)));
+      document.querySelectorAll(".lang").forEach(
+        (b) =>
+          (b.onclick = () => {
+            lang = b.dataset.lang;
+            localStorage.setItem("strivio_lang", lang);
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+            document
+              .querySelectorAll(".lang")
+              .forEach((x) => x.classList.toggle("active", x === b));
+            renderAll();
+          }),
+      );
+      async function logout() {
+        await window.supabaseClient.auth.signOut();
+        location.href = "./";
+      }
+      async function delivery(id) {
+        const {
+          data: { session },
+        } = await window.supabaseClient.auth.getSession();
+        if (!session) throw Error("Authentication required");
+        const r = await fetch(
+            SUPABASE_URL + "/functions/v1/customer-delivery",
+            {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + session.access_token,
+                apikey: SUPABASE_ANON_KEY,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ order_id: id }),
+            },
+          ),
+          d = await r.json().catch(() => null);
+        if (!r.ok || !d?.success) throw Error(d?.error || "Delivery failed");
+        return d;
+      }
+      async function showDetails(id) {
+        try {
+          let d = await delivery(id),
+            o = d.order || {},
+            old = document.getElementById("details");
+          old?.remove();
+          let wrap = document.createElement("div");
+          wrap.id = "details";
+          wrap.className =
+            "fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center";
+          wrap.innerHTML =
+            '<div class="panel rounded-[26px] max-w-2xl w-full max-h-[90vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><h2 class="display text-2xl font-black">تفاصيل الطلب</h2><p class="muted text-xs mt-2 font-mono">' +
+            esc(o.id) +
+            '</p></div><button class="ghost" onclick="document.getElementById(\'details\').remove()">×</button></div><div class="grid sm:grid-cols-2 gap-3 mt-5"><div class="secret"><b>المبلغ</b><br>' +
+            money(o.total_payable) +
+            '</div><div class="secret"><b>المنتجات</b><br>' +
+            itemNames(o) +
+            '</div></div><div class="mt-4">' +
+            renderDelivery(d.fulfillments || []) +
+            '</div><div class="flex flex-wrap gap-2 mt-5"><button class="ghost" onclick="openReport(\'' +
+            esc(o.id) +
+            '\')">الإبلاغ أو متابعة البلاغ</button><a class="btn" target="_blank" rel="noopener" href="https://wa.me/213562961410?text=' +
+            encodeURIComponent("مرحباً، أحتاج دعماً للطلب #" + o.id) +
+            '">WhatsApp لهذا الطلب</a></div></div>';
+          document.body.appendChild(wrap);
+        } catch (e) {
+          alert("تعذر فتح تفاصيل الطلب. تأكد أنك داخل الحساب الذي أجرى الطلب.");
+        }
+      }
+      function renderDelivery(fs) {
+        if (!fs.length)
+          return '<div class="secret muted">التسليم قيد التحضير.</div>';
+        return fs
+          .map((f) => {
+            let entries = f.delivery?.entries || [],
+              end = f.delivery?.ends_at || f.delivery_summary?.ends_at,
+              note =
+                f.delivery?.problem_resolution_note ||
+                f.delivery_summary?.problem_resolution_note ||
+                "";
+            let body = entries.length
+              ? entries
+                  .map(
+                    (x) =>
+                      '<div class="secret mt-2">' +
+                      (x.email
+                        ? "البريد: " +
+                          esc(x.email) +
+                          "<br>كلمة السر: " +
+                          esc(x.password) +
+                          "<br>البروفايل: " +
+                          esc(x.profile) +
+                          "<br>PIN: " +
+                          esc(x.pin || "—")
+                        : "الكود: " + esc(x.code)) +
+                      "</div>",
+                  )
+                  .join("")
+              : '<div class="secret mt-2">' +
+                esc(f.delivery_summary?.message || L(f.status)) +
+                "</div>";
+            return (
+              '<div class="mt-4"><div class="flex justify-between gap-3"><b class="text-[#39ff14]">' +
+              esc(f.delivery?.product_name || f.service_id || "المنتج") +
+              "</b>" +
+              badge(f.status) +
+              "</div>" +
+              (end
+                ? '<p class="muted text-xs mt-1">ينتهي الاشتراك: ' +
+                  date(end) +
+                  "</p>"
+                : "") +
+              body +
+              (note
+                ? '<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]">تحديث الإدارة</b><br>' +
+                  esc(note) +
+                  "</div>"
+                : "") +
+              "</div>"
+            );
+          })
+          .join("");
+      }
+      function orderCard(o, small = false) {
+        const report = activeProblem(o.id);
+        return (
+          '<article class="order panel rounded-2xl p-5"><div class="flex flex-wrap justify-between gap-3"><div>' +
+          badge(o.status) +
+          '<h3 class="font-black mt-3">' +
+          itemNames(o) +
+          '</h3><p class="muted text-xs mt-2">' +
+          date(o.created_at) +
+          " · #" +
+          esc(String(o.id).slice(0, 8)) +
+          '</p></div><div class="text-left"><b class="display text-xl text-[#39ff14]">' +
+          money(o.total_payable) +
+          "</b></div></div>" +
+          (small
+            ? ""
+            : '<div class="flex flex-wrap gap-2 mt-4"><button class="btn" onclick="showDetails(\'' +
+              esc(o.id) +
+              '\')">عرض التفاصيل</button><button class="ghost" onclick="openReport(\'' +
+              esc(o.id) +
+              "')\" data-report-order=\"" +
+              esc(o.id) +
+              '\">' +
+              (report ? "متابعة البلاغ" : "بلاغ / دعم") +
+              "</button></div>") +
+          "</article>"
+        );
+      }
+      function renderOrders() {
+        document.getElementById("ordersList").innerHTML = orders.length
+          ? orders.map((o) => orderCard(o)).join("")
+          : '<div class="panel rounded-2xl p-12 text-center muted">لا توجد طلبات حتى الآن.</div>';
+        const overviewBox = document.getElementById("overviewOrders");
+        if (overviewBox)
+          overviewBox.innerHTML = orders.length
+            ? orders
+                .slice(0, 3)
+                .map((o) => orderCard(o, true))
+                .join("")
+            : '<p class="muted">لا توجد طلبات بعد.</p>';
+        document.getElementById("paymentsList").innerHTML = orders.length
+          ? '<table class="w-full text-sm min-w-[620px]"><thead class="text-right text-xs text-gray-500 bg-black/30"><tr><th class="p-4">الطلب</th><th class="p-4">التاريخ</th><th class="p-4">المبلغ</th><th class="p-4">الحالة</th></tr></thead><tbody>' +
+            orders
+              .map(
+                (o) =>
+                  '<tr class="border-t border-white/5"><td class="p-4 font-mono text-xs">#' +
+                  esc(String(o.id).slice(0, 8)) +
+                  '</td><td class="p-4 muted">' +
+                  date(o.created_at) +
+                  '</td><td class="p-4 font-bold">' +
+                  money(o.total_payable) +
+                  '</td><td class="p-4">' +
+                  badge(o.status) +
+                  "</td></tr>",
+              )
+              .join("") +
+            "</tbody></table>"
+          : '<p class="p-8 muted">لا توجد مدفوعات بعد.</p>';
+      }
+      function activeProblem(o) {
+        return problems.find(
+          (p) =>
+            p.order_id === o &&
+            !["resolved", "closed", "cancelled"].includes(
+              String(p.status || "").toLowerCase(),
+            ),
+        );
+      }
+      async function openReport(orderId, reportId) {
+        let p = reportId
+            ? problems.find((item) => item.id === reportId)
+            : activeProblem(orderId),
+          closed =
+            p &&
+            ["resolved", "closed", "cancelled"].includes(
+              String(p.status || "").toLowerCase(),
+            ),
+          old = document.getElementById("report");
+        old?.remove();
+        let wrap = document.createElement("div");
+        wrap.id = "report";
+        wrap.dataset.existing = p ? "1" : "0";
+        wrap.dataset.closed = closed ? "1" : "0";
+        wrap.className =
+          "fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center";
+        wrap.innerHTML =
+          '<form id="reportForm" class="panel rounded-[26px] max-w-xl w-full max-h-[92vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><h2 class="display text-2xl font-black">' +
+          (p ? "متابعة البلاغ" : "الإبلاغ عن مشكلة") +
+          '</h2><p class="muted text-xs mt-2">طلب #' +
+          esc(String(orderId).slice(0, 8)) +
+          '</p></div><button type="button" class="ghost" onclick="document.getElementById(\'report\').remove()">×</button></div>' +
+          (p
+            ? '<div class="flex items-center justify-between gap-3 mt-4"><b class="text-sm">محادثة البلاغ</b>' +
+              badge(p.status) +
+              '</div><div class="report-thread mt-3 space-y-3"><div class="thread-bubble thread-customer"><b data-thread-label="customer" class="block text-[10px] opacity-70 mb-1">رسالتك</b>' +
+              esc(p.message || p.description || "—") +
+              '</div><div class="thread-bubble thread-admin"><b data-thread-label="admin" class="block text-[10px] text-[#39ff14] mb-1">رد فريق Strivio</b>' +
+              esc(
+                p.admin_notes ||
+                  "تم استلام البلاغ، وسيظهر رد الفريق هنا فور تحديثه.",
+              ) +
+              "</div></div>"
+            : "") +
+          (closed
+            ? '<div data-report-closed class="secret mt-4 text-sm text-[#39ff14]">تم إغلاق هذا البلاغ. يمكنك الرجوع للطلب وفتح بلاغ جديد إذا ظهرت مشكلة أخرى.</div>'
+            : '<label data-report-editor-label class="block text-xs font-black mt-4">' +
+              (p ? "تعديل رسالتك الحالية" : "وصف المشكلة") +
+              '</label><textarea name="message" required minlength="3" maxlength="2000" rows="5" class="input mt-2" placeholder="اشرح المشكلة بالتفصيل">' +
+          esc(p?.message || p?.description || "") +
+              '</textarea>') +
+          '<div class="flex flex-wrap gap-2 mt-4">' +
+          (closed
+            ? ""
+            : '<button class="btn">' +
+          (p ? "حفظ التعديل" : "إرسال البلاغ") +
+              "</button>") +
+          '<a class="ghost" target="_blank" rel="noopener" href="https://wa.me/213562961410?text=' +
+          encodeURIComponent("مرحباً، أحتاج دعماً للطلب #" + orderId) +
+          '">WhatsApp</a></div></form>';
+        document.body.appendChild(wrap);
+        if (!closed)
+          document.getElementById("reportForm").onsubmit = (e) =>
+            submitReport(e, orderId, p?.id);
+      }
+      async function submitReport(e, orderId, existingId) {
+        e.preventDefault();
+        let message = new FormData(e.target).get("message"),
+          btn = e.target.querySelector("button");
+        btn.disabled = true;
+        let result;
+        if (!existingId) {
+          const lookup = await window.supabaseClient
+            .from("problem_reports")
+            .select("id,status")
+            .eq("order_id", orderId)
+            .order("created_at", { ascending: false });
+          const alreadyOpen = (lookup.data || []).find(
+            (item) =>
+              !["resolved", "closed", "cancelled"].includes(
+                String(item.status || "").toLowerCase(),
+              ),
+          );
+          if (alreadyOpen) existingId = alreadyOpen.id;
+        }
+        if (existingId)
+          result = await window.supabaseClient
+            .from("problem_reports")
+            .update({ message, updated_at: new Date().toISOString() })
+            .eq("id", existingId);
+        else
+          result = await window.supabaseClient.rpc("report_order_problem", {
+            p_order_id: orderId,
+            p_fulfillment_id: null,
+            p_message: message,
+          });
+        if (result.error) {
+          await loadProblems();
+          const current = activeProblem(orderId);
+          if (!existingId && current) {
+            renderOrders();
+            openReport(orderId, current.id);
+            return;
+          }
+          btn.disabled = false;
+          return alert("تعذر حفظ البلاغ: " + result.error.message);
+        }
+        await loadProblems();
+        renderOrders();
+        if (window.accountPortalApply) window.accountPortalApply();
+        document.getElementById("report")?.remove();
+        alert(existingId ? "تم تعديل البلاغ." : "تم إرسال البلاغ.");
+      }
+      async function loadProblems() {
+        let r = await window.supabaseClient
+          .from("problem_reports")
+          .select("*")
+          .order("created_at", { ascending: false });
+        problems = r.data || [];
+        document.getElementById("statProblems").textContent = problems.filter(
+          (p) =>
+            !["resolved", "closed", "cancelled"].includes(
+              String(p.status || "").toLowerCase(),
+            ),
+        ).length;
+        document.getElementById("problemsList").innerHTML = problems.length
+          ? problems
+              .map(
+                (p) =>
+                  '<article class="panel rounded-2xl p-5"><div class="flex flex-wrap justify-between gap-3"><div><b>طلب #' +
+                  esc(String(p.order_id || "").slice(0, 8)) +
+                  '</b><p class="muted text-sm mt-2">' +
+                  esc(p.message || p.description || "—") +
+                  "</p></div>" +
+                  badge(p.status) +
+                  "</div>" +
+                  (p.admin_notes
+                    ? '<div class="secret mt-3 border-[#39ff14]/30"><b class="text-[#39ff14]">تحديث الإدارة</b><br>' +
+                      esc(p.admin_notes) +
+                      "</div>"
+                    : "") +
+                  '<button class="ghost mt-3" onclick="openReport(\'' +
+                  esc(p.order_id) +
+                  "', '" +
+                  esc(p.id) +
+                  "')\">" +
+                  (!["resolved", "closed"].includes(
+                    String(p.status || "").toLowerCase(),
+                  )
+                    ? "متابعة البلاغ"
+                    : "عرض البلاغ") +
+                  "</button></article>",
+              )
+              .join("")
+          : '<div class="panel rounded-2xl p-10 text-center muted">لا توجد بلاغات. إذا احتجت مساعدة افتح الطلب ثم اختر بلاغ / دعم.</div>';
+      }
+      function renderAll() {
+        renderOrders();
+        let paid = orders.filter((o) =>
+          ["paid", "completed"].includes(String(o.status).toLowerCase()),
+        );
+        document.getElementById("statOrders").textContent = orders.length;
+        document.getElementById("statActive").textContent = paid.length;
+        document.getElementById("expiryAlert").innerHTML = paid.length
+          ? '<div class="panel rounded-2xl p-4 border-[#39ff14]/20"><b class="text-[#39ff14]">اشتراكاتك ومعلومات انتهائها</b><p class="muted text-sm mt-1">افتح تفاصيل أي طلب لرؤية تاريخ انتهاء الاشتراك عند توفره.</p></div>'
+          : "";
+        document.getElementById("generalWhatsApp").href =
+          "https://wa.me/213562961410?text=" +
+          encodeURIComponent("مرحباً، أحتاج مساعدة في حسابي على Strivio");
+      }
+      document
+        .getElementById("profileForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          let q = (id) => document.getElementById(id),
+            data = {
+              id: user.id,
+              first_name: q("first").value.trim(),
+              last_name: q("last").value.trim(),
+              phone: q("phone").value.trim(),
+              wilaya: q("wilaya").value.trim(),
+              marketing_email_opt_in: q("mEmail").checked,
+              marketing_whatsapp_opt_in: q("mWa").checked,
+              consent_updated_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            r = await window.supabaseClient.from("profiles").upsert(data);
+          alert(
+            r.error
+              ? "تعذر حفظ البيانات: " + r.error.message
+              : "تم حفظ بياناتك بنجاح",
+          );
+        });
+      async function init() {
+        let s = (await window.supabaseClient.auth.getSession()).data.session;
+        if (!s) {
+          location.href = "auth?next=my-account";
+          return;
+        }
+        user = s.user;
+        let [p, o] = await Promise.all([
+          window.supabaseClient
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle(),
+          window.supabaseClient
+            .from("orders")
+            .select("*")
+            .order("created_at", { ascending: false }),
+        ]);
+        profile = p.data || {};
+        orders = o.data || [];
+        let name =
+          (
+            (profile.first_name || "") +
+            " " +
+            (profile.last_name || "")
+          ).trim() || user.email;
+        document.getElementById("customerName").textContent = name;
+        ["customerEmail", "profileEmail", "securityEmail"].forEach(
+          (id) => (document.getElementById(id).textContent = user.email || ""),
+        );
+        document.getElementById("first").value = profile.first_name || "";
+        document.getElementById("last").value = profile.last_name || "";
+        document.getElementById("phone").value = profile.phone || "";
+        document.getElementById("wilaya").value = profile.wilaya || "";
+        document.getElementById("mEmail").checked =
+          !!profile.marketing_email_opt_in;
+        document.getElementById("mWa").checked =
+          !!profile.marketing_whatsapp_opt_in;
+        document
+          .querySelectorAll(".lang")
+          .forEach((x) =>
+            x.classList.toggle("active", x.dataset.lang === lang),
+          );
+        await loadProblems();
+        renderAll();
+        document.querySelector("[data-view=overview]")?.remove();
+        document.getElementById("view-overview")?.remove();
+        let initialView = location.hash.slice(1) || "orders";
+        if (
+          initialView === "overview" ||
+          !document.getElementById("view-" + initialView)
+        )
+          initialView = "orders";
+        showView(initialView);
+      }
+      window.accountInitPromise = init();
+    </script>
+    <script>
+      (function () {
+        var ui = {
+          ar: {
+            secure: "حساب Strivio محمي",
+            welcome: "مرحباً بك",
+            orders: "المنتجات والطلبات",
+            payments: "مدفوعاتي",
+            support: "الدعم والبلاغات",
+            profile: "الملف الشخصي",
+            security: "الأمان وتسجيل الدخول",
+            logout: "تسجيل الخروج",
+            shop: "متابعة التسوق",
+            cart: "السلة",
+            title: "المنتجات والطلبات",
+            sub: "التفاصيل والتسليم وموعد الانتهاء محفوظة بأمان داخل كل طلب.",
+            payTitle: "مدفوعاتي",
+            paySub: "سجل المبالغ والعمليات التي تمت عبر المتجر.",
+            supportTitle: "الدعم والبلاغات",
+            supportSub:
+              "لكل طلب بلاغ مفتوح واحد فقط؛ يمكنك تعديل وصفه ومتابعة حالته.",
+            profileTitle: "الملف الشخصي",
+            profileSub: "بياناتك التي نستعملها للتواصل والتسليم.",
+            securityTitle: "الأمان وتسجيل الدخول",
+            securitySub:
+              "تأكد دائماً من استخدام بريدك الشخصي للدخول إلى الطلبات.",
+            statOrders: "طلبات",
+            statActive: "نشطة",
+            statProblems: "بلاغات",
+            details: "عرض التفاصيل",
+            report: "بلاغ / دعم",
+            followReport: "متابعة البلاغ",
+            menu: "قائمة الحساب",
+            paymentOrder: "الطلب",
+            paymentDate: "التاريخ",
+            paymentAmount: "المبلغ",
+            paymentStatus: "الحالة",
+            whatsapp: "التواصل عبر WhatsApp",
+            renew: "تجديد الاشتراك",
+            renewTitle: "اشتراكك ينتهي قريباً",
+            renewText:
+              "يمكنك طلب التجديد قبل انتهاء الاشتراك بأسبوع حتى لا ينقطع عليك.",
+            renewSoon: "ينتهي خلال",
+            days: "أيام",
+            profileEmail: "البريد الإلكتروني",
+            emailConsent: "أوافق على استقبال العروض عبر البريد الإلكتروني.",
+            waConsent: "أوافق على استقبال العروض عبر WhatsApp.",
+          },
+          fr: {
+            secure: "Compte Strivio protégé",
+            welcome: "Bienvenue",
+            orders: "Produits et commandes",
+            payments: "Mes paiements",
+            support: "Support et signalements",
+            profile: "Mon profil",
+            security: "Sécurité et connexion",
+            logout: "Déconnexion",
+            shop: "Continuer mes achats",
+            cart: "Panier",
+            title: "Produits et commandes",
+            sub: "Les détails, la livraison et la date d’expiration sont protégés dans chaque commande.",
+            payTitle: "Mes paiements",
+            paySub:
+              "Historique de vos montants et transactions dans la boutique.",
+            supportTitle: "Support et signalements",
+            supportSub:
+              "Un seul signalement ouvert par commande : vous pouvez le modifier et suivre son statut.",
+            profileTitle: "Mon profil",
+            profileSub: "Vos informations pour le contact et la livraison.",
+            securityTitle: "Sécurité et connexion",
+            securitySub:
+              "Utilisez toujours votre adresse e-mail personnelle pour accéder à vos commandes.",
+            statOrders: "Commandes",
+            statActive: "Actives",
+            statProblems: "Signalements",
+            details: "Voir les détails",
+            report: "Support / signalement",
+            followReport: "Suivre le signalement",
+            menu: "Menu du compte",
+            paymentOrder: "Commande",
+            paymentDate: "Date",
+            paymentAmount: "Montant",
+            paymentStatus: "Statut",
+            whatsapp: "Contacter sur WhatsApp",
+            renew: "Renouveler",
+            renewTitle: "Votre abonnement expire bientôt",
+            renewText:
+              "Vous pouvez demander le renouvellement une semaine avant l’expiration.",
+            renewSoon: "Expire dans",
+            days: "jours",
+            profileEmail: "Adresse e-mail",
+            emailConsent: "J’accepte de recevoir les offres par e-mail.",
+            waConsent: "J’accepte de recevoir les offres par WhatsApp.",
+          },
+          en: {
+            secure: "Protected Strivio account",
+            welcome: "Welcome back",
+            orders: "Products & orders",
+            payments: "My payments",
+            support: "Support & reports",
+            profile: "My profile",
+            security: "Security & login",
+            logout: "Sign out",
+            shop: "Continue shopping",
+            cart: "Cart",
+            title: "Products & orders",
+            sub: "Delivery details and expiry information are protected inside every order.",
+            payTitle: "My payments",
+            paySub: "Your payment and transaction history in the store.",
+            supportTitle: "Support & reports",
+            supportSub:
+              "One open report per order. You can edit it and follow its progress.",
+            profileTitle: "My profile",
+            profileSub: "Your contact and delivery information.",
+            securityTitle: "Security & login",
+            securitySub:
+              "Always use your personal email address to access your orders.",
+            statOrders: "Orders",
+            statActive: "Active",
+            statProblems: "Reports",
+            details: "View details",
+            report: "Report / support",
+            followReport: "Follow report",
+            menu: "Account menu",
+            paymentOrder: "Order",
+            paymentDate: "Date",
+            paymentAmount: "Amount",
+            paymentStatus: "Status",
+            whatsapp: "Contact on WhatsApp",
+            renew: "Renew subscription",
+            renewTitle: "Your subscription ends soon",
+            renewText:
+              "You can request renewal one week before expiry to avoid interruption.",
+            renewSoon: "Expires in",
+            days: "days",
+            profileEmail: "Email address",
+            emailConsent: "I agree to receive offers by email.",
+            waConsent: "I agree to receive offers through WhatsApp.",
+          },
+        };
+        function lang() {
+          return localStorage.getItem("strivio_lang") || "ar";
+        }
+        function x() {
+          return ui[lang()] || ui.ar;
+        }
+        function set(sel, value) {
+          var e = document.querySelector(sel);
+          if (e) e.textContent = value;
+        }
+        function apply() {
+          var t = x(),
+            l = lang();
+          document.documentElement.lang = l;
+          document.documentElement.dir = l === "ar" ? "rtl" : "ltr";
+          set(".panel .badge.ok", t.secure);
+          set(".panel .badge.ok + p", t.welcome);
+          var nav = document.querySelectorAll(".nav[data-view] span");
+          [t.orders, t.payments, t.support, t.profile, t.security].forEach(
+            function (v, i) {
+              if (nav[i]) nav[i].textContent = v;
+            },
+          );
+          [
+            ["orders", t.title, t.sub],
+            ["payments", t.payTitle, t.paySub],
+            ["support", t.supportTitle, t.supportSub],
+            ["profile", t.profileTitle, t.profileSub],
+            ["security", t.securityTitle, t.securitySub],
+          ].forEach(function (a) {
+            var el = document.getElementById("view-" + a[0]);
+            if (!el) return;
+            set("#view-" + a[0] + " h2", a[1]);
+            var p = el.querySelector("p");
+            if (p) p.textContent = a[2];
+          });
+          var stat = document.querySelectorAll(".side div");
+          [t.statOrders, t.statActive, t.statProblems].forEach(function (v, i) {
+            if (stat[i]) stat[i].textContent = v;
+          });
+          set('header a.ghost[href="./"]', t.shop);
+          set('header a[href="cart"]', t.cart);
+          set("#accountMenuTitle", t.menu);
+          var out = document.querySelector('button[onclick="logout()"] span');
+          if (out) out.textContent = t.logout;
+          var pf = document.getElementById("profileEmail");
+          if (pf && pf.previousElementSibling)
+            pf.previousElementSibling.textContent = t.profileEmail;
+          var labels = document.querySelectorAll("#profileForm label span");
+          if (labels[0]) labels[0].textContent = t.emailConsent;
+          if (labels[1]) labels[1].textContent = t.waConsent;
+          document
+            .querySelectorAll("#ordersList .order button.btn")
+            .forEach(function (b) {
+              b.textContent = t.details;
+            });
+          document
+            .querySelectorAll("#ordersList .order button.ghost")
+            .forEach(function (b) {
+              if ((b.getAttribute("onclick") || "").indexOf("openReport") >= 0)
+                b.textContent = activeProblem(b.dataset.reportOrder)
+                  ? t.followReport
+                  : t.report;
+            });
+          var heads = document.querySelectorAll("#paymentsList th");
+          [
+            t.paymentOrder,
+            t.paymentDate,
+            t.paymentAmount,
+            t.paymentStatus,
+          ].forEach(function (v, i) {
+            if (heads[i]) heads[i].textContent = v;
+          });
+          var wa = document.getElementById("generalWhatsApp");
+          if (wa) wa.textContent = t.whatsapp;
+          applyRenewalButtons();
+        }
+        function extra() {
+          return {
+            ar: {
+              detailsTitle: "تفاصيل الطلب",
+              amount: "المبلغ",
+              products: "المنتجات",
+              admin: "تحديث الإدارة",
+              email: "البريد",
+              password: "كلمة السر",
+              profileLabel: "البروفايل",
+              pin: "PIN",
+              code: "الكود",
+              close: "إغلاق",
+              reportDetails: "الإبلاغ أو متابعة البلاغ",
+            },
+            fr: {
+              detailsTitle: "Détails de la commande",
+              amount: "Montant",
+              products: "Produits",
+              admin: "Mise à jour de l’équipe",
+              email: "E-mail",
+              password: "Mot de passe",
+              profileLabel: "Profil",
+              pin: "PIN",
+              code: "Code",
+              close: "Fermer",
+              reportDetails: "Signaler ou suivre",
+            },
+            en: {
+              detailsTitle: "Order details",
+              amount: "Amount",
+              products: "Products",
+              admin: "Team update",
+              email: "Email",
+              password: "Password",
+              profileLabel: "Profile",
+              pin: "PIN",
+              code: "Code",
+              close: "Close",
+              reportDetails: "Report or follow up",
+            },
+          }[lang()];
+        }
+        function texts() {
+          return {
+            ar: {
+              reportTitle: "الإبلاغ عن مشكلة",
+              followTitle: "متابعة البلاغ",
+              reportPlaceholder: "اشرح المشكلة بالتفصيل",
+              sendReport: "إرسال البلاغ",
+              saveReport: "حفظ التعديل",
+              customerMessage: "رسالتك",
+              teamReply: "رد فريق Strivio",
+              editMessage: "تعديل رسالتك الحالية",
+              problemDescription: "وصف المشكلة",
+              closedReport:
+                "تم إغلاق هذا البلاغ. يمكنك الرجوع للطلب وفتح بلاغ جديد إذا ظهرت مشكلة أخرى.",
+              first: "الاسم",
+              last: "اللقب",
+              phone: "رقم الهاتف",
+              wilaya: "الولاية",
+              save: "حفظ التغييرات",
+              emptyOrders: "لا توجد طلبات حتى الآن.",
+              emptyPayments: "لا توجد مدفوعات بعد.",
+              emptyProblems: "لا توجد بلاغات. افتح الطلب ثم اختر بلاغ / دعم.",
+              session: "الجلسة الحالية",
+              loginHistory: "سجل الدخول",
+              securityLogout: "تسجيل الخروج من هذا الجهاز",
+            },
+            fr: {
+              reportTitle: "Signaler un problème",
+              followTitle: "Suivre le signalement",
+              reportPlaceholder: "Décrivez le problème en détail",
+              sendReport: "Envoyer le signalement",
+              saveReport: "Enregistrer la modification",
+              customerMessage: "Votre message",
+              teamReply: "Réponse de l’équipe Strivio",
+              editMessage: "Modifier votre message actuel",
+              problemDescription: "Description du problème",
+              closedReport:
+                "Ce signalement est fermé. Vous pouvez en ouvrir un nouveau depuis la commande si un autre problème apparaît.",
+              first: "Prénom",
+              last: "Nom",
+              phone: "Téléphone",
+              wilaya: "Wilaya",
+              save: "Enregistrer",
+              emptyOrders: "Aucune commande pour le moment.",
+              emptyPayments: "Aucun paiement pour le moment.",
+              emptyProblems:
+                "Aucun signalement. Ouvrez une commande pour demander de l’aide.",
+              session: "Session actuelle",
+              loginHistory: "Historique de connexion",
+              securityLogout: "Se déconnecter de cet appareil",
+            },
+            en: {
+              reportTitle: "Report a problem",
+              followTitle: "Follow report",
+              reportPlaceholder: "Describe the problem in detail",
+              sendReport: "Send report",
+              saveReport: "Save update",
+              customerMessage: "Your message",
+              teamReply: "Strivio team reply",
+              editMessage: "Edit your current message",
+              problemDescription: "Problem description",
+              closedReport:
+                "This report is closed. You can open a new one from the order if another problem appears.",
+              first: "First name",
+              last: "Last name",
+              phone: "Phone number",
+              wilaya: "Wilaya",
+              save: "Save changes",
+              emptyOrders: "No orders yet.",
+              emptyPayments: "No payments yet.",
+              emptyProblems: "No reports. Open an order to request support.",
+              session: "Current session",
+              loginHistory: "Login history",
+              securityLogout: "Sign out of this device",
+            },
+          }[lang()];
+        }
+        function translateDynamic() {
+          var t = Object.assign({}, x(), extra(), texts()),
+            d = document.getElementById("details");
+          if (d) {
+            var h = d.querySelector("h2");
+            if (h) h.textContent = t.detailsTitle;
+            var s = d.querySelectorAll(".secret b");
+            if (s[0]) s[0].textContent = t.amount;
+            if (s[1]) s[1].textContent = t.products;
+            d.querySelectorAll(".secret").forEach(function (e) {
+              var old = e.innerHTML,
+                nw = old
+                  .replaceAll("البريد:", t.email + ": ")
+                  .replaceAll("كلمة السر:", t.password + ": ")
+                  .replaceAll("البروفايل:", t.profileLabel + ": ")
+                  .replaceAll("الكود:", t.code + ": ")
+                  .replaceAll("تحديث الإدارة", t.admin);
+              if (nw !== old) e.innerHTML = nw;
+            });
+            var rb = d.querySelector('button[onclick*="openReport"]');
+            if (rb) rb.textContent = t.reportDetails;
+          }
+          var r = document.getElementById("report");
+          if (r) {
+            var existing = r.dataset.existing === "1";
+            var rh = r.querySelector("h2");
+            if (rh)
+              rh.textContent = existing
+                ? t.followTitle || t.followReport
+                : t.reportTitle || t.reportDetails;
+            var customerLabel = r.querySelector(
+              '[data-thread-label="customer"]',
+            );
+            if (customerLabel) customerLabel.textContent = t.customerMessage;
+            var adminLabel = r.querySelector('[data-thread-label="admin"]');
+            if (adminLabel) adminLabel.textContent = t.teamReply;
+            var editorLabel = r.querySelector("[data-report-editor-label]");
+            if (editorLabel)
+              editorLabel.textContent = existing
+                ? t.editMessage
+                : t.problemDescription;
+            var closedLabel = r.querySelector("[data-report-closed]");
+            if (closedLabel) closedLabel.textContent = t.closedReport;
+            var ta = r.querySelector("textarea");
+            if (ta)
+              ta.placeholder = t.reportPlaceholder || "Describe the problem";
+            var b = r.querySelector("button.btn");
+            if (b)
+              b.textContent = existing
+                ? t.saveReport || t.sendReport
+                : t.sendReport || t.reportDetails;
+          }
+          var first = document.getElementById("first"),
+            last = document.getElementById("last"),
+            phone = document.getElementById("phone"),
+            wilaya = document.getElementById("wilaya");
+          if (first) first.placeholder = t.first || "First name";
+          if (last) last.placeholder = t.last || "Last name";
+          if (phone) phone.placeholder = t.phone || "Phone";
+          if (wilaya) wilaya.placeholder = t.wilaya || "Wilaya";
+          var save = document.querySelector("#profileForm button.btn");
+          if (save) save.textContent = t.save || "Save changes";
+        }
+        function translateStaticExtras() {
+          var t = Object.assign({}, x(), texts()),
+            ordersBox = document.getElementById("ordersList"),
+            payments = document.getElementById("paymentsList"),
+            problemBox = document.getElementById("problemsList");
+          if (ordersBox && !ordersBox.querySelector(".order"))
+            ordersBox.textContent = t.emptyOrders;
+          if (payments && payments.querySelector("p"))
+            payments.querySelector("p").textContent = t.emptyPayments;
+          if (problemBox && !problemBox.querySelector("article"))
+            problemBox.textContent = t.emptyProblems;
+          var sec = document.getElementById("view-security");
+          if (sec) {
+            var titles = sec.querySelectorAll(".secret b");
+            if (titles[0]) titles[0].textContent = t.session;
+            if (titles[1]) titles[1].textContent = t.loginHistory;
+            var btn = sec.querySelector('button[onclick="logout()"]');
+            if (btn) btn.textContent = t.securityLogout;
+          }
+        }
+        function renewSubscription(id) {
+          var t = x();
+          window.open(
+            "https://wa.me/213562961410?text=" +
+              encodeURIComponent(
+                (t.renew || "Renew subscription") + " — Strivio order #" + id,
+              ),
+            "_blank",
+            "noopener",
+          );
+        }
+        window.renewSubscription = renewSubscription;
+        function applyRenewalButtons() {
+          var t = x();
+          document.querySelectorAll("[data-renew-order]").forEach(function (b) {
+            b.textContent = t.renew;
+          });
+        }
+        function setupLanguageMenu() {
+          var old = Array.from(document.querySelectorAll(".lang"));
+          if (!old.length) return;
+          var parent = old[0].parentElement,
+            wrap = document.createElement("div");
+          wrap.style.cssText = "position:relative";
+          var toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = "ghost";
+          toggle.style.cssText =
+            "display:flex;align-items:center;gap:7px;padding:8px 11px;min-width:86px;justify-content:center";
+          var menu = document.createElement("div");
+          menu.style.cssText =
+            "display:none;position:absolute;top:calc(100% + 8px);inset-inline-end:0;z-index:80;min-width:150px;padding:6px;background:#151515;border:1px solid #303030;border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.55)";
+          var meta = {
+            ar: ["🇩🇿", "العربية"],
+            fr: ["🇫🇷", "Français"],
+            en: ["🇬🇧", "English"],
+          };
+          function paint() {
+            var l = lang(),
+              m = meta[l] || meta.ar;
+            toggle.innerHTML =
+              "<span>" +
+              m[0] +
+              "</span><b>" +
+              m[1] +
+              '</b><span class="muted">⌄</span>';
+          }
+          Object.keys(meta).forEach(function (l) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.style.cssText =
+              "width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:#eee;font-weight:700;cursor:pointer;text-align:start";
+            b.innerHTML =
+              "<span>" + meta[l][0] + "</span><span>" + meta[l][1] + "</span>";
+            b.onclick = function () {
+              var source = old.find(function (x) {
+                return x.dataset.lang === l;
+              });
+              if (source) source.click();
+              localStorage.setItem("strivio_lang", l);
+              menu.style.display = "none";
+              setTimeout(function () {
+                paint();
+                apply();
+                translateDynamic();
+                translateStaticExtras();
+                applyRenewalButtons();
+              }, 0);
+            };
+            menu.appendChild(b);
+          });
+          toggle.onclick = function () {
+            menu.style.display =
+              menu.style.display === "none" ? "block" : "none";
+          };
+          wrap.appendChild(toggle);
+          wrap.appendChild(menu);
+          parent.insertBefore(wrap, old[0]);
+          old.forEach(function (b) {
+            b.style.display = "none";
+          });
+          paint();
+          document.addEventListener("click", function (e) {
+            if (!wrap.contains(e.target)) menu.style.display = "none";
+          });
+        }
+        window.accountPortalApply = function () {
+          apply();
+          translateDynamic();
+          translateStaticExtras();
+          applyRenewalButtons();
+        };
+        async function loadRenewals() {
+          var tries = 0;
+          while (
+            (typeof orders === "undefined" || !orders.length) &&
+            tries++ < 30
+          )
+            await new Promise(function (r) {
+              setTimeout(r, 250);
+            });
+          if (typeof orders === "undefined") return;
+          var soon = [];
+          await Promise.all(
+            orders
+              .filter(function (o) {
+                return ["paid", "completed"].includes(
+                  String(o.status || "").toLowerCase(),
+                );
+              })
+              .map(async function (o) {
+                try {
+                  var d = await window.delivery(o.id),
+                    end = null;
+                  (d.fulfillments || []).forEach(function (f) {
+                    var e = f.delivery?.ends_at || f.delivery_summary?.ends_at;
+                    if (e && (!end || new Date(e) < new Date(end))) end = e;
+                  });
+                  if (end) {
+                    var days = Math.ceil(
+                      (new Date(end) - new Date()) / 86400000,
+                    );
+                    if (days >= 0 && days <= 7)
+                      soon.push({ id: o.id, days: days, end: end });
+                  }
+                } catch (_) {}
+              }),
+          );
+          window.__renewals = soon;
+          var t = x(),
+            box = document.getElementById("expiryAlert");
+          if (box && soon.length) {
+            box.innerHTML =
+              '<div class="panel rounded-2xl p-4 border-yellow-400/25"><b class="text-yellow-300">' +
+              t.renewTitle +
+              '</b><p class="muted text-sm mt-1">' +
+              t.renewText +
+              "</p>" +
+              soon
+                .map(function (r) {
+                  return (
+                    '<div class="flex flex-wrap items-center justify-between gap-2 mt-3"><span class="text-sm">' +
+                    t.renewSoon +
+                    " " +
+                    r.days +
+                    " " +
+                    t.days +
+                    " (" +
+                    r.end.slice(0, 10) +
+                    ')</span><button class="btn" data-renew-order="' +
+                    r.id +
+                    '" onclick="renewSubscription(\'' +
+                    r.id +
+                    "')\">" +
+                    t.renew +
+                    "</button></div>"
+                  );
+                })
+                .join("") +
+              "</div>";
+            applyRenewalButtons();
+          }
+        }
+        document.addEventListener("DOMContentLoaded", async function () {
+          try {
+            if (window.accountInitPromise) await window.accountInitPromise;
+          } catch (_) {}
+          setupLanguageMenu();
+          apply();
+          translateDynamic();
+          translateStaticExtras();
+          document.body.style.opacity = "1";
+          var baseDetails = window.showDetails,
+            baseReport = window.openReport;
+          if (typeof baseDetails === "function")
+            window.showDetails = async function (id) {
+              await baseDetails(id);
+              translateDynamic();
+            };
+          if (typeof baseReport === "function")
+            window.openReport = function (id, reportId) {
+              baseReport(id, reportId);
+              translateDynamic();
+            };
+          setTimeout(function () {
+            translateStaticExtras();
+            loadRenewals();
+          }, 700);
+        });
+      })();
+    </script>
+  </body>
+</html>

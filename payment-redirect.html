@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script src="clean-url.js"></script>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';">
 <title>Redirecting...</title>
@@ -12,9 +13,9 @@
   if (m) oid = decodeURIComponent(m[1]);
 
   if (s.indexOf('error') !== -1 || s.indexOf('expired') !== -1 || s.indexOf('timeout') !== -1 || s.indexOf('cancelled') !== -1 || s.indexOf('cancel') !== -1 || s.indexOf('annul') !== -1 || s.indexOf('payment_cancelled') !== -1 || s.indexOf('status=cancelled') !== -1 || s.indexOf('status=failed') !== -1) {
-    window.location.replace('cart.html?payment_cancelled=1&order_id=' + oid);
+    window.location.replace('cart?payment_cancelled=1&order_id=' + oid);
   } else {
-    window.location.replace('thank-you.html?success=1&order_id=' + oid);
+    window.location.replace('thank-you?success=1&order_id=' + oid);
   }
 })();
 </script>

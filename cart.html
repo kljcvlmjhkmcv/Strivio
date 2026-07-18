@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr" id="HR" class="scroll-smooth">
 <head>
+  <script src="clean-url.js"></script>
 <meta charset="UTF-8"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
@@ -237,7 +238,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
         <div id="CUSTOMER_BOX" class="mb-6 p-4 rounded-2xl" style="background:#121212;border:1px solid #2A2A2A">
           <div class="flex items-center justify-between gap-2 mb-3">
             <h3 id="C_INFO_TITLE" class="font-display font-bold text-white text-sm">معلومات الاستلام</h3>
-            <a id="C_ACCOUNT_LINK" href="my-account.html" class="text-xs" style="color:#39ff14">حسابي</a>
+            <a id="C_ACCOUNT_LINK" href="my-account" class="text-xs" style="color:#39ff14">حسابي</a>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <input id="C_FIRST" class="bg-[#181818] border border-[#333] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#39ff14]" maxlength="80">
@@ -840,7 +841,7 @@ async function confirmOrder(){
     localStorage.removeItem('strivio_cart');
     localStorage.removeItem('strivio_pending_cart');
     localStorage.setItem('strivio_pending_order_id', String(rpcData.order_id || ''));
-    window.location.href = 'thank-you.html?test=1&order_id=' + encodeURIComponent(rpcData.order_id);
+    window.location.href = 'thank-you?test=1&order_id=' + encodeURIComponent(rpcData.order_id);
     return;
   }
 
@@ -957,8 +958,8 @@ async function getCustomerInfo(){
   var sessionResult = await window.supabaseClient.auth.getSession();
   var session = sessionResult && sessionResult.data ? sessionResult.data.session : null;
   if(!session){
-    localStorage.setItem('strivio_auth_return', 'cart.html');
-    window.location.href = 'auth.html?next=cart.html';
+    localStorage.setItem('strivio_auth_return', 'cart');
+    window.location.href = 'auth?next=cart';
     return null;
   }
   var info = {
