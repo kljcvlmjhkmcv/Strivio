@@ -161,7 +161,15 @@ serve(async req=>{
       const max=Math.max(3,Math.min(Number(requestBody?.limit||8),20));
       directEvents=await scopedEvents(db,requestBody?.refresh_scope||requestBody?.scope||'all_light',max);
     }
-    const {data:events}=directEvents?{data:directEvents}:await db.from('integration_outbox').select('*').in('status',['pending','failed']).lt('attempts',5).order('id').limit(50);
+    let events:any[]=[];
+    if(directEvents) {
+      events.push(...directEvents);
+      const {data:pendingEvents}=await db.from('integration_outbox').select('*').in('status',['pending','failed']).lt('attempts',5).order('id').limit(50);
+      events.push(...(pendingEvents||[]));
+    } else {
+      const {data:pendingEvents}=await db.from('integration_outbox').select('*').in('status',['pending','failed']).lt('attempts',5).order('id').limit(50);
+      events=pendingEvents||[];
+    }
     let sent=0;
     const queue=(events&&events.length)?events:[{id:null,event_type:'inventory_refresh',aggregate_id:'manual-refresh',payload:{inventory:true,source:'manual_refresh'},attempts:0}];
     const includeInventory=requestBody?.include_inventory===true||requestBody?.full_refresh===true||!directEvents;
