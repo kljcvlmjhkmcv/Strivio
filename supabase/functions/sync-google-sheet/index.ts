@@ -70,7 +70,7 @@ async function inventorySnapshot(db:any){
   const [{data:accounts},{data:slots},{data:allocations}]=await Promise.all([
     db.from('inventory_accounts').select('id,service_id,label,encrypted_credentials,capacity,status,expires_at,created_at').order('created_at'),
     db.from('inventory_slots').select('id,account_id,label,encrypted_secret,status,created_at').order('created_at'),
-    db.from('fulfillment_allocations').select('id,account_id,slot_id,starts_at,ends_at,status,admin_notes,sheet_version,fulfillments!inner(order_id,order_item_index,service_id)').order('created_at',{ascending:false}),
+    db.from('fulfillment_allocations').select('id,account_id,slot_id,starts_at,ends_at,status,admin_notes,sheet_version,renewal_count,fulfillments!inner(order_id,order_item_index,service_id)').order('created_at',{ascending:false}),
   ]);
   const orderIds=[...new Set((allocations||[]).map((a:any)=>a.fulfillments?.order_id).filter(Boolean))];
   const {data:orders}=orderIds.length?await db.from('orders').select('id,created_at,customer_info,items,total_payable,status').in('id',orderIds):{data:[]};
@@ -90,7 +90,7 @@ async function inventorySnapshot(db:any){
       account_created_at:account.created_at,slot_created_at:slot.created_at,
       slot_id:slot.id,slot_status:slot.status,profile:slot.label,pin:secret.pin||secret.code||'',
       account_email:account.credentials.email||'',password:account.credentials.password||'',
-      allocation_id:allocation?.id||'',order_id:allocation?order?.id||'':'',sheet_version:allocation?.sheet_version||0,
+      allocation_id:allocation?.id||'',order_id:allocation?order?.id||'':'',sheet_version:allocation?.sheet_version||0,renewal_count:Number(allocation?.renewal_count||0),
       order_created_at:allocation?order?.created_at||'':'',client_name:allocation?[customer.first_name||customer.firstname,customer.last_name||customer.lastname].filter(Boolean).join(' '):'',
       duration:label(item.durLabelData)||item.durLabel||'',ends_at:allocation?.ends_at||'',...expiryMeta(allocation?.ends_at),
       unit_price:Number(item.unitPrice||item.price||0),pay:allocation?.status==='active'?'paid':'unpaid',

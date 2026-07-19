@@ -236,6 +236,7 @@
         ><button class="tab" data-tab="activations">طلبات التفعيل</button
         ><button class="tab" data-tab="problems">المشاكل</button
         ><button class="tab" data-tab="orders">كل الطلبات</button
+        ><button class="tab" data-tab="renewals">سجل التجديدات</button
         ><button class="tab" data-tab="expiring">قريبة الانتهاء</button>
       </section>
 
@@ -375,6 +376,19 @@
             <span class="badge b-orange">المتبقي أقل من 7 أيام</span>
           </div>
           <div id="expiring-list" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section id="view-renewals" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <div class="flex flex-col md:flex-row justify-between gap-3 mb-4">
+            <div>
+              <h2 class="font-black text-lg">سجل تجديدات العملاء</h2>
+              <p class="muted text-xs mt-1">كل عملية تجديد، الطلب الأصلي، عدد العناصر، المدة والحالة في مكان واحد.</p>
+            </div>
+            <span id="renewal-count" class="badge b-green">0 تجديد</span>
+          </div>
+          <div id="renewal-list" class="table-wrap"></div>
         </div>
       </section>
     </main>
@@ -525,6 +539,7 @@
           problems: [],
           problemMessages: [],
           audit: [],
+          renewals: [],
         },
         editingAccount = null,
         editingProblem = null;
@@ -659,6 +674,7 @@
             "problem-list",
             "orders-list",
             "expiring-list",
+            "renewal-list",
           ].forEach(function (id) {
             if ($(id))
               $(id).innerHTML =
@@ -688,7 +704,7 @@
             window.supabaseClient
               .from("fulfillment_allocations")
               .select(
-                "id,account_id,slot_id,fulfillment_id,starts_at,ends_at,status,created_at",
+                "id,account_id,slot_id,fulfillment_id,starts_at,ends_at,status,renewal_count,created_at",
               )
               .order("created_at", { ascending: false })
               .limit(3000),
@@ -704,6 +720,11 @@
               .order("created_at", { ascending: false })
               .limit(500),
             inventoryCall({ action: "list" }),
+            window.supabaseClient
+              .from("renewal_requests")
+              .select("*")
+              .order("created_at", { ascending: false })
+              .limit(1000),
           ]);
           function value(i, fallback) {
             var x = results[i];
@@ -730,6 +751,7 @@
           state.accounts = inv.accounts || [];
           state.slots = inv.slots || [];
           state.licenses = inv.licenses || [];
+          state.renewals = value(9, []);
           if (
             results[3].status === "rejected" ||
             results[4].status === "rejected"
@@ -785,6 +807,7 @@
         renderActivations();
         renderProblems();
         renderOrders();
+        renderRenewals();
         renderExpiring();
         var sid = new URLSearchParams(location.search).get("service");
         if (sid) openServiceRegister(sid, true);
@@ -889,7 +912,7 @@
           (a.ends_at
             ? " · ينتهي " + expiryBadge(a.ends_at, false)
             : "") +
-          "</div></div>"
+          '</div><div class="muted text-[10px] mt-1">مرات التجديد: <b class="text-white">' + Number(a.renewal_count || 0) + "</b></div></div>"
         );
       }
       function accountHistoryHtml(accountId) {
@@ -1206,6 +1229,25 @@
             return !q || hay.includes(q);
           });
         $("orders-list").innerHTML = ordersTable(rows);
+      }
+      function renderRenewals() {
+        var rows = state.renewals || [];
+        if ($("renewal-count")) $("renewal-count").textContent = rows.length + " تجديد";
+        if (!rows.length) {
+          $("renewal-list").innerHTML = '<div class="loading">لا توجد عمليات تجديد بعد.</div>';
+          return;
+        }
+        $("renewal-list").innerHTML =
+          '<table class="table min-w-[1050px]"><thead><tr><th>التجديد</th><th>الطلب الأصلي</th><th>العميل</th><th>الخدمة</th><th>العناصر</th><th>المدة</th><th>الحالة</th><th>تاريخ العملية</th></tr></thead><tbody>' +
+          rows.map(function (renewal) {
+            var sourceId = renewal.metadata && renewal.metadata.source_order_id,
+              original = orderFor(sourceId),
+              customer = original.customer_info || {},
+              customerName = [customer.first_name || customer.firstname, customer.last_name || customer.lastname].filter(Boolean).join(" ") || customer.email || "—",
+              targetCount = Array.isArray(renewal.target_ids) ? renewal.target_ids.length : 0;
+            return '<tr><td><b>#' + esc(String(renewal.order_id || renewal.id || "").slice(0, 8)) + '</b></td><td><b>#' + esc(String(sourceId || "").slice(0, 8)) + '</b><div class="muted text-[10px]">' + esc(sourceId || "—") + '</div></td><td><b>' + esc(customerName) + '</b><div class="muted text-[11px]">' + esc(customer.email || customer.phone || "—") + '</div></td><td>' + esc(serviceName(renewal.service_id)) + '</td><td><b>' + targetCount + '</b> ' + (renewal.target_kind === "allocation" ? "بروفايل" : "اشتراك") + '</td><td><b>' + Number(renewal.months || 0) + '</b> شهر</td><td>' + statusBadge(renewal.status) + '</td><td class="whitespace-nowrap">' + date(renewal.applied_at || renewal.created_at) + '</td></tr>';
+          }).join("") +
+          "</tbody></table>";
       }
       function renderExpiring() {
         var maxDays = 7,

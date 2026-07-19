@@ -479,13 +479,14 @@ var setT = function(id, txt){ var e=$(id); if(e) e.textContent = txt; };
 ════════════════════════════════════════════════════════ */
 function makeIcon(item, sz){
   sz = (sz || 48) + 'px';
-  if(item.iconType === 'img'){
+  var iconValue = item.iconSrc || String(item.name || item.title || item.id || '?').slice(0,1).toUpperCase();
+  if(item.iconType === 'img' && item.iconSrc){
     return '<img src="'+item.iconSrc+'" style="width:'+sz+';height:'+sz+';object-fit:contain" alt=""/>';
   }
-  if(item.iconType === 'text'){
-    return '<div style="width:'+sz+';height:'+sz+';display:flex;align-items:center;justify-content:center;font-family:Space Grotesk,sans-serif;font-weight:900;font-size:'+Math.round(parseInt(sz)*0.55)+'px;color:'+(item.iconColor||'#fff')+'">'+item.iconSrc+'</div>';
+  if(item.iconType === 'text' || !item.iconSrc){
+    return '<div style="width:'+sz+';height:'+sz+';display:flex;align-items:center;justify-content:center;font-family:Space Grotesk,sans-serif;font-weight:900;font-size:'+Math.round(parseInt(sz)*0.55)+'px;color:'+(item.iconColor||'#fff')+'">'+escapeHtml(iconValue)+'</div>';
   }
-  return '<div style="width:'+sz+';height:'+sz+'">'+item.iconSrc+'</div>';
+  return '<div style="width:'+sz+';height:'+sz+'">'+iconValue+'</div>';
 }
 
 /* ══════════════════════════════════════════════════════

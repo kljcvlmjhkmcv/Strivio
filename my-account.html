@@ -485,6 +485,32 @@
         if (days <= 14) return "color:#ffd166;background:#ffd16618;border-radius:8px;padding:2px 7px";
         return "color:#39ff14;background:#39ff1412;border-radius:8px;padding:2px 7px";
       }
+      function renewalActionLabel(value) {
+        var days = value ? Math.ceil((new Date(value).getTime() - Date.now()) / 86400000) : 0,
+          extending = days > 7;
+        if (lang === "fr") return extending ? "Prolonger" : "Renouveler";
+        if (lang === "en") return extending ? "Extend" : "Renew";
+        return extending ? "تمديد" : "تجديد";
+      }
+      function addMonthsToDate(value, months) {
+        var base = value ? new Date(value) : new Date();
+        if (Number.isNaN(base.getTime()) || base.getTime() < Date.now()) base = new Date();
+        var day = base.getDate();
+        base.setDate(1);
+        base.setMonth(base.getMonth() + Number(months || 0));
+        base.setDate(Math.min(day, new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate()));
+        return base;
+      }
+      function netflixRulesHtml(fulfillment) {
+        var product = String(fulfillment?.delivery?.product_name || fulfillment?.service_id || "").toLowerCase();
+        if (!product.includes("netflix")) return "";
+        var rules = {
+          ar: ["كل بروفايل مخصص لشخص واحد ولا يجوز مشاركته مع أشخاص آخرين.", "لا تشاهد من أكثر من جهاز في الوقت نفسه.", "يُمنع تغيير كلمة سر الحساب أو محاولة التأثير على بقية المستخدمين.", "مسموح بتغيير اسم البروفايل ورمز PIN الخاص به فقط.", "أي انتهاك قد يؤدي إلى سحب الاشتراك دون استرداد الأموال."],
+          fr: ["Chaque profil est réservé à une seule personne et ne doit pas être partagé.", "N’utilisez pas plusieurs appareils en même temps.", "Il est interdit de modifier le mot de passe ou de perturber les autres utilisateurs.", "Seuls le nom du profil et son code PIN peuvent être modifiés.", "Toute violation peut entraîner le retrait de l’abonnement sans remboursement."],
+          en: ["Each profile is for one person only and must not be shared.", "Do not stream on multiple devices at the same time.", "Do not change the account password or interfere with other users.", "Only your profile name and PIN may be changed.", "Violations may result in subscription removal without a refund."],
+        }[lang] || [];
+        return '<div class="secret mt-3 border-[#ff9f43]/40" style="background:#ff9f430d"><b style="color:#ffb15c">' + (lang === "fr" ? "Règles importantes" : lang === "en" ? "Important rules" : "قواعد استخدام مهمة") + '</b><ul class="mt-2 pr-5 list-disc text-xs leading-7">' + rules.map(function (rule) { return '<li>' + esc(rule) + '</li>'; }).join("") + "</ul></div>";
+      }
       const esc = (v) =>
         String(v ?? "").replace(
           /[&<>"']/g,
@@ -711,6 +737,7 @@
                   "</p>"
                 : "") +
               body +
+              netflixRulesHtml(f) +
               (note
                 ? '<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]">تحديث الإدارة</b><br>' +
                   esc(note) +
@@ -721,7 +748,7 @@
                   esc(orderId) +
                   "','" +
                   esc(f.id) +
-                  "')\">تجديد هذا الاشتراك</button>"
+                  "')\">" + renewalActionLabel(end) + " هذا الاشتراك</button>"
                 : "") +
               "</div>"
             );
@@ -757,7 +784,7 @@
                   esc(target.label || "الاشتراك") +
                   '</b><div class="muted text-xs mt-1">ينتهي: ' +
                   date(target.ends_at) +
-                  '</div></div><input type="checkbox" name="renew_target" value="' +
+                  '</div><div class="text-[11px] mt-1" style="color:#39ff14" data-renew-preview data-current-end="' + esc(target.ends_at || "") + '"></div><div class="muted text-[10px] mt-1">مرات التجديد السابقة: ' + Number(target.renewal_count || 0) + '</div></div><input type="checkbox" name="renew_target" value="' +
                   esc(target.id) +
                   '" data-kind="' +
                   esc(target.kind) +
@@ -773,8 +800,17 @@
                 );
               })
               .join("") +
-            '</select><div class="secret mt-4 text-xs">سيُضاف التجديد إلى سلة مستقلة باسم “تجديد اشتراك”. من السلة تستطيع استعمال كوبون واختيار طريقة الدفع، وبعد نجاح الدفع تتم إضافة المدة إلى تاريخ الانتهاء الحالي تلقائيًا.</div><button class="btn w-full mt-4" type="submit">إضافة التجديد إلى السلة</button></form>';
+            '</select><div class="secret mt-4 text-xs"><b class="text-[#39ff14]">كيف يُحسب التمديد؟</b><br>المدة الجديدة تُضاف إلى تاريخ انتهاء اشتراكك الحالي، وليست محسوبة من تاريخ اليوم. تستطيع بعدها استعمال كوبون واختيار طريقة الدفع من السلة.</div><button class="btn w-full mt-4" type="submit">إضافة التجديد إلى السلة</button></form>';
           document.body.appendChild(wrap);
+          function updateRenewalPreview() {
+            var durationIdx = Number(document.getElementById("renewal-duration").value || 0),
+              months = [1, 2, 3, 6, 12][durationIdx] || 1;
+            wrap.querySelectorAll("[data-renew-preview]").forEach(function (preview) {
+              preview.textContent = (lang === "fr" ? "Après prolongation : " : lang === "en" ? "After extension: " : "بعد التمديد: ") + date(addMonthsToDate(preview.dataset.currentEnd, months));
+            });
+          }
+          document.getElementById("renewal-duration").onchange = updateRenewalPreview;
+          updateRenewalPreview();
           document.getElementById("renewalForm").onsubmit = function (event) {
             return submitRenewal(event, orderId, fulfillmentId);
           };
@@ -833,6 +869,9 @@
             durLabel: durationData.ar,
             durLabelData: durationData,
             typeIdx: typeIdx,
+            iconType: options.icon_type || "text",
+            iconSrc: options.icon_src || String(serviceNames.en || serviceNames.fr || serviceNames.ar || fulfillment.service_id || "?").slice(0, 1),
+            bg: options.bg || "#171717",
             qty: 1,
             quantity: 1,
             unitPrice: unitPrice,
@@ -896,7 +935,7 @@
               esc(o.id) +
               '\')">عرض التفاصيل</button>' +
               (['paid','completed'].includes(String(o.status || '').toLowerCase())
-                ? '<button class="btn" onclick="openRenewalForOrder(\'' + esc(o.id) + '\')">تجديد الاشتراك</button>'
+                ? '<button class="btn" onclick="openRenewalForOrder(\'' + esc(o.id) + '\')">' + renewalActionLabel(expiry) + ' الاشتراك</button>'
                 : '') +
               '<button class="ghost" onclick="openReport(\'' +
               esc(o.id) +

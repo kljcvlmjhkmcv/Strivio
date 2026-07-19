@@ -144,6 +144,9 @@ alter table public.renewal_requests enable row level security;
 drop policy if exists renewal_requests_owner_read on public.renewal_requests;
 create policy renewal_requests_owner_read on public.renewal_requests for select using (user_id=auth.uid() or public.is_admin());
 
+alter table public.fulfillment_allocations
+  add column if not exists renewal_count integer not null default 0;
+
 create or replace function public.create_renewal_order(
   p_target_ids uuid[],
   p_target_kind text,
@@ -272,7 +275,7 @@ begin
       select ends_at,fulfillment_id into base_end,f_id from public.fulfillment_allocations where id=target and status='active' for update;
       if not found then raise exception 'Renewal allocation is no longer active'; end if;
       new_end=greatest(coalesce(base_end,now()),now())+make_interval(months=>req.months);
-      update public.fulfillment_allocations set ends_at=new_end,sheet_version=coalesce(sheet_version,0)+1,admin_notes=concat_ws(E'\n',nullif(admin_notes,''),'Renewed by order #'||p_order_id::text) where id=target;
+      update public.fulfillment_allocations set ends_at=new_end,renewal_count=coalesce(renewal_count,0)+1,sheet_version=coalesce(sheet_version,0)+1,admin_notes=concat_ws(E'\n',nullif(admin_notes,''),'Renewed by order #'||p_order_id::text) where id=target;
       update public.fulfillments set delivery_summary=coalesce(delivery_summary,'{}'::jsonb)||jsonb_build_object('ends_at',(
         select max(ends_at) from public.fulfillment_allocations where fulfillment_id=f_id and status='active'
       )),updated_at=now() where id=f_id;
@@ -280,7 +283,7 @@ begin
       select nullif(delivery_summary->>'ends_at','')::timestamptz into base_end from public.fulfillments where id=target for update;
       if not found then raise exception 'Renewal fulfillment no longer exists'; end if;
       new_end=greatest(coalesce(base_end,now()),now())+make_interval(months=>req.months);
-      update public.fulfillments set delivery_summary=coalesce(delivery_summary,'{}'::jsonb)||jsonb_build_object('ends_at',new_end,'renewed_by_order_id',p_order_id),updated_at=now() where id=target;
+      update public.fulfillments set delivery_summary=coalesce(delivery_summary,'{}'::jsonb)||jsonb_build_object('ends_at',new_end,'renewed_by_order_id',p_order_id,'renewal_count',coalesce(nullif(delivery_summary->>'renewal_count','')::integer,0)+1),updated_at=now() where id=target;
       f_id=target;
     end if;
     updates=updates||jsonb_build_object('target_id',target,'fulfillment_id',f_id,'ends_at',new_end);

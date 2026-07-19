@@ -71,10 +71,10 @@ serve(async req=>{
     const serviceIds=[...new Set((rows||[]).map((row:any)=>row.service_id).filter(Boolean))];
     const [{data:allocations},{data:services}]=await Promise.all([
       fulfillmentIds.length
-        ? db.from('fulfillment_allocations').select('id,fulfillment_id,ends_at,status,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).eq('status','active').order('created_at')
+        ? db.from('fulfillment_allocations').select('id,fulfillment_id,ends_at,status,renewal_count,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).order('created_at')
         : Promise.resolve({data:[]}),
       serviceIds.length
-        ? db.from('services').select('id,n,p,f,type_prices,types,show_types,fulfillment_mode').in('id',serviceIds)
+        ? db.from('services').select('id,n,p,f,type_prices,types,show_types,fulfillment_mode,icon_type,icon_src,bg').in('id',serviceIds)
         : Promise.resolve({data:[]})
     ]);
     const serviceById=new Map((services||[]).map((item:any)=>[item.id,item]));
@@ -89,14 +89,26 @@ serve(async req=>{
       const delivery=await decrypt(row.encrypted_delivery);
       const serviceRow:any=serviceById.get(row.service_id)||{};
       const sourceItem:any=Array.isArray(order.items)?order.items[Number(row.order_item_index||0)]||{}:{};
-      const rowAllocations=(allocations||[]).filter((item:any)=>item.fulfillment_id===row.id&&eligible(item.ends_at));
+      const allRowAllocations=(allocations||[]).filter((item:any)=>item.fulfillment_id===row.id);
+      const rowAllocations=allRowAllocations.filter((item:any)=>String(item.status||'').toLowerCase()==='active'&&eligible(item.ends_at));
+      let visibleDelivery=delivery;
+      if(allRowAllocations.length&&delivery&&Array.isArray(delivery.entries)){
+        const activeAllocationIds=new Set(rowAllocations.map((item:any)=>item.id));
+        const activeLabels=new Set(rowAllocations.map((item:any)=>String(item.inventory_slots?.label||'').trim().toLowerCase()).filter(Boolean));
+        visibleDelivery={...delivery,entries:delivery.entries.filter((entry:any,index:number)=>{
+          const matchingAllocation=allRowAllocations[index];
+          if(matchingAllocation)return activeAllocationIds.has(matchingAllocation.id);
+          return activeLabels.has(String(entry.profile||entry.label||'').trim().toLowerCase());
+        })};
+      }
       const summaryEnd=row.delivery_summary?.ends_at||delivery?.ends_at||null;
       const renewalTargets=rowAllocations.length
         ? rowAllocations.map((item:any)=>({
             id:item.id,
             kind:'allocation',
             label:item.inventory_slots?.label||'Profile',
-            ends_at:item.ends_at
+            ends_at:item.ends_at,
+            renewal_count:Number(item.renewal_count||0)
           }))
         : eligible(summaryEnd)&&['delivered','completed','awaiting_admin','awaiting_customer_input'].includes(String(row.status||'').toLowerCase())
           ? [{id:row.id,kind:'fulfillment',label:serviceRow.n?.ar||serviceRow.n?.fr||serviceRow.n?.en||row.service_id,ends_at:summaryEnd}]
@@ -104,7 +116,7 @@ serve(async req=>{
       fulfillments.push({
         ...row,
         encrypted_delivery:undefined,
-        delivery,
+        delivery:visibleDelivery,
         renewal_targets:renewalTargets,
         renewal_options:{
           durations:RENEWAL_DURATION_LABELS,
@@ -114,7 +126,10 @@ serve(async req=>{
           types:serviceRow.types||{},
           show_types:!!serviceRow.show_types,
           fulfillment_mode:serviceRow.fulfillment_mode||row.mode||'manual_delivery',
-          source_type_idx:Number(sourceItem.typeIdx||0)
+          source_type_idx:Number(sourceItem.typeIdx||0),
+          icon_type:serviceRow.icon_type||sourceItem.iconType||'text',
+          icon_src:serviceRow.icon_src||sourceItem.iconSrc||String(serviceRow.n?.en||row.service_id||'?').slice(0,1),
+          bg:serviceRow.bg||sourceItem.bg||'#171717'
         }
       });
     }
