@@ -463,7 +463,7 @@
         </section>
       </div>
     </main>
-    <script src="supabase-client.js?v=8d6b077"></script>
+    <script src="supabase-client.js?v=renewal-cart-0719"></script>
     <script>
       let user,
         profile = {},
@@ -472,6 +472,19 @@
         problems = [],
         problemMessages = [],
         lang = localStorage.getItem("strivio_lang") || "ar";
+      const renewalDurationLabels = {
+        ar: ["شهر واحد", "شهران", "3 أشهر", "6 أشهر", "سنة كاملة"],
+        fr: ["1 mois", "2 mois", "3 mois", "6 mois", "1 an"],
+        en: ["1 month", "2 months", "3 months", "6 months", "1 year"],
+      };
+      function expiryStyle(value) {
+        if (!value) return "color:#9ca3af";
+        var days = Math.ceil((new Date(value).getTime() - Date.now()) / 86400000);
+        if (days <= 3) return "color:#ff5c5c;background:#ff4d4d18;border-radius:8px;padding:2px 7px";
+        if (days <= 7) return "color:#ff9f43;background:#ff9f4318;border-radius:8px;padding:2px 7px";
+        if (days <= 14) return "color:#ffd166;background:#ffd16618;border-radius:8px;padding:2px 7px";
+        return "color:#39ff14;background:#39ff1412;border-radius:8px;padding:2px 7px";
+      }
       const esc = (v) =>
         String(v ?? "").replace(
           /[&<>"']/g,
@@ -694,7 +707,7 @@
               "</div>" +
               (end
                 ? '<p class="muted text-xs mt-1">ينتهي الاشتراك: ' +
-                  date(end) +
+                  '<span style="' + expiryStyle(end) + '">' + date(end) + '</span>' +
                   "</p>"
                 : "") +
               body +
@@ -725,11 +738,13 @@
             throw new Error("هذا الاشتراك غير متاح للتجديد الآن.");
           document.getElementById("renewal")?.remove();
           var targets = fulfillment.renewal_targets || [],
-            durations =
-              fulfillment.renewal_options?.durations?.[lang] ||
-              fulfillment.renewal_options?.durations?.ar ||
-              [],
+            durations = renewalDurationLabels[lang] || renewalDurationLabels.ar,
             wrap = document.createElement("div");
+          window.__renewalContext = {
+            orderId: orderId,
+            fulfillmentId: fulfillmentId,
+            fulfillment: fulfillment,
+          };
           wrap.id = "renewal";
           wrap.className =
             "fixed inset-0 z-[70] bg-black/85 backdrop-blur-sm p-4 flex items-center justify-center";
@@ -758,7 +773,7 @@
                 );
               })
               .join("") +
-            '</select><div class="secret mt-4 text-xs">سيتم إنشاء طلب تجديد منفصل وحساب السعر من قاعدة البيانات، ثم نقلك إلى بوابة الدفع الآمنة. بعد تأكيد الدفع يتحدث تاريخ كل عنصر اخترته تلقائيًا.</div><button class="btn w-full mt-4" type="submit">المتابعة إلى الدفع</button></form>';
+            '</select><div class="secret mt-4 text-xs">سيُضاف التجديد إلى سلة مستقلة باسم “تجديد اشتراك”. من السلة تستطيع استعمال كوبون واختيار طريقة الدفع، وبعد نجاح الدفع تتم إضافة المدة إلى تاريخ الانتهاء الحالي تلقائيًا.</div><button class="btn w-full mt-4" type="submit">إضافة التجديد إلى السلة</button></form>';
           document.body.appendChild(wrap);
           document.getElementById("renewalForm").onsubmit = function (event) {
             return submitRenewal(event, orderId, fulfillmentId);
@@ -786,55 +801,58 @@
         if (kinds.length !== 1)
           return showAppNotice("جدّد نوعًا واحدًا من الاشتراكات في كل عملية.", { tone: "error" });
         button.disabled = true;
-        button.textContent = "جاري إنشاء طلب التجديد…";
+        button.textContent = "جاري تجهيز سلة التجديد…";
         try {
-          var customer = {
-              first_name: profile.first_name || "",
-              last_name: profile.last_name || "",
-              email: user.email || "",
-              phone: profile.phone || "",
-              lang: lang,
+          var context = window.__renewalContext || {},
+            fulfillment = context.fulfillment || {},
+            options = fulfillment.renewal_options || {},
+            durationIdx = Number(document.getElementById("renewal-duration").value),
+            selectedCount = selected.length,
+            isProfileInventory = ["automatic_slot", "automatic_account"].includes(options.fulfillment_mode),
+            typeIdx = isProfileInventory ? selectedCount - 1 : Number(options.source_type_idx || 0),
+            priceRows = options.type_prices || [],
+            prices = options.show_types && Array.isArray(priceRows[typeIdx]) ? priceRows[typeIdx] : (options.prices || []),
+            unitPrice = Number(prices[durationIdx] || 0),
+            serviceNames = options.service_name || {},
+            durationData = {
+              ar: renewalDurationLabels.ar[durationIdx],
+              fr: renewalDurationLabels.fr[durationIdx],
+              en: renewalDurationLabels.en[durationIdx],
+            };
+          if (!unitPrice || unitPrice < 0) throw new Error("سعر هذه المدة غير مضبوط في المنتج.");
+          var renewalItem = {
+            id: fulfillment.service_id,
+            name: "تجديد اشتراك " + (serviceNames.ar || fulfillment.service_id),
+            nameData: {
+              ar: "تجديد اشتراك " + (serviceNames.ar || fulfillment.service_id),
+              fr: "Renouvellement " + (serviceNames.fr || serviceNames.en || fulfillment.service_id),
+              en: "Subscription renewal — " + (serviceNames.en || serviceNames.fr || fulfillment.service_id),
             },
-            result = await window.supabaseClient.rpc("create_renewal_order", {
-              p_target_ids: selected.map(function (input) {
-                return input.value;
-              }),
-              p_target_kind: kinds[0],
-              p_duration_idx: Number(
-                document.getElementById("renewal-duration").value,
-              ),
-              p_payment_method: "cib",
-              p_customer_info: customer,
-            });
-          if (result.error || !result.data?.success)
-            throw new Error(
-              result.error?.message ||
-                result.data?.error ||
-                "تعذر إنشاء طلب التجديد.",
-            );
-          var payment = await window.supabaseClient.functions.invoke(
-            "create-payment",
-            {
-              body: {
-                order_id: result.data.order_id,
-                origin_url: window.location.origin,
-              },
+            durIdx: durationIdx,
+            durMonths: [1, 2, 3, 6, 12][durationIdx],
+            durLabel: durationData.ar,
+            durLabelData: durationData,
+            typeIdx: typeIdx,
+            qty: 1,
+            quantity: 1,
+            unitPrice: unitPrice,
+            price: unitPrice,
+            renewal: {
+              source_order_id: orderId,
+              fulfillment_id: fulfillmentId,
+              target_ids: selected.map(function (input) { return input.value; }),
+              target_kind: kinds[0],
+              target_count: selectedCount,
             },
-          );
-          if (payment.error || !payment.data?.payment_url)
-            throw new Error(
-              payment.error?.message ||
-                payment.data?.error ||
-                "تعذر إنشاء رابط الدفع.",
-            );
-          localStorage.setItem(
-            "strivio_pending_order_id",
-            String(result.data.order_id),
-          );
-          window.location.href = payment.data.payment_url;
+            addedAt: Date.now(),
+          };
+          var existingCart = JSON.parse(localStorage.getItem("strivio_cart") || "[]");
+          if (existingCart.length) localStorage.setItem("strivio_saved_cart_before_renewal", JSON.stringify(existingCart));
+          localStorage.setItem("strivio_cart", JSON.stringify([renewalItem]));
+          window.location.href = "cart?renewal=1";
         } catch (error) {
           button.disabled = false;
-          button.textContent = "المتابعة إلى الدفع";
+          button.textContent = "إضافة التجديد إلى السلة";
           showAppNotice("تعذر بدء التجديد: " + error.message, { tone: "error" });
         }
       }
@@ -868,7 +886,7 @@
           date(o.created_at) +
           " · #" +
           esc(String(o.id).slice(0, 8)) +
-          (expiry ? ' · الانتهاء: <span class="text-[#39ff14] font-black">' + date(expiry) + '</span>' : '') +
+          (expiry ? ' · الانتهاء: <span class="font-black" style="' + expiryStyle(expiry) + '">' + date(expiry) + '</span>' : '') +
           '</p></div><div class="text-left"><b class="display text-xl text-[#39ff14]">' +
           money(o.total_payable) +
           "</b></div></div>" +

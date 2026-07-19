@@ -161,7 +161,7 @@ begin
   if p_target_kind not in ('allocation','fulfillment') then raise exception 'Invalid renewal target'; end if;
   if p_target_ids is null or cardinality(p_target_ids)<1 or cardinality(p_target_ids)>20 then raise exception 'Select between 1 and 20 subscriptions'; end if;
   if p_duration_idx<0 or p_duration_idx>20 then raise exception 'Invalid duration'; end if;
-  if p_payment_method<>'cib' then raise exception 'Renewals currently require online payment'; end if;
+  if p_payment_method not in ('cib','baridimob','flexy','wise','usdt') then raise exception 'Invalid payment method'; end if;
 
   if p_target_kind='allocation' then
     select count(*),min(f.service_id),min(o.id::text)::uuid
@@ -199,12 +199,40 @@ begin
 
   select * into v_service from public.services where id=v_service_id;
   if not found then raise exception 'Service not found'; end if;
+  v_label=case p_duration_idx
+    when 0 then 'شهر واحد'
+    when 1 then 'شهران'
+    when 2 then '3 أشهر'
+    when 3 then '6 أشهر'
+    when 4 then 'سنة كاملة'
+    else coalesce(v_service.n->>'ar',v_service.n->>'fr',v_service.n->>'en','مدة')
+  end;
   v_duration=jsonb_build_object(
-    'ar',coalesce(v_service.f->'ar'->p_duration_idx,'null'::jsonb),
-    'fr',coalesce(v_service.f->'fr'->p_duration_idx,'null'::jsonb),
-    'en',coalesce(v_service.f->'en'->p_duration_idx,'null'::jsonb)
+    'ar',case p_duration_idx
+      when 0 then 'شهر واحد'
+      when 1 then 'شهران'
+      when 2 then '3 أشهر'
+      when 3 then '6 أشهر'
+      when 4 then 'سنة كاملة'
+      else 'مدة'
+    end,
+    'fr',case p_duration_idx
+      when 0 then '1 mois'
+      when 1 then '2 mois'
+      when 2 then '3 mois'
+      when 3 then '6 mois'
+      when 4 then '1 an'
+      else 'Durée'
+    end,
+    'en',case p_duration_idx
+      when 0 then '1 month'
+      when 1 then '2 months'
+      when 2 then '3 months'
+      when 3 then '6 months'
+      when 4 then '1 year'
+      else 'Duration'
+    end
   );
-  v_label=coalesce(v_service.f->'en'->>p_duration_idx,v_service.f->'fr'->>p_duration_idx,v_service.f->'ar'->>p_duration_idx,'');
   v_digits=regexp_replace(v_label,'[^0-9]','','g');
   v_months=case
     when lower(v_label) ~ '(year|yr|an|année|annee|سنة|عام)' then greatest(1,least(3,case when v_digits<>'' then v_digits::integer else 1 end))*12
@@ -218,7 +246,7 @@ begin
     'durLabel',coalesce(v_duration->>'ar',v_duration->>'fr',v_duration->>'en',''),
     'typeIdx',v_type_idx,'qty',1,'renewal',true
   );
-  v_result=public.create_order_secure(jsonb_build_array(v_item),p_payment_method,null,
+  v_result=public.create_order_secure(jsonb_build_array(v_item),p_payment_method,nullif(p_customer_info->>'renewal_coupon_code',''),
     coalesce(p_customer_info,'{}'::jsonb)||jsonb_build_object('order_kind','renewal','renewal_source_order_id',v_source_order));
   if not coalesce((v_result->>'success')::boolean,false) then return v_result; end if;
   v_order_id=(v_result->>'order_id')::uuid;

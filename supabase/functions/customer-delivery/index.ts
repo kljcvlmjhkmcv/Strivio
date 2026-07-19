@@ -30,6 +30,12 @@ async function ensureFulfilled(url:string,service:string,order:any){
   }).catch(()=>null);
 }
 
+const RENEWAL_DURATION_LABELS = {
+  ar: ['شهر واحد', 'شهران', '3 أشهر', '6 أشهر', 'سنة كاملة'],
+  fr: ['1 mois', '2 mois', '3 mois', '6 mois', '1 an'],
+  en: ['1 month', '2 months', '3 months', '6 months', '1 year']
+};
+
 serve(async req=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
   try{
@@ -60,7 +66,7 @@ serve(async req=>{
       order.user_id=user.id;
     }
     await ensureFulfilled(url,service,order);
-    const {data:rows}=await db.from('fulfillments').select('id,service_id,mode,status,quantity,customer_input,delivery_summary,encrypted_delivery,delivered_at').eq('order_id',order.id).order('order_item_index');
+    const {data:rows}=await db.from('fulfillments').select('id,service_id,mode,status,quantity,order_item_index,customer_input,delivery_summary,encrypted_delivery,delivered_at').eq('order_id',order.id).order('order_item_index');
     const fulfillmentIds=(rows||[]).map((row:any)=>row.id);
     const serviceIds=[...new Set((rows||[]).map((row:any)=>row.service_id).filter(Boolean))];
     const [{data:allocations},{data:services}]=await Promise.all([
@@ -68,7 +74,7 @@ serve(async req=>{
         ? db.from('fulfillment_allocations').select('id,fulfillment_id,ends_at,status,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).eq('status','active').order('created_at')
         : Promise.resolve({data:[]}),
       serviceIds.length
-        ? db.from('services').select('id,n,f,type_prices,types,show_types,fulfillment_mode').in('id',serviceIds)
+        ? db.from('services').select('id,n,p,f,type_prices,types,show_types,fulfillment_mode').in('id',serviceIds)
         : Promise.resolve({data:[]})
     ]);
     const serviceById=new Map((services||[]).map((item:any)=>[item.id,item]));
@@ -82,6 +88,7 @@ serve(async req=>{
     for(const row of rows||[]){
       const delivery=await decrypt(row.encrypted_delivery);
       const serviceRow:any=serviceById.get(row.service_id)||{};
+      const sourceItem:any=Array.isArray(order.items)?order.items[Number(row.order_item_index||0)]||{}:{};
       const rowAllocations=(allocations||[]).filter((item:any)=>item.fulfillment_id===row.id&&eligible(item.ends_at));
       const summaryEnd=row.delivery_summary?.ends_at||delivery?.ends_at||null;
       const renewalTargets=rowAllocations.length
@@ -99,7 +106,16 @@ serve(async req=>{
         encrypted_delivery:undefined,
         delivery,
         renewal_targets:renewalTargets,
-        renewal_options:{durations:serviceRow.f||{},type_prices:serviceRow.type_prices||[],types:serviceRow.types||{},show_types:!!serviceRow.show_types}
+        renewal_options:{
+          durations:RENEWAL_DURATION_LABELS,
+          service_name:serviceRow.n||{},
+          prices:serviceRow.p||[],
+          type_prices:serviceRow.type_prices||[],
+          types:serviceRow.types||{},
+          show_types:!!serviceRow.show_types,
+          fulfillment_mode:serviceRow.fulfillment_mode||row.mode||'manual_delivery',
+          source_type_idx:Number(sourceItem.typeIdx||0)
+        }
       });
     }
     return new Response(JSON.stringify({success:true,order,fulfillments}),{headers:cors});

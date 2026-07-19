@@ -299,7 +299,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   </div>
 </div>
 
-<script src="supabase-client.js?v=8d6b077"></script>
+<script src="supabase-client.js?v=renewal-cart-0719"></script>
 <script>
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -509,6 +509,7 @@ function renderItems(){
     if (!item.iconType && svc.iconType) item.iconType = svc.iconType;
     var q = item.qty || 1;
     var itemTotal = (item.unitPrice || item.price) * q;
+    var isRenewal = !!item.renewal;
     
     return [
       '<div class="CI" id="CI'+idx+'">',
@@ -516,14 +517,17 @@ function renderItems(){
           makeIcon(item, 44),
         '</div>',
         '<div style="flex:1;min-width:0">',
-          '<div class="font-display font-bold text-white text-base leading-tight">'+escapeHtml(itemName)+'</div>',
+          '<div class="font-display font-bold text-white text-base leading-tight">'+escapeHtml(itemName)+(isRenewal ? ' <span style="display:inline-flex;margin-inline-start:6px;padding:2px 8px;border-radius:999px;background:rgba(57,255,20,.14);color:#39ff14;font-size:.62rem;vertical-align:middle">'+(L==='ar'?'تجديد':L==='fr'?'RENOUVELLEMENT':'RENEWAL')+'</span>' : '')+'</div>',
           '<div class="text-xs mt-0.5 font-medium" style="color:rgba(224,224,224,.55)">'+escapeHtml(durLabel)+(typeLabel ? ' • <span style="color:#39ff14">'+escapeHtml(typeLabel)+'</span>' : '')+'</div>',
           '<div class="flex items-center gap-3 mt-2.5">',
-            '<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#121212] border border-[#2A2A2A]">',
+            isRenewal ? '<div class="text-xs font-bold px-2 py-1 rounded-lg bg-[#121212] border border-[#2A2A2A]" style="color:#39ff14">'+(item.renewal.target_count||1)+' '+(L==='ar'?'اشتراك':L==='fr'?'abonnement(s)':'subscription(s)')+'</div>' : '<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#121212] border border-[#2A2A2A]">',
+            isRenewal ? '' :
               '<button type="button" onclick="changeQty('+idx+', -1)" class="w-5 h-5 flex items-center justify-center text-white font-bold text-xs hover:text-[#39ff14]">-</button>',
+            isRenewal ? '' :
               '<span class="text-xs font-bold text-white px-1">'+q+'</span>',
+            isRenewal ? '' :
               '<button type="button" onclick="changeQty('+idx+', 1)" class="w-5 h-5 flex items-center justify-center text-white font-bold text-xs hover:text-[#39ff14]">+</button>',
-            '</div>',
+            isRenewal ? '' : '</div>',
             '<div class="font-display font-bold text-sm" style="color:var(--n)">'+fmtP(itemTotal)+'</div>',
           '</div>',
         '</div>',
@@ -537,6 +541,7 @@ function renderItems(){
 
 function changeQty(idx, delta){
   if(!cart[idx]) return;
+  if(cart[idx].renewal) return;
   var previousQty = Number(cart[idx].qty || 1);
   if(!Number(cart[idx].unitPrice)) cart[idx].unitPrice = Number(cart[idx].price || 0) / previousQty;
   var q = previousQty + delta;

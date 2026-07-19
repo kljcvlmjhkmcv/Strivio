@@ -372,12 +372,7 @@
               <h2 class="font-black text-lg">الاشتراكات القريبة من الانتهاء</h2>
               <p class="muted text-xs mt-1">قائمة جاهزة للتواصل مع العملاء قبل انتهاء اشتراكاتهم.</p>
             </div>
-            <select id="expiry-window" class="select w-auto" onchange="renderExpiring()">
-              <option value="7">خلال 7 أيام</option>
-              <option value="14">خلال 14 يومًا</option>
-              <option value="30" selected>خلال 30 يومًا</option>
-              <option value="all">كل المنتهية والقريبة</option>
-            </select>
+            <span class="badge b-orange">المتبقي 7 أيام أو أقل</span>
           </div>
           <div id="expiring-list" class="table-wrap"></div>
         </div>
@@ -516,7 +511,7 @@
         <div class="flex justify-end gap-2 mt-5"><button type="button" class="btn" onclick="closeInventoryCreator()">إلغاء</button><button class="btn neon" type="submit">حفظ وإرسال أحدث نسخة للشيت</button></div>
       </form>
     </div>
-    <script src="supabase-client.js?v=8d6b077"></script>
+    <script src="supabase-client.js?v=renewal-cart-0719"></script>
     <script>
       var state = {
           services: [],
@@ -581,6 +576,12 @@
         } catch (_) {
           return "—";
         }
+      }
+      function expiryBadge(v, includeTime) {
+        if (!v) return '<span class="muted">—</span>';
+        var days = Math.ceil((new Date(v).getTime() - Date.now()) / 86400000),
+          color = days <= 3 ? "#ff5c5c" : days <= 7 ? "#ff9f43" : days <= 14 ? "#ffd166" : "#39ff14";
+        return '<span style="display:inline-flex;padding:3px 8px;border-radius:9px;font-weight:900;color:' + color + ';background:' + color + '18;border:1px solid ' + color + '42">' + esc(includeTime ? date(v) : new Date(v).toLocaleDateString("ar-DZ")) + '</span>';
       }
       function profileNumber(v) {
         var m = String(v || "").match(/\d+/);
@@ -882,7 +883,7 @@
           '</div><div class="text-[10px] text-[#39ff14] mt-1">#' +
           esc(String(f.order_id || "").slice(0, 8)) +
           (a.ends_at
-            ? " · ينتهي " + esc(new Date(a.ends_at).toLocaleDateString("ar-DZ"))
+            ? " · ينتهي " + expiryBadge(a.ends_at, false)
             : "") +
           "</div></div>"
         );
@@ -1016,7 +1017,7 @@
                 return (
                   '<div class="border border-[#2a2a2a] rounded-2xl overflow-hidden"><div class="p-4 bg-black/30 flex justify-between gap-3"><div><b>' +
                   esc(a.label || "حساب Netflix") +
-                  '</b><div class="muted text-xs mt-1">المخزون مرتب وثابت، والتعديلات تُسجل وتُرسل للشيت.</div></div><div class="flex flex-wrap gap-2"><button class="btn" onclick="openAccountEditor(\'' +
+                  '</b><div class="mt-2 grid gap-1 text-xs" dir="ltr"><div><span class="muted">Email:</span> <b class="select-all">' + esc(a.email || "—") + '</b></div><div><span class="muted">Password:</span> <b class="select-all text-[#39ff14]">' + esc(a.password || "—") + '</b></div></div><div class="muted text-xs mt-2">المخزون مرتب وثابت، والتعديلات تُسجل وتُرسل للشيت.</div></div><div class="flex flex-wrap gap-2"><button class="btn" onclick="openAccountEditor(\'' +
                   esc(a.id) +
                   '\')">تعديل الحساب</button>' +
                   statusBadge(a.status) +
@@ -1203,8 +1204,7 @@
         $("orders-list").innerHTML = ordersTable(rows);
       }
       function renderExpiring() {
-        var windowValue = $("expiry-window") ? $("expiry-window").value : "30",
-          maxDays = windowValue === "all" ? 36500 : Number(windowValue || 30),
+        var maxDays = 7,
           now = Date.now(),
           orderMap = new Map(state.orders.map(function (o) { return [o.id, o]; })),
           rows = [];
@@ -1216,7 +1216,7 @@
           }
           if (!summaryEnd) return;
           var days = Math.ceil((new Date(summaryEnd).getTime() - now) / 86400000);
-          if (days > maxDays) return;
+          if (days < 0 || days > maxDays) return;
           var order = orderMap.get(f.order_id) || {}, customer = order.customer_info || {}, tone = days < 0 ? "bad" : days <= 3 ? "b-red" : days <= 7 ? "b-orange" : "b-yellow";
           rows.push({ f: f, order: order, customer: customer, days: days, end: summaryEnd, tone: tone });
         });
@@ -1228,7 +1228,7 @@
         $("expiring-list").innerHTML = '<table class="w-full text-sm min-w-[900px]"><thead><tr><th>الطلب</th><th>المنتج</th><th>العميل</th><th>الهاتف</th><th>ينتهي</th><th>المتبقي</th><th>تواصل</th></tr></thead><tbody>' + rows.map(function (row) {
           var name = [row.customer.first_name || row.customer.firstname, row.customer.last_name || row.customer.lastname].filter(Boolean).join(" ") || "—";
           var remaining = row.days < 0 ? "منتهٍ" : row.days === 0 ? "اليوم" : row.days + " يوم";
-          return '<tr class="border-t border-white/5"><td class="p-3 font-mono text-xs">#' + esc(String(row.order.id || "").slice(0, 8)) + '</td><td class="p-3">' + esc(serviceName(row.f.service_id)) + '</td><td class="p-3"><b>' + esc(name) + '</b><div class="muted text-[11px]">' + esc(row.customer.email || "—") + '</div></td><td class="p-3">' + esc(row.customer.phone || "—") + '</td><td class="p-3">' + date(row.end) + '</td><td class="p-3"><span class="badge ' + row.tone + '">' + remaining + '</span></td><td class="p-3"><a class="btn" target="_blank" rel="noopener" href="https://wa.me/' + esc(String(row.customer.phone || "").replace(/[^0-9]/g, "")) + '?text=' + encodeURIComponent("مرحبًا، نذكركم بقرب انتهاء اشتراككم في Strivio للطلب #" + String(row.order.id || "").slice(0, 8)) + '">WhatsApp</a></td></tr>';
+          return '<tr class="border-t border-white/5"><td class="p-3 font-mono text-xs">#' + esc(String(row.order.id || "").slice(0, 8)) + '</td><td class="p-3">' + esc(serviceName(row.f.service_id)) + '</td><td class="p-3"><b>' + esc(name) + '</b><div class="muted text-[11px]">' + esc(row.customer.email || "—") + '</div></td><td class="p-3">' + esc(row.customer.phone || "—") + '</td><td class="p-3">' + expiryBadge(row.end, true) + '</td><td class="p-3"><span class="badge ' + row.tone + '">' + remaining + '</span></td><td class="p-3"><a class="btn" target="_blank" rel="noopener" href="https://wa.me/' + esc(String(row.customer.phone || "").replace(/[^0-9]/g, "")) + '?text=' + encodeURIComponent("مرحبًا، نذكركم بقرب انتهاء اشتراككم في Strivio للطلب #" + String(row.order.id || "").slice(0, 8)) + '">WhatsApp</a></td></tr>';
         }).join("") + '</tbody></table>';
       }
       function renderInventory() {
@@ -1277,7 +1277,7 @@
                 esc(model) +
                 '</div><h3 class="font-black mt-1">' +
                 esc(a.label || "حساب بدون اسم") +
-                '</h3><p class="muted text-xs mt-1">' +
+                '</h3><div class="mt-2 text-xs grid gap-1" dir="ltr"><div><span class="muted">Email:</span> <b class="select-all">' + esc(a.email || "—") + '</b></div><div><span class="muted">Password:</span> <b class="select-all text-[#39ff14]">' + esc(a.password || "—") + '</b></div></div><p class="muted text-xs mt-2">' +
                 available +
                 " / " +
                 slots.length +
@@ -1298,7 +1298,7 @@
                       '<div class="px-4 py-3 border-b border-[#202020] last:border-0 flex items-center justify-between gap-3"><div><b>' +
                       esc(s.label || "Profile") +
                       '</b>' +
-                      (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<div class="muted text-[11px] mt-1">ينتهي: '+esc(allocation.ends_at?new Date(allocation.ends_at).toLocaleDateString('ar-DZ'):'غير محدد')+'</div>':'';})() +
+                      (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<div class="muted text-[11px] mt-1">ينتهي: '+expiryBadge(allocation.ends_at,false)+'</div>':'';})() +
                       '</div><div class="flex items-center gap-2">' +
                       statusBadge(s.status) +
                       (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<button class="btn" onclick="openEndDateEditor(\''+esc(allocation.id)+'\',\''+esc(allocation.ends_at||'')+'\')">تعديل الانتهاء</button>':'';})() +

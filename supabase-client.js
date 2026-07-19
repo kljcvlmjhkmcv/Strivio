@@ -141,16 +141,46 @@ async function saveOrderToDB(orderData) {
   }
 
   try {
-    // 1. الاتصال بدالة السيرفر الآمنة RPC لحساب السعر وإنشاء الطلب
-    const { data: rpcData, error: rpcError } = await supabaseClient.rpc('create_order_secure', {
-      p_items: orderData.items || [],
-      p_payment_method: orderData.payment_method === 'test' ? 'baridimob' : (orderData.payment_method || 'cib'),
-      p_coupon_code: orderData.coupon_code || null,
-      p_customer_info: orderData.customer_info || {}
-    });
+    // Renewal items are created by the dedicated secure RPC so the server can
+    // validate ownership and extend the exact selected subscriptions after payment.
+    const items = orderData.items || [];
+    const renewalItems = items.filter(function(item){ return item && item.renewal && Array.isArray(item.renewal.target_ids); });
+    let rpcData, rpcError;
+    if (renewalItems.length) {
+      if (items.length !== 1 || renewalItems.length !== 1) {
+        return { success: false, error_message: 'Complete subscription renewals in their own cart.' };
+      }
+      const renewalItem = renewalItems[0];
+      const customerInfo = Object.assign({}, orderData.customer_info || {}, {
+        order_kind: 'renewal',
+        renewal_coupon_code: orderData.coupon_code || null,
+        renewal_source_order_id: renewalItem.renewal.source_order_id || null
+      });
+      const renewalResult = await supabaseClient.rpc('create_renewal_order', {
+        p_target_ids: renewalItem.renewal.target_ids,
+        p_target_kind: renewalItem.renewal.target_kind,
+        p_duration_idx: Number(renewalItem.durIdx || 0),
+        p_payment_method: orderData.payment_method === 'test' ? 'baridimob' : (orderData.payment_method || 'cib'),
+        p_customer_info: customerInfo
+      });
+      rpcData = renewalResult.data;
+      rpcError = renewalResult.error;
+    } else {
+      const orderResult = await supabaseClient.rpc('create_order_secure', {
+        p_items: items,
+        p_payment_method: orderData.payment_method === 'test' ? 'baridimob' : (orderData.payment_method || 'cib'),
+        p_coupon_code: orderData.coupon_code || null,
+        p_customer_info: orderData.customer_info || {}
+      });
+      rpcData = orderResult.data;
+      rpcError = orderResult.error;
+    }
 
     if (rpcError || !rpcData || !rpcData.success) {
-      return null;
+      return {
+        success: false,
+        error_message: (rpcError && rpcError.message) || (rpcData && (rpcData.error_message || rpcData.error)) || 'Order creation failed'
+      };
     }
 
     // Link the order to the authenticated customer before payment starts.
