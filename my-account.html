@@ -526,6 +526,17 @@
         }[lang] || [];
         return '<div class="secret mt-3 border-[#ff9f43]/40" style="background:#ff9f430d"><b style="color:#ffb15c">' + (lang === "fr" ? "Règles importantes" : lang === "en" ? "Important rules" : "قواعد استخدام مهمة") + '</b><ul class="mt-2 pr-5 list-disc text-xs leading-7">' + rules.map(function (rule) { return '<li>' + esc(rule) + '</li>'; }).join("") + "</ul></div>";
       }
+      function usageTermsHtml(fulfillment) {
+        var product = String(fulfillment?.delivery?.product_name || fulfillment?.service_id || "").toLowerCase();
+        var isNetflix = /netflix/i.test(product);
+        var copy = {
+          ar: { title: "شروط الاستخدام", common: ["المعلومات مخصصة لصاحب الطلب فقط ولا يجوز مشاركتها.", "لا تغيّر كلمة سر الحساب أو إعداداته العامة.", "يسمح فقط بتعديل اسم البروفايل ورمز PIN الخاص بك.", "أي إساءة استخدام قد تؤدي إلى إيقاف الاشتراك دون استرداد."], netflix: ["كل بروفايل مخصص لشخص واحد فقط.", "لا تشاهد من جهازين في الوقت نفسه."] },
+          fr: { title: "Conditions d’utilisation", common: ["Les informations sont réservées à l’acheteur et ne doivent pas être partagées.", "Ne modifiez pas le mot de passe ni les paramètres généraux du compte.", "Seuls le nom du profil et votre code PIN peuvent être modifiés.", "Tout abus peut entraîner la suspension sans remboursement."], netflix: ["Chaque profil est réservé à une seule personne.", "N’utilisez pas deux appareils en même temps."] },
+          en: { title: "Usage terms", common: ["These details are for the purchaser only and must not be shared.", "Do not change the account password or general settings.", "Only your profile name and PIN may be changed.", "Misuse may result in suspension without a refund."], netflix: ["Each profile is for one person only.", "Do not stream on two devices at the same time."] },
+        }[lang] || {};
+        var rules = (copy.common || []).concat(isNetflix ? (copy.netflix || []) : []);
+        return '<div class="secret mt-3 border-[#ff9f43]/40" style="background:#ff9f430d"><b style="color:#ffb15c">' + esc(copy.title || "Usage terms") + '</b><ul class="mt-2 pr-5 list-disc text-xs leading-7">' + rules.map(function (rule) { return '<li>' + esc(rule) + '</li>'; }).join("") + "</ul></div>";
+      }
       const esc = (v) =>
         String(v ?? "").replace(
           /[&<>"']/g,
@@ -738,7 +749,8 @@
                           "<br>البروفايل: " +
                           esc(x.profile) +
                           "<br>PIN: " +
-                          esc(x.pin || "—")
+                          esc(x.pin || "—") +
+                          (x.ends_at ? '<br><span class="muted text-xs">' + (lang === "fr" ? "Expire le : " : lang === "en" ? "Expires: " : "ينتهي الاشتراك: ") + '<span style="' + expiryStyle(x.ends_at) + '">' + date(x.ends_at) + '</span></span>' : "")
                         : "الكود: " + esc(x.code)) +
                       "</div>",
                   )
@@ -758,7 +770,7 @@
                   "</p>"
                 : "") +
               body +
-              netflixRulesHtml(f) +
+              usageTermsHtml(f) +
               (note
                 ? '<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]" data-admin-label>تحديث الإدارة</b><br>' +
                   esc(note) +

@@ -472,6 +472,19 @@
         <div class="flex justify-end gap-2 mt-6"><button type="button" class="btn" onclick="closeEndDateEditor()">إلغاء</button><button class="btn neon" type="submit">حفظ التاريخ</button></div>
       </form>
     </div>
+    <div id="move-profile-modal" class="hidden fixed inset-0 z-[66] p-4 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+      <form id="move-profile-form" class="panel rounded-[24px] w-full max-w-md p-6">
+        <div class="flex justify-between gap-4 items-start">
+          <div><div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">PROFILE TRANSFER</div><h2 class="display text-xl font-black mt-1">نقل البروفايل</h2><p id="move-profile-caption" class="muted text-xs mt-2">انقل اشتراك العميل إلى بروفايل متاح مع الحفاظ على تاريخ الانتهاء.</p></div>
+          <button type="button" class="btn" onclick="closeMoveProfile()">إغلاق</button>
+        </div>
+        <input id="move-profile-allocation" type="hidden" />
+        <label class="muted text-xs block mt-5 mb-2">البروفايل المتاح الجديد</label>
+        <select id="move-profile-target" class="select w-full" required></select>
+        <label class="flex items-center gap-2 text-xs mt-4"><input id="move-profile-notify" type="checkbox" /> إرسال تحديث للعميل لاحقاً</label>
+        <div class="flex justify-end gap-2 mt-6"><button type="button" class="btn" onclick="closeMoveProfile()">إلغاء</button><button class="btn neon" type="submit">نقل وحفظ</button></div>
+      </form>
+    </div>
     <div
       id="toast"
       class="hidden fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm"
@@ -1345,6 +1358,7 @@
                       '</div><div class="flex items-center gap-2">' +
                       statusBadge(s.status) +
                       (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<button class="btn" onclick="openEndDateEditor(\''+esc(allocation.id)+'\',\''+esc(allocation.ends_at||'')+'\')">تعديل الانتهاء</button>':'';})() +
+                      (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<button class="btn neon" onclick="openMoveProfile(\''+esc(allocation.id)+'\',\''+esc(s.id)+'\')">نقل إلى بروفايل فارغ</button>':'';})() +
                       "<button class=\"btn\" onclick=\"setInventoryStatus('slots','" +
                       esc(s.id) +
                       "','" +
@@ -1383,6 +1397,44 @@
       function closeEndDateEditor() {
         $("end-date-modal").classList.add("hidden");
       }
+      function openMoveProfile(allocationId, sourceSlotId) {
+        var allocation = state.allocations.find(function (x) { return x.id === allocationId; }),
+          source = state.slots.find(function (x) { return x.id === sourceSlotId; }),
+          sourceAccount = source && state.accounts.find(function (x) { return x.id === source.account_id; });
+        if (!allocation || !source || !sourceAccount) return toast("تعذر تحديد البروفايل الحالي.", true);
+        var targets = state.slots.filter(function (slot) {
+          var account = state.accounts.find(function (x) { return x.id === slot.account_id; });
+          return slot.id !== sourceSlotId && slot.status === "available" && !allocationFor(slot.id) && account && account.service_id === sourceAccount.service_id;
+        }).sort(function (a, b) { return profileNumber(a.label) - profileNumber(b.label) || String(a.label).localeCompare(String(b.label)); });
+        if (!targets.length) return toast("لا يوجد بروفايل فارغ لنقل الاشتراك إليه.", true);
+        $("move-profile-allocation").value = allocationId;
+        $("move-profile-target").innerHTML = targets.map(function (slot) {
+          var account = state.accounts.find(function (x) { return x.id === slot.account_id; });
+          return '<option value="' + esc(slot.id) + '">' + esc(account?.label || account?.email || "Account") + " · " + esc(slot.label || "Profile") + '</option>';
+        }).join("");
+        $("move-profile-caption").textContent = "من " + (source.label || "Profile") + " إلى بروفايل متاح — يبقى تاريخ انتهاء العميل كما هو.";
+        $("move-profile-notify").checked = false;
+        $("move-profile-modal").classList.remove("hidden");
+      }
+      function closeMoveProfile() { $("move-profile-modal").classList.add("hidden"); }
+      $("move-profile-form").addEventListener("submit", async function (event) {
+        event.preventDefault();
+        var button = event.target.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+          await inventoryCall({
+            action: "move_allocation",
+            allocation_id: $("move-profile-allocation").value,
+            target_slot_id: $("move-profile-target").value,
+            notify: $("move-profile-notify").checked,
+          });
+          closeMoveProfile();
+          toast("تم نقل البروفايل وتحديث التسليم والشيت.");
+          await loadAll();
+        } catch (error) {
+          toast("تعذر نقل البروفايل: " + error.message, true);
+        } finally { button.disabled = false; }
+      });
       $("end-date-form").addEventListener("submit", async function (event) {
         event.preventDefault();
         var button = event.target.querySelector('button[type="submit"]');

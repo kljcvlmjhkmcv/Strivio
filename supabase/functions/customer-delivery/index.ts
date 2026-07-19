@@ -95,10 +95,18 @@ serve(async req=>{
       if(allRowAllocations.length&&delivery&&Array.isArray(delivery.entries)){
         const activeAllocationIds=new Set(rowAllocations.map((item:any)=>item.id));
         const activeLabels=new Set(rowAllocations.map((item:any)=>String(item.inventory_slots?.label||'').trim().toLowerCase()).filter(Boolean));
+        const allocationByLabel=new Map((allRowAllocations||[]).map((item:any)=>[
+          String(item.inventory_slots?.label||'').trim().toLowerCase(), item
+        ]));
         visibleDelivery={...delivery,entries:delivery.entries.filter((entry:any,index:number)=>{
           const matchingAllocation=allRowAllocations[index];
           if(matchingAllocation)return activeAllocationIds.has(matchingAllocation.id);
           return activeLabels.has(String(entry.profile||entry.label||'').trim().toLowerCase());
+        }).map((entry:any,index:number)=>{
+          const byLabel=allocationByLabel.get(String(entry.profile||entry.label||'').trim().toLowerCase());
+          const byIndex=allRowAllocations[index];
+          const allocation=byLabel||byIndex;
+          return allocation ? {...entry,ends_at:allocation.ends_at||null,allocation_id:allocation.id} : entry;
         })};
       }
       const summaryEnd=row.delivery_summary?.ends_at||delivery?.ends_at||null;

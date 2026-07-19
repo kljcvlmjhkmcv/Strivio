@@ -103,10 +103,11 @@ function emailHtml(order: any, deliveries: any[]) {
     const entries = Array.isArray(delivery.entries) ? delivery.entries : [];
     const isNetflix = String(delivery.product_name || "").toLowerCase().includes("netflix");
     const ends = delivery.ends_at ? `<div style="margin-top:10px;color:#9ca3af;font-size:13px">ينتهي الاشتراك: ${esc(new Date(delivery.ends_at).toLocaleDateString("fr-DZ"))}</div>` : "";
-    const rules = isNetflix ? `<div style="margin-top:12px;padding:14px;border-radius:14px;background:#1b1605;border:1px solid #5f4b12;color:#fff3b0;line-height:1.8">تنبيه مهم: ممنوع شراء شاشة واحدة واستعمالها مع الأصدقاء؛ كل شخص يحتاج بروفايل خاص. مسموح تستخدم الشاشة على هاتف أو كمبيوتر أو تلفاز، لكن على جهاز واحد في نفس الوقت فقط حتى لا يتعرض الاشتراك للإيقاف.</div>` : "";
+    const rules = `<div style="margin-top:12px;padding:14px;border-radius:14px;background:#1b1605;border:1px solid #5f4b12;color:#fff3b0;line-height:1.8"><b>شروط الاستخدام:</b><ul style="margin:8px 0 0;padding-right:20px"><li>المعلومات مخصصة لصاحب الطلب فقط ولا يجوز مشاركتها.</li><li>لا تغيّر كلمة سر الحساب أو إعداداته العامة.</li><li>يسمح فقط بتعديل اسم البروفايل ورمز PIN الخاص بك.</li>${isNetflix ? "<li>كل بروفايل مخصص لشخص واحد ولا تشاهد من جهازين في الوقت نفسه.</li>" : ""}<li>أي إساءة استخدام قد تؤدي إلى إيقاف الاشتراك دون استرداد.</li></ul></div>`;
     const body = entries.length ? entries.map((entry: any, index: number) => {
       if (entry.code) return `<div style="margin-top:12px;padding:14px;border-radius:14px;background:#070707;border:1px solid #263326"><div style="color:#39ff14;font-weight:900;margin-bottom:8px">الكود ${index + 1}</div><div style="font-family:Consolas,monospace;color:#fff;word-break:break-all">${esc(entry.code)}</div></div>`;
-      return `<div style="margin-top:12px;padding:14px;border-radius:14px;background:#070707;border:1px solid #263326;line-height:1.9"><div style="color:#39ff14;font-weight:900;margin-bottom:8px">${esc(entry.profile || `Profile ${index + 1}`)}</div><div><b>إيميل الحساب:</b> ${esc(entry.email)}</div><div><b>كلمة السر:</b> <span style="font-family:Consolas,monospace">${esc(entry.password)}</span></div><div><b>اسم الشاشة:</b> ${esc(entry.profile)}</div><div><b>PIN:</b> ${esc(entry.pin || "بدون")}</div></div>`;
+      const profileEnd = entry.ends_at ? `<div style="margin-top:6px;color:#9ca3af;font-size:13px">ينتهي هذا البروفايل: ${esc(new Date(entry.ends_at).toLocaleDateString("fr-DZ"))}</div>` : "";
+      return `<div style="margin-top:12px;padding:14px;border-radius:14px;background:#070707;border:1px solid #263326;line-height:1.9"><div style="color:#39ff14;font-weight:900;margin-bottom:8px">${esc(entry.profile || `Profile ${index + 1}`)}</div><div><b>إيميل الحساب:</b> ${esc(entry.email)}</div><div><b>كلمة السر:</b> <span style="font-family:Consolas,monospace">${esc(entry.password)}</span></div><div><b>اسم الشاشة:</b> ${esc(entry.profile)}</div><div><b>PIN:</b> ${esc(entry.pin || "بدون")}</div>${profileEnd}</div>`;
     }).join("") : `<div style="margin-top:12px;color:#d1d5db;line-height:1.8">${esc(delivery.message || deliveryMessage(delivery.mode))}</div>`;
     return `<section style="margin:18px 0;padding:18px;border:1px solid #263326;border-radius:18px;background:#111"><h3 style="margin:0;color:#39ff14;font-size:20px">${esc(delivery.product_name || "Strivio")}</h3>${ends}${rules}${body}</section>`;
   }).join("");
@@ -255,7 +256,7 @@ async function allocateSlots(db: any, serviceId: string, fulfillmentId: string, 
     if (allocationError) throw allocationError;
     const credentials = await decrypt(account?.encrypted_credentials);
     const secret = await decrypt(slot.encrypted_secret);
-    entries.push({ email: credentials.email, password: credentials.password, profile: slot.label, pin: includePin ? secret.pin || secret.code || "" : "" });
+    entries.push({ email: credentials.email, password: credentials.password, profile: slot.label, pin: includePin ? secret.pin || secret.code || "" : "", ends_at: endsAt });
   }
   return entries;
 }
