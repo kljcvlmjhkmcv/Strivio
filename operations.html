@@ -583,10 +583,7 @@
       function date(v) {
         try {
           return v
-            ? new Date(v).toLocaleString("ar-DZ", {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })
+            ? new Date(v).toLocaleDateString("ar-DZ", { dateStyle: "medium" })
             : "—";
         } catch (_) {
           return "—";

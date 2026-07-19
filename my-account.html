@@ -154,6 +154,21 @@
         border-color: var(--n);
         color: var(--n);
       }
+      .btn,
+      .ghost {
+        position: relative;
+        overflow: hidden;
+        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease, border-color .18s ease;
+      }
+      .btn:hover,
+      .ghost:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(57,255,20,.14); }
+      .btn:active,
+      .ghost:active,
+      .btn.is-pressed,
+      .ghost.is-pressed { transform: scale(.96); }
+      .btn:disabled { opacity: .72; cursor: wait; filter: saturate(.7); }
+      .btn:disabled::after { content: ""; display: inline-block; width: 13px; height: 13px; margin-inline-start: 8px; vertical-align: -2px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: accountSpin .7s linear infinite; }
+      @keyframes accountSpin { to { transform: rotate(360deg); } }
       .input {
         width: 100%;
         background: #0c0c0c;
@@ -503,7 +518,7 @@
       }
       function netflixRulesHtml(fulfillment) {
         var product = String(fulfillment?.delivery?.product_name || fulfillment?.service_id || "").toLowerCase();
-        if (!product.includes("netflix")) return "";
+        if (!/netflix|نتفلكس/i.test(product)) return "";
         var rules = {
           ar: ["كل بروفايل مخصص لشخص واحد ولا يجوز مشاركته مع أشخاص آخرين.", "لا تشاهد من أكثر من جهاز في الوقت نفسه.", "يُمنع تغيير كلمة سر الحساب أو محاولة التأثير على بقية المستخدمين.", "مسموح بتغيير اسم البروفايل ورمز PIN الخاص به فقط.", "أي انتهاك قد يؤدي إلى سحب الاشتراك دون استرداد الأموال."],
           fr: ["Chaque profil est réservé à une seule personne et ne doit pas être partagé.", "N’utilisez pas plusieurs appareils en même temps.", "Il est interdit de modifier le mot de passe ou de perturber les autres utilisateurs.", "Seuls le nom du profil et son code PIN peuvent être modifiés.", "Toute violation peut entraîner le retrait de l’abonnement sans remboursement."],
@@ -589,11 +604,17 @@
             )
           : "—";
       }
+      function productLabel(value) {
+        var raw = String(value || "").trim();
+        if (!raw) return lang === "fr" ? "Abonnement" : lang === "en" ? "Subscription" : "الاشتراك";
+        if (lang !== "ar" && /netflix|نتفلكس/i.test(raw)) return "Netflix Premium";
+        return raw;
+      }
       function itemNames(o) {
         return (o.items || [])
           .map(
             (i) =>
-              esc(i.nameData?.[lang] || i.nameData?.ar || i.name || i.id) +
+              esc(i.nameData?.[lang] || i.nameData?.en || i.nameData?.fr || i.name || i.id) +
               " ×" +
               (i.qty || 1),
           )
@@ -727,19 +748,19 @@
                 "</div>";
             return (
               '<div class="mt-4"><div class="flex justify-between gap-3"><b class="text-[#39ff14]">' +
-              esc(f.delivery?.product_name || f.service_id || "المنتج") +
+              '<span data-delivery-product>' + esc(productLabel(f.delivery?.product_name || f.service_id || "المنتج")) + '</span>' +
               "</b>" +
               badge(f.status) +
               "</div>" +
               (end
-                ? '<p class="muted text-xs mt-1">ينتهي الاشتراك: ' +
+                ? '<p class="muted text-xs mt-1"><span data-delivery-expiry-label>ينتهي الاشتراك:</span> ' +
                   '<span style="' + expiryStyle(end) + '">' + date(end) + '</span>' +
                   "</p>"
                 : "") +
               body +
               netflixRulesHtml(f) +
               (note
-                ? '<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]">تحديث الإدارة</b><br>' +
+                ? '<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]" data-admin-label>تحديث الإدارة</b><br>' +
                   esc(note) +
                   "</div>"
                 : "") +
@@ -748,7 +769,7 @@
                   esc(orderId) +
                   "','" +
                   esc(f.id) +
-                  "')\">" + renewalActionLabel(end) + " هذا الاشتراك</button>"
+                  "')\" data-renew-button data-renew-end=\"" + esc(end || "") + "\">" + renewalActionLabel(end) + " هذا الاشتراك</button>"
                 : "") +
               "</div>"
             );
@@ -802,6 +823,17 @@
               .join("") +
             '</select><div class="secret mt-4 text-xs"><b class="text-[#39ff14]">كيف يُحسب التمديد؟</b><br>المدة الجديدة تُضاف إلى تاريخ انتهاء اشتراكك الحالي، وليست محسوبة من تاريخ اليوم. تستطيع بعدها استعمال كوبون واختيار طريقة الدفع من السلة.</div><button class="btn w-full mt-4" type="submit">إضافة التجديد إلى السلة</button></form>';
           document.body.appendChild(wrap);
+          var renewalTitle = wrap.querySelector("h2"),
+            renewalDescription = wrap.querySelector("h2 + p"),
+            renewalLabels = wrap.querySelectorAll("label"),
+            renewalInfo = wrap.querySelector(".secret.mt-4"),
+            renewalSubmit = wrap.querySelector('button[type="submit"]');
+          if (renewalTitle) renewalTitle.dataset.renewTitle = "1";
+          if (renewalDescription) renewalDescription.dataset.renewDescription = "1";
+          if (renewalLabels.length) renewalLabels[renewalLabels.length - 1].dataset.renewDuration = "1";
+          if (renewalInfo) renewalInfo.dataset.renewInfo = "1";
+          if (renewalSubmit) renewalSubmit.dataset.renewSubmit = "1";
+          if (window.accountPortalApply) window.accountPortalApply();
           function updateRenewalPreview() {
             var durationIdx = Number(document.getElementById("renewal-duration").value || 0),
               months = [1, 2, 3, 6, 12][durationIdx] || 1;
@@ -935,7 +967,7 @@
               esc(o.id) +
               '\')">عرض التفاصيل</button>' +
               (['paid','completed'].includes(String(o.status || '').toLowerCase())
-                ? '<button class="btn" onclick="openRenewalForOrder(\'' + esc(o.id) + '\')">' + renewalActionLabel(expiry) + ' الاشتراك</button>'
+                ? '<button class="btn" data-renew-order="1" data-renew-end="' + esc(expiry || "") + '" onclick="openRenewalForOrder(\'' + esc(o.id) + '\')">' + renewalActionLabel(expiry) + ' الاشتراك</button>'
                 : '') +
               '<button class="ghost" onclick="openReport(\'' +
               esc(o.id) +
@@ -1647,8 +1679,16 @@
             },
           }[lang()];
         }
+        function dynamicCopy() {
+          return {
+            ar: { expires: "ينتهي الاشتراك:", admin: "تحديث الإدارة", renewThis: "هذا الاشتراك", report: "الإبلاغ أو متابعة البلاغ", whatsapp: "WhatsApp لهذا الطلب", renewTitle: "تجديد الاشتراك", renewDescription: "اختر البروفيلات أو الاشتراكات التي تريد تمديدها فقط.", renewDuration: "مدة التمديد", renewInfo: "كيف يُحسب التمديد؟", renewSubmit: "إضافة التجديد إلى السلة" },
+            fr: { expires: "Expire le :", admin: "Mise à jour de l’équipe", renewThis: "cet abonnement", report: "Signaler ou suivre", whatsapp: "WhatsApp pour cette commande", renewTitle: "Renouvellement de l’abonnement", renewDescription: "Choisissez uniquement les profils ou abonnements à prolonger.", renewDuration: "Durée du renouvellement", renewInfo: "Comment le renouvellement est-il calculé ?", renewSubmit: "Ajouter le renouvellement au panier" },
+            en: { expires: "Expires:", admin: "Team update", renewThis: "this subscription", report: "Report or follow up", whatsapp: "WhatsApp for this order", renewTitle: "Subscription renewal", renewDescription: "Choose only the profiles or subscriptions you want to extend.", renewDuration: "Renewal duration", renewInfo: "How is the renewal calculated?", renewSubmit: "Add renewal to cart" }
+          }[lang()] || {};
+        }
         function translateDynamic() {
           var t = Object.assign({}, x(), extra(), texts()),
+            c = dynamicCopy(),
             d = document.getElementById("details");
           if (d) {
             var h = d.querySelector("h2");
@@ -1668,6 +1708,20 @@
             });
             var rb = d.querySelector('button[onclick*="openReport"]');
             if (rb) rb.textContent = t.reportDetails;
+            var wa = d.querySelector('a.btn[href^="https://wa.me"]');
+            if (wa) wa.textContent = c.whatsapp;
+          }
+          document.querySelectorAll("[data-delivery-expiry-label]").forEach(function (e) { e.textContent = c.expires; });
+          document.querySelectorAll("[data-admin-label]").forEach(function (e) { e.textContent = c.admin; });
+          document.querySelectorAll("[data-renew-button]").forEach(function (b) { b.textContent = renewalActionLabel(b.dataset.renewEnd || "") + " " + c.renewThis; });
+          var renewal = document.getElementById("renewal");
+          if (renewal) {
+            var title = renewal.querySelector("[data-renew-title]"), description = renewal.querySelector("[data-renew-description]"), duration = renewal.querySelector("[data-renew-duration]"), info = renewal.querySelector("[data-renew-info]"), submit = renewal.querySelector("[data-renew-submit]");
+            if (title) title.textContent = c.renewTitle;
+            if (description) description.textContent = c.renewDescription;
+            if (duration) duration.textContent = c.renewDuration;
+            if (info) { var infoLabel = info.querySelector("b"); if (infoLabel) infoLabel.textContent = c.renewInfo; }
+            if (submit) submit.textContent = c.renewSubmit;
           }
           var r = document.getElementById("report");
           if (r) {
@@ -1747,9 +1801,8 @@
         }
         window.renewSubscription = renewSubscription;
         function applyRenewalButtons() {
-          var t = x();
           document.querySelectorAll("[data-renew-order]").forEach(function (b) {
-            b.textContent = t.renew;
+            b.textContent = renewalActionLabel(b.dataset.renewEnd || "");
           });
         }
         function setupLanguageMenu() {
@@ -1826,6 +1879,12 @@
           translateStaticExtras();
           applyRenewalButtons();
         };
+        document.addEventListener("click", function (event) {
+          var button = event.target && event.target.closest ? event.target.closest("button.btn,button.ghost,a.btn") : null;
+          if (!button || button.disabled) return;
+          button.classList.add("is-pressed");
+          setTimeout(function () { button.classList.remove("is-pressed"); }, 220);
+        }, true);
         async function loadRenewals() {
           var tries = 0;
           while (
@@ -1883,8 +1942,8 @@
                     t.days +
                     " (" +
                     r.end.slice(0, 10) +
-                    ')</span><button class="btn" data-renew-order="' +
-                    r.id +
+                    ')</span><button class="btn" data-renew-order="1" data-renew-end="' +
+                    r.end +
                     '" onclick="renewSubscription(\'' +
                     r.id +
                     "')\">" +

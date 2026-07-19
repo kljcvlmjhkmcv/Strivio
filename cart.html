@@ -23,7 +23,9 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 .BO:hover{background:var(--n);color:#121212;box-shadow:0 0 20px rgba(var(--nr),.4)}
 .BN{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;background:var(--n);color:#121212;font-weight:700;font-family:'Space Grotesk',sans-serif;border-radius:9999px;padding:.9rem 2.4rem;transition:all .25s ease;border:none;cursor:pointer;text-decoration:none;font-size:1rem;white-space:nowrap;width:100%}
 .BN:hover{transform:scale(1.02);filter:brightness(1.08)}
-.BN:disabled{opacity:.5;cursor:not-allowed;transform:none;filter:none}
+.BN:active,.BO:active,.SOC-BTN:active{transform:scale(.96)}
+.BN:disabled{opacity:.5;cursor:wait;transform:none;filter:none}
+.BN:disabled::after{content:'';width:15px;height:15px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:CS .7s linear infinite}
 .BDG{display:inline-flex;align-items:center;gap:.3rem;background:rgba(var(--nr),.1);border:1px solid rgba(var(--nr),.25);color:var(--n);font-size:.7rem;font-weight:700;border-radius:999px;padding:.22rem .75rem;letter-spacing:.07em;text-transform:uppercase}
 .LO{display:flex;align-items:center;gap:.65rem;width:100%;padding:.6rem 1rem;font-size:.875rem;color:#E0E0E0;background:transparent;border:none;cursor:pointer;transition:all .15s;text-align:left;white-space:nowrap}
 .LO:hover{background:rgba(var(--nr),.1);color:var(--n)}
@@ -55,6 +57,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 .EMPT{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:1.2rem;text-align:center;padding:2rem}
 @keyframes FI{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes P2{0%,100%{box-shadow:0 0 10px 2px rgba(var(--nr),.4)}50%{box-shadow:0 0 24px 6px rgba(var(--nr),.65)}}
+@keyframes CS{to{transform:rotate(360deg)}}
 [dir=rtl] .LO{text-align:right;flex-direction:row-reverse}
 #LDPD.O,#LDPM.O{display:block}
 #LDPD,#LDPM{box-shadow:0 8px 30px rgba(0,0,0,.5)}
@@ -479,9 +482,15 @@ var setT = function(id, txt){ var e=$(id); if(e) e.textContent = txt; };
 ════════════════════════════════════════════════════════ */
 function makeIcon(item, sz){
   sz = (sz || 48) + 'px';
-  var iconValue = item.iconSrc || String(item.name || item.title || item.id || '?').slice(0,1).toUpperCase();
-  if(item.iconType === 'img' && item.iconSrc){
-    return '<img src="'+item.iconSrc+'" style="width:'+sz+';height:'+sz+';object-fit:contain" alt=""/>';
+  var rawSrc = String(item.iconSrc || '').trim();
+  var iconValue = (!rawSrc || rawSrc.charAt(0) === '<' || rawSrc.indexOf('data:image') === 0)
+    ? String(item.name || item.title || item.id || '?').slice(0,1).toUpperCase()
+    : rawSrc;
+  if(rawSrc.indexOf('<svg') === 0){
+    rawSrc = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(rawSrc);
+  }
+  if((item.iconType === 'img' || item.iconType === 'svg') && /^(https?:|data:image\/)/i.test(rawSrc)){
+    return '<img src="'+escapeHtml(rawSrc)+'" style="width:'+sz+';height:'+sz+';object-fit:contain" alt=""/>';
   }
   if(item.iconType === 'text' || !item.iconSrc){
     return '<div style="width:'+sz+';height:'+sz+';display:flex;align-items:center;justify-content:center;font-family:Space Grotesk,sans-serif;font-weight:900;font-size:'+Math.round(parseInt(sz)*0.55)+'px;color:'+(item.iconColor||'#fff')+'">'+escapeHtml(iconValue)+'</div>';

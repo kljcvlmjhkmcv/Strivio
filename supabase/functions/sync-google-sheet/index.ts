@@ -14,6 +14,7 @@ async function decrypt(value?:string|null){
   return JSON.parse(dec.decode(plain));
 }
 function label(value:any){return value?.ar||value?.fr||value?.en||value||'';}
+function sheetDate(value:any){return value?String(value).slice(0,10):'';}
 function profileNo(value:any){const match=String(value||'').match(/\d+/);return match?Number(match[0]):9999;}
 function expiryMeta(value:any){
   if(!value)return {days_remaining:null,expiry_state:'none',expiry_color:'#171717'};
@@ -87,12 +88,12 @@ async function inventorySnapshot(db:any){
     const item=order?.items?.[Number(fulfillment.order_item_index||0)]||{};const customer=order?.customer_info||{};
     rows.push({
       service_id:account.service_id,account_id:account.id,account_label:account.label,account_status:account.status,
-      account_created_at:account.created_at,slot_created_at:slot.created_at,
+      account_created_at:sheetDate(account.created_at),slot_created_at:sheetDate(slot.created_at),
       slot_id:slot.id,slot_status:slot.status,profile:slot.label,pin:secret.pin||secret.code||'',
       account_email:account.credentials.email||'',password:account.credentials.password||'',
       allocation_id:allocation?.id||'',order_id:allocation?order?.id||'':'',sheet_version:allocation?.sheet_version||0,renewal_count:Number(allocation?.renewal_count||0),
-      order_created_at:allocation?order?.created_at||'':'',client_name:allocation?[customer.first_name||customer.firstname,customer.last_name||customer.lastname].filter(Boolean).join(' '):'',
-      duration:label(item.durLabelData)||item.durLabel||'',ends_at:allocation?.ends_at||'',...expiryMeta(allocation?.ends_at),
+      order_created_at:allocation?sheetDate(order?.created_at):'',client_name:allocation?[customer.first_name||customer.firstname,customer.last_name||customer.lastname].filter(Boolean).join(' '):'',
+      duration:label(item.durLabelData)||item.durLabel||'',ends_at:sheetDate(allocation?.ends_at),...expiryMeta(allocation?.ends_at),
       unit_price:Number(item.unitPrice||item.price||0),pay:allocation?.status==='active'?'paid':'unpaid',
       profile_status:allocation?.status==='active'?(String(allocation?.admin_notes||'').includes('[PROBLEM OPEN]')?'problem':'sold'):slot.status==='available'?'available':slot.status==='maintenance'?'maintenance':slot.status==='disabled'?'disabled':slot.status,
       client_number:allocation?customer.phone||'':'',client_email:allocation?customer.email||'':'',admin_notes:allocation?.admin_notes||''
