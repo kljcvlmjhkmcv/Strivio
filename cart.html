@@ -487,10 +487,15 @@ function makeIcon(item, sz){
     ? String(item.name || item.title || item.id || '?').slice(0,1).toUpperCase()
     : rawSrc;
   if(rawSrc.indexOf('<svg') === 0){
-    rawSrc = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(rawSrc);
+    var safeSvg = rawSrc
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/\son\w+\s*=\s*(["']).*?\1/gi, '');
+    safeSvg = safeSvg.replace('<svg', '<svg aria-hidden="true" style="width:'+sz+';height:'+sz+';display:block"');
+    return '<div style="width:'+sz+';height:'+sz+';display:flex;align-items:center;justify-content:center">'+safeSvg+'</div>';
   }
   if((item.iconType === 'img' || item.iconType === 'svg') && /^(https?:|data:image\/)/i.test(rawSrc)){
-    return '<img src="'+escapeHtml(rawSrc)+'" style="width:'+sz+';height:'+sz+';object-fit:contain" alt=""/>';
+    var fallback = '<span style="display:none;width:'+sz+';height:'+sz+';align-items:center;justify-content:center;font-family:Space Grotesk,sans-serif;font-weight:900;font-size:'+Math.round(parseInt(sz)*0.55)+'px;color:#fff">'+escapeHtml(iconValue)+'</span>';
+    return '<img src="'+escapeHtml(rawSrc)+'" style="width:'+sz+';height:'+sz+';object-fit:contain" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"/>'+fallback;
   }
   if(item.iconType === 'text' || !item.iconSrc){
     return '<div style="width:'+sz+';height:'+sz+';display:flex;align-items:center;justify-content:center;font-family:Space Grotesk,sans-serif;font-weight:900;font-size:'+Math.round(parseInt(sz)*0.55)+'px;color:'+(item.iconColor||'#fff')+'">'+escapeHtml(iconValue)+'</div>';
@@ -515,8 +520,8 @@ function renderItems(){
     var durLabel = (item.durLabelData && item.durLabelData[L]) ? item.durLabelData[L] : (item.durLabel || (tx.dl && tx.dl[item.durIdx||0]) || '1 Month');
     var typeLabel = (item.typeLabelData && item.typeLabelData[L]) ? item.typeLabelData[L][item.typeIdx||0] : (item.typeLabel || '');
     if (!item.bg) item.bg = svc.bg || '#1a1a1a';
-    if (!item.iconSrc && svc.iconSrc) item.iconSrc = svc.iconSrc;
-    if (!item.iconType && svc.iconType) item.iconType = svc.iconType;
+    if (svc.iconSrc) item.iconSrc = svc.iconSrc;
+    if (svc.iconType) item.iconType = svc.iconType;
     var q = item.qty || 1;
     var itemTotal = (item.unitPrice || item.price) * q;
     var isRenewal = !!item.renewal;
