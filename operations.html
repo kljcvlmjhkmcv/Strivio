@@ -372,7 +372,7 @@
               <h2 class="font-black text-lg">الاشتراكات القريبة من الانتهاء</h2>
               <p class="muted text-xs mt-1">قائمة جاهزة للتواصل مع العملاء قبل انتهاء اشتراكاتهم.</p>
             </div>
-            <span class="badge b-orange">المتبقي 7 أيام أو أقل</span>
+            <span class="badge b-orange">المتبقي أقل من 7 أيام</span>
           </div>
           <div id="expiring-list" class="table-wrap"></div>
         </div>
@@ -1216,7 +1216,7 @@
           }
           if (!summaryEnd) return;
           var days = Math.ceil((new Date(summaryEnd).getTime() - now) / 86400000);
-          if (days < 0 || days > maxDays) return;
+          if (days < 0 || days >= maxDays) return;
           var order = orderMap.get(f.order_id) || {}, customer = order.customer_info || {}, tone = days < 0 ? "bad" : days <= 3 ? "b-red" : days <= 7 ? "b-orange" : "b-yellow";
           rows.push({ f: f, order: order, customer: customer, days: days, end: summaryEnd, tone: tone });
         });
