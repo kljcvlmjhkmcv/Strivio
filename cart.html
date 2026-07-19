@@ -1131,6 +1131,13 @@ cart = JSON.parse(localStorage.getItem('strivio_cart') || '[]');
 applyLang(L);
 prefillCustomer();
 enableAdminTestPayment();
+(async function refreshCartServices(){
+  if(typeof loadServicesFromDB !== 'function') return;
+  var services = await loadServicesFromDB();
+  if(!Array.isArray(services) || !services.length) return;
+  window.SERVICES = services;
+  render();
+})();
 
 // Check if returned from cancelled payment
 (async function checkCancelledPayment() {
