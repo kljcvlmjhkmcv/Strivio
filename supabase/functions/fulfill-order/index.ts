@@ -101,7 +101,8 @@ function emailHtml(order: any, deliveries: any[]) {
   const customerName = [customer.first_name || customer.firstname, customer.last_name || customer.lastname].filter(Boolean).join(" ") || "عميل Strivio";
   const blocks = deliveries.map((delivery: any) => {
     const entries = Array.isArray(delivery.entries) ? delivery.entries : [];
-    const isNetflix = String(delivery.product_name || "").toLowerCase().includes("netflix");
+    const productIdentity = [delivery.service_id, delivery.product_name].filter(Boolean).join(" ").toLowerCase();
+    const isNetflix = /netflix|نتفلكس|نتفليكس/i.test(productIdentity);
     const ends = delivery.ends_at ? `<div style="margin-top:10px;color:#9ca3af;font-size:13px">ينتهي الاشتراك: ${esc(new Date(delivery.ends_at).toLocaleDateString("fr-DZ"))}</div>` : "";
     const rules = isNetflix ? `<div dir="rtl" lang="ar" style="margin-top:12px;padding:14px;border-radius:14px;background:#1b1605;border:1px solid #5f4b12;color:#fff3b0;line-height:1.8;text-align:right"><b>شروط الاستخدام:</b><ul style="margin:8px 0 0;padding-right:20px"><li>معلومات الحساب مخصصة لصاحب الطلب فقط ولا يجوز نشرها أو مشاركتها.</li><li>البروفايل أو الشاشة مخصصان لشخص واحد فقط، ويمنع أن يتشارك أكثر من شخص في نفس البروفايل أو الشاشة.</li><li>يمنع تشغيل أو مشاهدة المحتوى من جهازين في الوقت نفسه حتى لو كانا لنفس الشخص.</li><li>يمنع تغيير كلمة سر الحساب أو إعداداته العامة.</li><li>يسمح فقط بتعديل اسم البروفايل ورمز PIN الخاص بك.</li><li>أي مخالفة قد تؤدي إلى إيقاف الاشتراك دون استرداد الأموال.</li></ul></div>` : "";
     const body = entries.length ? entries.map((entry: any, index: number) => {
@@ -333,7 +334,7 @@ serve(async (req) => {
       if (existing?.status === "delivered" && existing.encrypted_delivery) {
         const current = await decrypt(existing.encrypted_delivery);
         if ((current.entries || []).length >= qty) {
-          deliveries.push(current);
+          deliveries.push({ ...current, service_id: svc.id });
           if (existing.email_status !== "sent") shouldEmail = true;
           continue;
         }
@@ -342,7 +343,7 @@ serve(async (req) => {
       } else if (existing?.status === "awaiting_customer" || existing?.status === "awaiting_admin") {
         hasPending = true;
         if (existing.email_status !== "sent") shouldEmail = true;
-        deliveries.push({ mode, product_name: productName, entries: [], message: existing.delivery_summary?.message || deliveryMessage(mode), ends_at: endsAt });
+        deliveries.push({ service_id: svc.id, mode, product_name: productName, entries: [], message: existing.delivery_summary?.message || deliveryMessage(mode), ends_at: endsAt });
         continue;
       }
 
@@ -355,7 +356,7 @@ serve(async (req) => {
       await releaseFulfillmentAllocations(db, fulfillment.id);
 
       try {
-        const delivery: any = { mode, product_name: productName, entries: [], ends_at: endsAt };
+        const delivery: any = { service_id: svc.id, mode, product_name: productName, entries: [], ends_at: endsAt };
         if (mode === "automatic_slot" || mode === "automatic_account") {
           delivery.entries = await allocateSlots(db, svc.id, fulfillment.id, qty, endsAt, mode === "automatic_slot");
         } else if (mode === "automatic_license") {

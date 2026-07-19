@@ -527,8 +527,9 @@
         return '<div class="secret mt-3 border-[#ff9f43]/40" style="background:#ff9f430d"><b style="color:#ffb15c">' + (lang === "fr" ? "Règles importantes" : lang === "en" ? "Important rules" : "قواعد استخدام مهمة") + '</b><ul class="mt-2 pr-5 list-disc text-xs leading-7">' + rules.map(function (rule) { return '<li>' + esc(rule) + '</li>'; }).join("") + "</ul></div>";
       }
       function usageTermsHtml(fulfillment) {
-        var product = String(fulfillment?.delivery?.product_name || fulfillment?.service_id || "").toLowerCase();
-        var isNetflix = /netflix/i.test(product);
+        var product = [fulfillment?.service_id, fulfillment?.delivery?.product_name, fulfillment?.delivery_summary?.product_name]
+          .filter(Boolean).join(" ").toLowerCase();
+        var isNetflix = /netflix|نتفلكس|نتفليكس/i.test(product);
         if (!isNetflix) return "";
         var rules = [
           "معلومات الحساب مخصصة لصاحب الطلب فقط ولا يجوز نشرها أو مشاركتها.",
