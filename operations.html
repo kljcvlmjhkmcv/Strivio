@@ -511,7 +511,7 @@
         <div class="flex justify-end gap-2 mt-5"><button type="button" class="btn" onclick="closeInventoryCreator()">إلغاء</button><button class="btn neon" type="submit">حفظ وإرسال أحدث نسخة للشيت</button></div>
       </form>
     </div>
-    <script src="supabase-client.js?v=renewal-cart-0719"></script>
+    <script src="supabase-client.js?v=renewal-owner-0719"></script>
     <script>
       var state = {
           services: [],
@@ -713,7 +713,11 @@
           }
           state.services = value(0, []);
           state.configs = value(1, []);
-          state.orders = value(2, []);
+          // Keep renewal invoices out of the purchase register. Renewals update
+          // the original order subscriptions and remain auditable in the DB.
+          state.orders = value(2, []).filter(function (order) {
+            return String(order.customer_info?.order_kind || "").toLowerCase() !== "renewal";
+          });
           state.fulfillments = value(3, []);
           state.problems = value(4, []);
           state.allocations = value(5, []);

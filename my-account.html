@@ -463,7 +463,7 @@
         </section>
       </div>
     </main>
-    <script src="supabase-client.js?v=renewal-cart-0719"></script>
+    <script src="supabase-client.js?v=renewal-owner-0719"></script>
     <script>
       let user,
         profile = {},
@@ -1206,7 +1206,11 @@
             .order("created_at", { ascending: false }),
         ]);
         profile = p.data || {};
-        orders = o.data || [];
+        // Renewal payment orders are technical invoices. The customer keeps
+        // one original order card whose subscription dates are extended.
+        orders = (o.data || []).filter(function (order) {
+          return String(order.customer_info?.order_kind || "").toLowerCase() !== "renewal";
+        });
         fulfillments = await loadFulfillmentSummaries(orders.map(function (order) { return order.id; }));
         let name =
           (

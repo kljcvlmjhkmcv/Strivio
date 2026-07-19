@@ -145,6 +145,7 @@ async function saveOrderToDB(orderData) {
     // validate ownership and extend the exact selected subscriptions after payment.
     const items = orderData.items || [];
     const renewalItems = items.filter(function(item){ return item && item.renewal && Array.isArray(item.renewal.target_ids); });
+    const isRenewalCheckout = renewalItems.length === 1;
     let rpcData, rpcError;
     if (renewalItems.length) {
       if (items.length !== 1 || renewalItems.length !== 1) {
@@ -183,14 +184,17 @@ async function saveOrderToDB(orderData) {
       };
     }
 
-    // Link the order to the authenticated customer before payment starts.
-    const ownerResult = await supabaseClient.rpc('attach_order_owner_and_profile', {
-      p_order_id: rpcData.order_id,
-      p_customer_info: orderData.customer_info || {}
-    });
-    if (ownerResult.error) {
-      console.error('Could not attach customer to order', ownerResult.error);
-      return null;
+    // A renewal RPC already validates and attaches the authenticated owner.
+    // Re-attaching it here can reject an otherwise valid renewal order.
+    if (!isRenewalCheckout) {
+      const ownerResult = await supabaseClient.rpc('attach_order_owner_and_profile', {
+        p_order_id: rpcData.order_id,
+        p_customer_info: orderData.customer_info || {}
+      });
+      if (ownerResult.error) {
+        console.error('Could not attach customer to order', ownerResult.error);
+        return { success: false, error_message: ownerResult.error.message || 'Could not link the order to your account' };
+      }
     }
 
     // إرسال إشعار تليجرام الشامل للطلب الجديد وحفظ معرّف الرسالة لتعديلها لاحقاً
@@ -275,7 +279,8 @@ async function saveOrderToDB(orderData) {
     return rpcData;
 
   } catch (e) {
-    return null;
+    console.error('saveOrderToDB failed', e);
+    return { success: false, error_message: e && e.message ? e.message : String(e || 'Order creation failed') };
   }
 }
 
