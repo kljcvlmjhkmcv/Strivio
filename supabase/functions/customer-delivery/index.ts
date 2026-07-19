@@ -127,7 +127,7 @@ serve(async req=>{
           show_types:!!serviceRow.show_types,
           fulfillment_mode:serviceRow.fulfillment_mode||row.mode||'manual_delivery',
           source_type_idx:Number(sourceItem.typeIdx||0),
-          icon_type:serviceRow.icon_type||sourceItem.iconType||'text',
+          icon_type:(serviceRow.icon_type==='img'&&(serviceRow.icon_src||sourceItem.iconSrc))?'img':(serviceRow.icon_type||sourceItem.iconType||'text'),
           icon_src:serviceRow.icon_src||sourceItem.iconSrc||String(serviceRow.n?.en||row.service_id||'?').slice(0,1),
           bg:serviceRow.bg||sourceItem.bg||'#171717'
         }

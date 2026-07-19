@@ -869,7 +869,7 @@
             durLabel: durationData.ar,
             durLabelData: durationData,
             typeIdx: typeIdx,
-            iconType: options.icon_type || "text",
+            iconType: options.icon_type === "img" && options.icon_src ? "img" : "text",
             iconSrc: options.icon_src || String(serviceNames.en || serviceNames.fr || serviceNames.ar || fulfillment.service_id || "?").slice(0, 1),
             bg: options.bg || "#171717",
             qty: 1,
