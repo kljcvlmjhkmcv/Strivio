@@ -529,16 +529,15 @@
       function usageTermsHtml(fulfillment) {
         var product = String(fulfillment?.delivery?.product_name || fulfillment?.service_id || "").toLowerCase();
         var isNetflix = /netflix/i.test(product);
+        if (!isNetflix) return "";
         var rules = [
           "معلومات الحساب مخصصة لصاحب الطلب فقط ولا يجوز نشرها أو مشاركتها.",
+          "البروفايل أو الشاشة مخصصان لشخص واحد فقط، ويمنع أن يتشارك أكثر من شخص في نفس البروفايل أو الشاشة.",
+          "يمنع تشغيل أو مشاهدة المحتوى من جهازين في الوقت نفسه حتى لو كانا لنفس الشخص.",
           "يمنع تغيير كلمة سر الحساب أو إعداداته العامة.",
           "يسمح فقط بتعديل اسم البروفايل ورمز PIN الخاص بك.",
           "أي مخالفة قد تؤدي إلى إيقاف الاشتراك دون استرداد الأموال.",
         ];
-        if (isNetflix) rules.splice(1, 0,
-          "البروفايل أو الشاشة مخصصان لشخص واحد فقط، ويمنع أن يتشارك أكثر من شخص في نفس البروفايل أو الشاشة.",
-          "يمنع تشغيل أو مشاهدة المحتوى من جهازين في الوقت نفسه حتى لو كانا لنفس الشخص."
-        );
         return '<div dir="rtl" lang="ar" class="secret mt-3 border-[#ff9f43]/40 text-right" style="background:#ff9f430d"><b style="color:#ffb15c">شروط الاستخدام</b><ul class="mt-2 pr-5 list-disc text-xs leading-7">' + rules.map(function (rule) { return '<li>' + esc(rule) + '</li>'; }).join("") + "</ul></div>";
       }
       const esc = (v) =>
