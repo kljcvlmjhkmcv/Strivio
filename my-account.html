@@ -496,6 +496,7 @@
         lang = localStorage.getItem("strivio_lang") || "ar",
         detailsPollTimer = null,
         detailsPollSignature = "",
+        detailsPollGeneration = 0,
         accountStatePollTimer = null,
         accountStatePollBusy = false,
         accountRealtimeChannel = null,
@@ -980,15 +981,31 @@
         if (detailsPollTimer) clearInterval(detailsPollTimer);
         detailsPollTimer = null;
         detailsPollSignature = "";
+        detailsPollGeneration += 1;
         document.getElementById("details")?.remove();
       }
       function startDetailsPolling(id) {
         if (detailsPollTimer) clearInterval(detailsPollTimer);
+        var generation = ++detailsPollGeneration;
         detailsPollTimer = setInterval(async function () {
-          if (document.hidden || !document.getElementById("details")) return;
+          var current = document.getElementById("details");
+          if (
+            document.hidden ||
+            generation !== detailsPollGeneration ||
+            !current ||
+            current.dataset.orderId !== id
+          )
+            return;
           try {
             var latest = await delivery(id),
               signature = deliveryStateSignature(latest);
+            current = document.getElementById("details");
+            if (
+              generation !== detailsPollGeneration ||
+              !current ||
+              current.dataset.orderId !== id
+            )
+              return;
             if (signature !== detailsPollSignature)
               await showDetails(id, true, latest);
           } catch (_) {}
@@ -1028,8 +1045,16 @@
             reportButton = report || deliveryCompleted
               ? '<button class="ghost" onclick="openReport(\'' + esc(o.id) + "', null, '" + esc(reportFulfillment?.id || "") + '\')">' + (report ? copy.followReport : copy.reportSupport) + '</button>'
               : '';
+          if (fromPoll) {
+            var activeDetails = document.getElementById("details");
+            if (!activeDetails || activeDetails.dataset.orderId !== id) return;
+          }
           detailsPollSignature = deliveryStateSignature(d);
           await mergeLatestOrderState(id, d);
+          if (fromPoll) {
+            var latestDetails = document.getElementById("details");
+            if (!latestDetails || latestDetails.dataset.orderId !== id) return;
+          }
           old?.remove();
           let wrap = document.createElement("div");
           wrap.id = "details";
@@ -1171,7 +1196,7 @@
           wrap.className =
             "fixed inset-0 z-[70] bg-black/85 backdrop-blur-sm p-4 flex items-center justify-center";
           wrap.innerHTML =
-            '<form id="renewalForm" class="panel rounded-[26px] max-w-xl w-full max-h-[92vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">SUBSCRIPTION RENEWAL</div><h2 class="display text-2xl font-black mt-1">' + esc(actionText().renewalTitle) + '</h2><p class="muted text-xs mt-2">' + esc(actionText().renewalDescription) + '</p></div><button type="button" class="ghost" onclick="document.getElementById(\'renewal\').remove()">×</button></div><div class="space-y-2 mt-5">' +
+            '<form id="renewalForm" class="panel rounded-[26px] max-w-xl w-full max-h-[92vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">SUBSCRIPTION RENEWAL</div><h2 class="display text-2xl font-black mt-1">' + esc(actionText().renewalTitle) + '</h2><p class="muted text-xs mt-2">' + esc(actionText().renewalDescription) + '</p></div><button type="button" class="ghost" onclick="document.getElementById(\'renewal\')?.remove()">×</button></div><div class="space-y-2 mt-5">' +
             targets
               .map(function (target) {
                 return (
@@ -1471,7 +1496,7 @@
           (p ? reportCopy.followTitle : reportCopy.reportTitle) +
           '</h2><p class="muted text-xs mt-2">' + reportCopy.reportOrder + ' #' +
           esc(String(orderId).slice(0, 8)) +
-          '</p></div><button type="button" class="ghost" onclick="document.getElementById(\'report\').remove()">×</button></div>' +
+          '</p></div><button type="button" class="ghost" onclick="document.getElementById(\'report\')?.remove()">×</button></div>' +
           (p
             ? '<div class="flex items-center justify-between gap-3 mt-4"><b class="text-sm">' + reportCopy.reportThread + '</b>' +
               badge(p.status) +
@@ -1673,6 +1698,7 @@
             renderAll();
             if (window.accountPortalApply) window.accountPortalApply();
           }
+          await loadProblems();
         } finally {
           accountStatePollBusy = false;
         }
@@ -2366,6 +2392,8 @@
           setTimeout(function () { button.classList.remove("is-pressed"); }, 220);
         }, true);
         async function loadRenewals() {
+          var box = document.getElementById("expiryAlert");
+          if (!box) return;
           var tries = 0;
           while (
             (typeof orders === "undefined" || !orders.length) &&
@@ -2402,8 +2430,7 @@
               }),
           );
           window.__renewals = soon;
-          var t = x(),
-            box = document.getElementById("expiryAlert");
+          var t = x();
           if (box && soon.length) {
             box.innerHTML =
               '<div class="panel rounded-2xl p-4 border-yellow-400/25"><b class="text-yellow-300">' +
@@ -2448,8 +2475,8 @@
           var baseDetails = window.showDetails,
             baseReport = window.openReport;
           if (typeof baseDetails === "function")
-            window.showDetails = async function (id) {
-              await baseDetails(id);
+            window.showDetails = async function () {
+              await baseDetails.apply(this, arguments);
               translateDynamic();
             };
           if (typeof baseReport === "function")
