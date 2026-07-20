@@ -566,6 +566,11 @@
           processing: "قيد المراجعة",
           reviewing: "قيد المراجعة",
           reported: "مُبلّغ عنه",
+          partially_delivered: "تم التسليم جزئياً",
+          "partially delivered": "تم التسليم جزئياً",
+          awaiting_customer: "بانتظار بيانات العميل",
+          awaiting_admin: "قيد التفعيل",
+          out_of_stock: "بانتظار توفر المخزون",
         },
         fr: {
           paid: "Payée",
@@ -579,6 +584,11 @@
           processing: "En cours",
           reviewing: "En cours",
           reported: "Signalée",
+          partially_delivered: "Livraison partielle",
+          "partially delivered": "Livraison partielle",
+          awaiting_customer: "Informations client requises",
+          awaiting_admin: "Activation en cours",
+          out_of_stock: "En attente de stock",
         },
         en: {
           paid: "Paid",
@@ -592,6 +602,11 @@
           processing: "In review",
           reviewing: "In review",
           reported: "Reported",
+          partially_delivered: "Partially delivered",
+          "partially delivered": "Partially delivered",
+          awaiting_customer: "Customer details required",
+          awaiting_admin: "Activation in progress",
+          out_of_stock: "Awaiting stock",
         },
       };
       function L(v) {
@@ -705,9 +720,9 @@
       }
       function portalText() {
         return ({
-          ar: { details:"تفاصيل الطلب", amount:"المبلغ", products:"المنتجات", preparing:"التسليم قيد التحضير.", email:"البريد", password:"كلمة السر", profile:"البروفايل", code:"الكود", expires:"ينتهي الاشتراك:", admin:"تحديث الإدارة", report:"الإبلاغ أو متابعة البلاغ", whatsapp:"WhatsApp لهذا الطلب", activationTitle:"بيانات الحساب المطلوب تفعيله", activationHelp:"أدخل بريد وكلمة سر حسابك، ويمكنك العودة وتعديلها ما دام التفعيل لم يكتمل.", activationEmail:"بريد الحساب", activationPassword:"كلمة سر الحساب", note:"ملاحظات اختيارية", saveActivation:"حفظ وإرسال البيانات", saving:"جاري الحفظ…", saved:"تم حفظ بيانات الحساب وإرسالها لفريق Strivio.", awaitingCustomer:"بانتظار إدخال بيانات الحساب", awaitingAdmin:"تم استلام البيانات والتفعيل قيد المعالجة", delivered:"تم التفعيل والتسليم" },
-          fr: { details:"Détails de la commande", amount:"Montant", products:"Produits", preparing:"Livraison en préparation.", email:"E-mail", password:"Mot de passe", profile:"Profil", code:"Code", expires:"Expire le :", admin:"Mise à jour de l’équipe", report:"Signaler ou suivre", whatsapp:"WhatsApp pour cette commande", activationTitle:"Compte à activer", activationHelp:"Saisissez l’e-mail et le mot de passe du compte. Vous pourrez les modifier tant que l’activation n’est pas terminée.", activationEmail:"E-mail du compte", activationPassword:"Mot de passe du compte", note:"Note facultative", saveActivation:"Enregistrer et envoyer", saving:"Enregistrement…", saved:"Les informations du compte ont été envoyées à l’équipe Strivio.", awaitingCustomer:"Informations du compte requises", awaitingAdmin:"Informations reçues — activation en cours", delivered:"Activation terminée" },
-          en: { details:"Order details", amount:"Amount", products:"Products", preparing:"Delivery is being prepared.", email:"Email", password:"Password", profile:"Profile", code:"Code", expires:"Expires:", admin:"Team update", report:"Report or follow up", whatsapp:"WhatsApp for this order", activationTitle:"Account to activate", activationHelp:"Enter the account email and password. You can edit them until activation is completed.", activationEmail:"Account email", activationPassword:"Account password", note:"Optional note", saveActivation:"Save and send details", saving:"Saving…", saved:"Your account details were sent to the Strivio team.", awaitingCustomer:"Account details required", awaitingAdmin:"Details received — activation in progress", delivered:"Activation completed" }
+          ar: { details:"تفاصيل الطلب", viewDetails:"عرض التفاصيل", amount:"المبلغ", products:"المنتجات", preparing:"التسليم قيد التحضير.", email:"البريد", password:"كلمة السر", profile:"البروفايل", code:"الكود", expires:"ينتهي الاشتراك:", admin:"تحديث الإدارة", report:"الإبلاغ أو متابعة البلاغ", reportSupport:"بلاغ / دعم", followReport:"متابعة البلاغ", subscription:"الاشتراك", whatsapp:"WhatsApp لهذا الطلب", activationTitle:"بيانات الحساب المطلوب تفعيله", activationHelp:"أدخل بريد وكلمة سر حسابك، ويمكنك العودة وتعديلها ما دام التفعيل لم يكتمل.", activationEmail:"بريد الحساب", activationPassword:"كلمة سر الحساب", note:"ملاحظات اختيارية", saveActivation:"حفظ وإرسال البيانات", saving:"جاري الحفظ…", saved:"تم حفظ بيانات الحساب وإرسالها لفريق Strivio.", awaitingCustomer:"بانتظار إدخال بيانات الحساب", awaitingAdmin:"تم استلام البيانات والتفعيل قيد المعالجة", delivered:"تم التفعيل والتسليم" },
+          fr: { details:"Détails de la commande", viewDetails:"Voir les détails", amount:"Montant", products:"Produits", preparing:"Livraison en préparation.", email:"E-mail", password:"Mot de passe", profile:"Profil", code:"Code", expires:"Expire le :", admin:"Mise à jour de l’équipe", report:"Signaler ou suivre", reportSupport:"Support / signalement", followReport:"Suivre le signalement", subscription:"l’abonnement", whatsapp:"WhatsApp pour cette commande", activationTitle:"Compte à activer", activationHelp:"Saisissez l’e-mail et le mot de passe du compte. Vous pourrez les modifier tant que l’activation n’est pas terminée.", activationEmail:"E-mail du compte", activationPassword:"Mot de passe du compte", note:"Note facultative", saveActivation:"Enregistrer et envoyer", saving:"Enregistrement…", saved:"Les informations du compte ont été envoyées à l’équipe Strivio.", awaitingCustomer:"Informations du compte requises", awaitingAdmin:"Informations reçues — activation en cours", delivered:"Activation terminée" },
+          en: { details:"Order details", viewDetails:"View details", amount:"Amount", products:"Products", preparing:"Delivery is being prepared.", email:"Email", password:"Password", profile:"Profile", code:"Code", expires:"Expires:", admin:"Team update", report:"Report or follow up", reportSupport:"Report / support", followReport:"Follow report", subscription:"subscription", whatsapp:"WhatsApp for this order", activationTitle:"Account to activate", activationHelp:"Enter the account email and password. You can edit them until activation is completed.", activationEmail:"Account email", activationPassword:"Account password", note:"Optional note", saveActivation:"Save and send details", saving:"Saving…", saved:"Your account details were sent to the Strivio team.", awaitingCustomer:"Account details required", awaitingAdmin:"Details received — activation in progress", delivered:"Activation completed" }
         })[lang] || {};
       }
       async function saveActivationInput(event, fulfillmentId, orderId) {
@@ -805,7 +820,7 @@
             }
             return (
               '<div class="mt-4"><div class="flex justify-between gap-3"><b class="text-[#39ff14]">' +
-              '<span data-delivery-product>' + esc(productLabel(f.delivery?.product_name || f.service_id || "المنتج")) + '</span>' +
+              '<span data-delivery-product>' + esc(productLabel(f.delivery?.product_name || f.delivery_summary?.product_name || f.renewal_options?.service_name?.[lang] || f.renewal_options?.service_name?.en || f.service_id || "المنتج")) + '</span>' +
               "</b>" +
               badge(f.status) +
               "</div>" +
@@ -997,6 +1012,7 @@
         }
       }
       function orderCard(o, small = false) {
+        const copy = portalText();
         const report = activeProblem(o.id);
         const statusBadges = badge(o.status || "pending") +
           (o.fulfillment_status ? badge(o.fulfillment_status) : "") +
@@ -1014,7 +1030,7 @@
           date(o.created_at) +
           " · #" +
           esc(String(o.id).slice(0, 8)) +
-          (expiry ? ' · الانتهاء: <span class="font-black" style="' + expiryStyle(expiry) + '">' + date(expiry) + '</span>' : '') +
+          (expiry ? ' · '+copy.expires+' <span class="font-black" style="' + expiryStyle(expiry) + '">' + date(expiry) + '</span>' : '') +
           '</p></div><div class="text-left"><b class="display text-xl text-[#39ff14]">' +
           money(o.total_payable) +
           "</b></div></div>" +
@@ -1022,16 +1038,16 @@
             ? ""
             : '<div class="flex flex-wrap gap-2 mt-4"><button class="btn" onclick="showDetails(\'' +
               esc(o.id) +
-              '\')">عرض التفاصيل</button>' +
+              '\')">'+copy.viewDetails+'</button>' +
               (['paid','completed'].includes(String(o.status || '').toLowerCase())
-                ? '<button class="btn" data-renew-order="1" data-renew-end="' + esc(expiry || "") + '" onclick="openRenewalForOrder(\'' + esc(o.id) + '\')">' + renewalActionLabel(expiry) + ' الاشتراك</button>'
+                ? '<button class="btn" data-renew-order="1" data-renew-end="' + esc(expiry || "") + '" onclick="openRenewalForOrder(\'' + esc(o.id) + '\')">' + renewalActionLabel(expiry) + ' '+copy.subscription+'</button>'
                 : '') +
               '<button class="ghost" onclick="openReport(\'' +
               esc(o.id) +
               "')\" data-report-order=\"" +
               esc(o.id) +
               '\">' +
-              (report ? "متابعة البلاغ" : "بلاغ / دعم") +
+              (report ? copy.followReport : copy.reportSupport) +
               "</button></div>") +
           "</article>"
         );
@@ -1859,7 +1875,7 @@
         window.renewSubscription = renewSubscription;
         function applyRenewalButtons() {
           document.querySelectorAll("[data-renew-order]").forEach(function (b) {
-            b.textContent = renewalActionLabel(b.dataset.renewEnd || "");
+            b.textContent = renewalActionLabel(b.dataset.renewEnd || "") + " " + (portalText().subscription || "");
           });
         }
         function setupLanguageMenu() {

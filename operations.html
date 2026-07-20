@@ -736,6 +736,8 @@
               .order("created_at", { ascending: false })
               .limit(1000),
           ]);
+          var failedSources=results.map(function(result,index){return result.status==='rejected'||result.value?.error?index:null}).filter(function(index){return index!==null});
+          if(failedSources.length)toast('تم تحميل البيانات المتاحة، وتعذر تحميل '+failedSources.length+' مصدر. اضغط تحديث البيانات للمحاولة مجدداً.',true);
           function value(i, fallback) {
             var x = results[i];
             return x.status === "fulfilled" && !x.value.error
