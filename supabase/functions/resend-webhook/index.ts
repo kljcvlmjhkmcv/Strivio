@@ -202,7 +202,9 @@ serve(async (req) => {
       if (eventResult.error) throw eventResult.error;
       const trackedEventType = String(eventResult.data?.event_type || "").toLowerCase();
       if (eventResult.data?.order_id &&
-          (trackedEventType.startsWith("order.") || trackedEventType === "fulfillment.delivered")) {
+          (trackedEventType.startsWith("order.") ||
+            trackedEventType === "fulfillment.delivered" ||
+            trackedEventType === "activation.completed")) {
         // Read the authoritative post-RPC status. Webhooks may arrive out of
         // order (for example delivered after complained), and the SQL state
         // machine intentionally preserves the stronger terminal state.

@@ -279,7 +279,11 @@ async function markFailed(db: any, delivery: any, errorMessage: string, permanen
 async function updateOrderEmailState(db: any, event: any, status: string, errorMessage: string | null = null) {
   if (!event?.order_id) return;
   const eventType = String(event.event_type || "").toLowerCase();
-  if (!eventType.startsWith("order.") && eventType !== "fulfillment.delivered") return;
+  if (
+    !eventType.startsWith("order.") &&
+    eventType !== "fulfillment.delivered" &&
+    eventType !== "activation.completed"
+  ) return;
   let query = db.from("fulfillments").update({
     email_status: status,
     email_error: errorMessage ? String(errorMessage).slice(0, 500) : null,
