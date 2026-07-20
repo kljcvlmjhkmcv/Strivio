@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 const dec=new TextDecoder();function unb64(v:string){return Uint8Array.from(atob(v),c=>c.charCodeAt(0));}
 const cors={
-  'Access-Control-Allow-Origin':'*',
+  'Access-Control-Allow-Origin':'https://www.striviodz.store',
+  'Vary':'Origin',
   'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type, x-supabase-api-version',
   'Access-Control-Allow-Methods':'POST, OPTIONS',
   'Content-Type':'application/json'

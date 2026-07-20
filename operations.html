@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#080808" />
     <meta name="robots" content="noindex,nofollow" />
     <title>Strivio — مركز العمليات</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="assets/tailwind.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
@@ -698,14 +698,14 @@
             window.supabaseClient.from("service_operations_config").select("*"),
             window.supabaseClient
               .from("orders")
-              .select("*")
+              .select("id,created_at,updated_at,status,total_payable,payment_method,customer_info,items,fulfillment_status,paid_at")
               .order("created_at", { ascending: false })
-              .limit(1500),
+              .limit(500),
             window.supabaseClient
               .from("fulfillments")
-              .select("*")
+              .select("id,order_id,user_id,service_id,mode,status,quantity,order_item_index,customer_input,delivery_summary,delivered_at,email_status,email_error,updated_at,created_at")
               .order("updated_at", { ascending: false })
-              .limit(1500),
+              .limit(750),
             window.supabaseClient
               .from("problem_reports")
               .select("*")
@@ -717,7 +717,7 @@
                 "id,account_id,slot_id,fulfillment_id,starts_at,ends_at,status,renewal_count,created_at",
               )
               .order("created_at", { ascending: false })
-              .limit(3000),
+              .limit(1500),
             window.supabaseClient
               .from("problem_messages")
               .select("*")

@@ -1,12 +1,22 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const cors={
-  'Access-Control-Allow-Origin':'*',
+const allowedOrigins=new Set([
+  'https://www.striviodz.store',
+  'https://striviodz.store',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+]);
+function corsHeaders(req:Request){
+  const origin=req.headers.get('origin')||'';
+  return {
+  'Access-Control-Allow-Origin':allowedOrigins.has(origin)?origin:'https://www.striviodz.store',
+  'Vary':'Origin',
   'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type, x-supabase-api-version',
   'Access-Control-Allow-Methods':'POST, OPTIONS',
   'Content-Type':'application/json'
-};
+  };
+}
 const enc=new TextEncoder(),dec=new TextDecoder();
 function unb64(v:string){return Uint8Array.from(atob(v),c=>c.charCodeAt(0));}
 async function decrypt(value?:string|null){
@@ -37,6 +47,7 @@ const RENEWAL_DURATION_LABELS = {
 };
 
 serve(async req=>{
+  const cors=corsHeaders(req);
   if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
   try{
     const url=Deno.env.get('SUPABASE_URL')!,service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -64,6 +75,42 @@ serve(async req=>{
       await db.from('orders').update({user_id:user.id,updated_at:new Date().toISOString()}).eq('id',order.id).is('user_id',null);
       await db.from('fulfillments').update({user_id:user.id,updated_at:new Date().toISOString()}).eq('order_id',order.id).is('user_id',null);
       order.user_id=user.id;
+    }
+    if(body?.action==='save_customer_input'){
+      const fulfillmentId=String(body?.fulfillment_id||'').trim();
+      const accountEmail=String(body?.account_email||'').trim().toLowerCase();
+      const accountPassword=String(body?.account_password||'');
+      const note=String(body?.note||'').trim();
+      if(!fulfillmentId)return new Response(JSON.stringify({success:false,error:'Fulfillment is required'}),{status:400,headers:cors});
+      if(!/^\S+@\S+\.\S+$/.test(accountEmail)||accountEmail.length>254)return new Response(JSON.stringify({success:false,error:'Enter a valid account email'}),{status:400,headers:cors});
+      if(accountPassword.length<2||accountPassword.length>500)return new Response(JSON.stringify({success:false,error:'Enter a valid account password'}),{status:400,headers:cors});
+      if(note.length>2000)return new Response(JSON.stringify({success:false,error:'The note is too long'}),{status:400,headers:cors});
+      const {data:fulfillment,error:fulfillmentError}=await db.from('fulfillments')
+        .select('id,order_id,service_id,mode,status,customer_input')
+        .eq('id',fulfillmentId).eq('order_id',order.id).maybeSingle();
+      if(fulfillmentError||!fulfillment)return new Response(JSON.stringify({success:false,error:'Activation request not found'}),{status:404,headers:cors});
+      if(String(fulfillment.mode)!=='manual_activation')return new Response(JSON.stringify({success:false,error:'This product does not accept customer account details'}),{status:400,headers:cors});
+      if(['delivered','completed','cancelled','failed'].includes(String(fulfillment.status||'').toLowerCase()))return new Response(JSON.stringify({success:false,error:'This activation can no longer be edited'}),{status:409,headers:cors});
+      const customerInput={account_email:accountEmail,account_password:accountPassword,note,submitted_at:new Date().toISOString()};
+      const {error:updateError}=await db.from('fulfillments').update({
+        customer_input:customerInput,
+        status:'awaiting_admin',
+        delivery_summary:{message:'Customer account information received. Activation is awaiting the Strivio team.'},
+        updated_at:new Date().toISOString()
+      }).eq('id',fulfillment.id).eq('order_id',order.id);
+      if(updateError)throw updateError;
+      await db.from('integration_outbox').insert({
+        event_type:'activation_updated',
+        aggregate_id:fulfillment.id,
+        payload:{order_id:order.id,fulfillment_id:fulfillment.id,service_id:fulfillment.service_id,status:'awaiting_admin',source:'customer_portal'}
+      });
+      const syncPromise=fetch(`${url}/functions/v1/sync-google-sheet`,{
+        method:'POST',headers:{Authorization:`Bearer ${service}`,'Content-Type':'application/json'},
+        body:JSON.stringify({order_id:order.id,source:'customer_activation_input'})
+      }).catch(()=>null);
+      const edgeRuntime=(globalThis as any).EdgeRuntime;
+      if(edgeRuntime?.waitUntil)edgeRuntime.waitUntil(syncPromise);
+      return new Response(JSON.stringify({success:true,fulfillment_id:fulfillment.id,status:'awaiting_admin',customer_input:customerInput}),{headers:cors});
     }
     await ensureFulfilled(url,service,order);
     const {data:rows}=await db.from('fulfillments').select('id,service_id,mode,status,quantity,order_item_index,customer_input,delivery_summary,encrypted_delivery,delivered_at').eq('order_id',order.id).order('order_item_index');

@@ -6,10 +6,9 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Strivio — لوحة التحكم الذكية والباك اند</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="assets/tailwind.css"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800;900&display=swap" rel="stylesheet"/>
-<script>tailwind.config={theme:{extend:{colors:{brand:{black:'#0D0D0D',neon:'#39ff14',card:'#141414',border:'#222222',glass:'rgba(20, 20, 20, 0.7)'}},fontFamily:{sans:['Inter','sans-serif'],display:['Space Grotesk','sans-serif']}}}}</script>
 <style>
   :root { --neon: #39ff14; }
   body { background: #0D0D0D; color: #E0E0E0; font-family: 'Inter', sans-serif; min-height: 100vh; }
@@ -458,22 +457,29 @@
           <input type="text" id="set-facebook" class="input-box text-xs text-left font-mono text-gray-300" placeholder="https://www.facebook.com/..."/>
         </div>
       </div>
+      <div class="bg-[#141414] p-5 rounded-2xl border border-white/10">
+        <div class="text-sm font-bold text-white mb-3">💱 أسعار الصرف في السلة</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label class="text-xs text-gray-400">1 EUR بالدينار<input type="number" min="1" step="0.01" id="set-wise-rate" class="input-box mt-1 text-center font-mono"/></label>
+          <label class="text-xs text-gray-400">1 USDT بالدينار<input type="number" min="1" step="0.01" id="set-usdt-rate" class="input-box mt-1 text-center font-mono"/></label>
+        </div>
+        <p class="text-[11px] text-gray-500 mt-3">تظهر هذه القيم تلقائياً في السلة وحساب المبلغ المقابل دون تعديل ملفات الموقع.</p>
+      </div>
       <div class="bg-[#141414] p-5 rounded-2xl border border-brand-neon/30 space-y-4">
         <div class="flex items-center justify-between">
           <span class="text-sm font-bold text-brand-neon flex items-center gap-2">🤖 إعدادات التنبيه الفوري على Telegram Bot</span>
           <span class="text-[10px] text-gray-400">تلقي إشعارات الطلبات على موبايلك</span>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-bold text-gray-400 mb-1">Telegram Bot Token (من @BotFather):</label>
-            <input type="text" id="set-tg-token" class="input-box text-xs text-left font-mono text-yellow-300" placeholder="123456789:AAF..."/>
+          <div class="rounded-xl border border-white/10 bg-black/30 p-3 text-xs text-gray-400 leading-6">
+            🔒 توكن Telegram محفوظ كـ Supabase Secret ولا يتم عرضه أو تعديله من المتصفح.
           </div>
           <div>
             <label class="block text-xs font-bold text-gray-400 mb-1">Telegram Chat ID (معرف حسابك / الجروب):</label>
             <input type="text" id="set-tg-chatid" class="input-box text-xs text-center font-mono text-yellow-300" placeholder="987654321"/>
           </div>
         </div>
-        <p class="text-[11px] text-gray-500 leading-relaxed">💡 بعد إدخال التوكن ومعرف الشات وحفظ الإعدادات، سيقوم المتجر تلقائياً بإرسال إشعار فوري لموبايلك عند استلام أي طلب جديد مع تفاصيل الفاتورة ورقم الهاتف.</p>
+        <p class="text-[11px] text-gray-500 leading-relaxed">💡 يمكنك تعديل Chat ID هنا. أمّا التوكن فيُدار فقط من Supabase Secrets لحمايته من الظهور في المتصفح.</p>
       </div>
       <button onclick="saveSettingsAdmin()" class="save-btn w-full py-3.5 text-sm shadow-[0_0_20px_rgba(57,255,20,0.3)]">💾 حفظ جميع إعدادات المتجر في Supabase</button>
     </div>
@@ -1412,7 +1418,8 @@ async function loadSettingsAdmin() {
     document.getElementById('set-phone').value = c.phone || '';
     document.getElementById('set-instagram').value = c.instagram || '';
     document.getElementById('set-facebook').value = c.facebook || '';
-    document.getElementById('set-tg-token').value = c.telegram_bot_token || '';
+    document.getElementById('set-wise-rate').value = Number(c.wise_dzd_rate || 260);
+    document.getElementById('set-usdt-rate').value = Number(c.usdt_dzd_rate || 250);
     document.getElementById('set-tg-chatid').value = c.telegram_chat_id || '';
   }
 }
@@ -1426,7 +1433,8 @@ async function saveSettingsAdmin() {
   c.phone = document.getElementById('set-phone').value.trim();
   c.instagram = document.getElementById('set-instagram').value.trim();
   c.facebook = document.getElementById('set-facebook').value.trim();
-  c.telegram_bot_token = document.getElementById('set-tg-token').value.trim();
+  c.wise_dzd_rate = Math.max(1, Number(document.getElementById('set-wise-rate').value || 260));
+  c.usdt_dzd_rate = Math.max(1, Number(document.getElementById('set-usdt-rate').value || 250));
   c.telegram_chat_id = document.getElementById('set-tg-chatid').value.trim();
 
   var { error } = await window.supabaseClient.from('settings').update({ config: c }).eq('id', 1);

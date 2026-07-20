@@ -55,9 +55,9 @@ var FAQS = [
       en: 'What payment methods do you accept?'
     },
     a: {
-      fr: 'Nous acceptons BariDi Mob, CCP, Wise (EUR) au taux de 1€ = 260 DZD, USDT (Crypto) au taux de 1$ = 250 DZD, ainsi que le paiement par Flexy (+19%).',
+      fr: 'Nous acceptons BariDi Mob, CCP, Wise (EUR), USDT (Crypto) et Flexy (+19%). Les taux actuels sont affichés dans le panier.',
       ar: 'نوفر دفع عبر بريدي موب (BariDi Mob)، التحويل البريدي (CCP)، تحويل Wise باليورو (1€ = 260 دج)، تحويل USDT الكريبتو (1$ = 250 دج)، وبطاقات فليكسي Flexy (+19%).',
-      en: 'We accept BariDi Mob, CCP, Wise (EUR rate: 1€ = 260 DZD), USDT Crypto (rate: 1$ = 250 DZD), and Flexy mobile recharge (+19%).'
+      en: 'We accept BariDi Mob, CCP, Wise (EUR), USDT Crypto, and Flexy (+19%). Current rates are shown in the cart.'
     }
   },
   {

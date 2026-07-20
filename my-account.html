@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#080808" />
     <meta name="robots" content="noindex,nofollow" />
     <title>Strivio — My Account</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="assets/tailwind.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
@@ -627,12 +627,15 @@
       }
       function itemNames(o) {
         return (o.items || [])
-          .map(
-            (i) =>
-              esc(i.nameData?.[lang] || i.nameData?.en || i.nameData?.fr || i.name || i.id) +
-              " ×" +
-              (i.qty || 1),
-          )
+          .map(function(i){
+            var name=i.nameData?.[lang]||i.nameData?.en||i.nameData?.fr||i.name||i.id,
+              identity=String(name||'')+' '+String(i.id||''),
+              typeLabel=i.typeLabelData?.[lang]||i.typeLabelData?.en||i.typeLabel||'',
+              match=String(typeLabel).match(/(\d+)\s*(?:screen|screens|écran|ecran|شاشة|شاشات)/i),
+              count=/netflix|نتفلكس|نتفليكس/i.test(identity)?(match?Number(match[1]):Number(i.typeIdx||0)+1)*Number(i.qty||1):Number(i.qty||1),
+              suffix=/netflix|نتفلكس|نتفليكس/i.test(identity)?(lang==='ar'?' شاشة':lang==='fr'?' écran':' screen'+(count===1?'':'s')):'';
+            return esc(name)+' ×'+count+suffix;
+          })
           .join(" • ");
       }
       function showView(v) {
@@ -700,10 +703,40 @@
         const data = await response.json().catch(function () { return null; });
         return response.ok && data?.success ? data.fulfillments || [] : [];
       }
+      function portalText() {
+        return ({
+          ar: { details:"تفاصيل الطلب", amount:"المبلغ", products:"المنتجات", preparing:"التسليم قيد التحضير.", email:"البريد", password:"كلمة السر", profile:"البروفايل", code:"الكود", expires:"ينتهي الاشتراك:", admin:"تحديث الإدارة", report:"الإبلاغ أو متابعة البلاغ", whatsapp:"WhatsApp لهذا الطلب", activationTitle:"بيانات الحساب المطلوب تفعيله", activationHelp:"أدخل بريد وكلمة سر حسابك، ويمكنك العودة وتعديلها ما دام التفعيل لم يكتمل.", activationEmail:"بريد الحساب", activationPassword:"كلمة سر الحساب", note:"ملاحظات اختيارية", saveActivation:"حفظ وإرسال البيانات", saving:"جاري الحفظ…", saved:"تم حفظ بيانات الحساب وإرسالها لفريق Strivio.", awaitingCustomer:"بانتظار إدخال بيانات الحساب", awaitingAdmin:"تم استلام البيانات والتفعيل قيد المعالجة", delivered:"تم التفعيل والتسليم" },
+          fr: { details:"Détails de la commande", amount:"Montant", products:"Produits", preparing:"Livraison en préparation.", email:"E-mail", password:"Mot de passe", profile:"Profil", code:"Code", expires:"Expire le :", admin:"Mise à jour de l’équipe", report:"Signaler ou suivre", whatsapp:"WhatsApp pour cette commande", activationTitle:"Compte à activer", activationHelp:"Saisissez l’e-mail et le mot de passe du compte. Vous pourrez les modifier tant que l’activation n’est pas terminée.", activationEmail:"E-mail du compte", activationPassword:"Mot de passe du compte", note:"Note facultative", saveActivation:"Enregistrer et envoyer", saving:"Enregistrement…", saved:"Les informations du compte ont été envoyées à l’équipe Strivio.", awaitingCustomer:"Informations du compte requises", awaitingAdmin:"Informations reçues — activation en cours", delivered:"Activation terminée" },
+          en: { details:"Order details", amount:"Amount", products:"Products", preparing:"Delivery is being prepared.", email:"Email", password:"Password", profile:"Profile", code:"Code", expires:"Expires:", admin:"Team update", report:"Report or follow up", whatsapp:"WhatsApp for this order", activationTitle:"Account to activate", activationHelp:"Enter the account email and password. You can edit them until activation is completed.", activationEmail:"Account email", activationPassword:"Account password", note:"Optional note", saveActivation:"Save and send details", saving:"Saving…", saved:"Your account details were sent to the Strivio team.", awaitingCustomer:"Account details required", awaitingAdmin:"Details received — activation in progress", delivered:"Activation completed" }
+        })[lang] || {};
+      }
+      async function saveActivationInput(event, fulfillmentId, orderId) {
+        event.preventDefault();
+        var form=event.currentTarget,button=form.querySelector('button[type="submit"]'),copy=portalText();
+        button.disabled=true;button.textContent=copy.saving;
+        try {
+          const { data: { session } }=await window.supabaseClient.auth.getSession();
+          if(!session)throw new Error('Authentication required');
+          var response=await fetch(SUPABASE_URL+'/functions/v1/customer-delivery',{
+            method:'POST',headers:{Authorization:'Bearer '+session.access_token,apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+            body:JSON.stringify({action:'save_customer_input',order_id:orderId,fulfillment_id:fulfillmentId,account_email:form.account_email.value,account_password:form.account_password.value,note:form.note.value})
+          });
+          var data=await response.json().catch(function(){return null});
+          if(!response.ok||!data?.success)throw new Error(data?.error||'Unable to save account details');
+          showAppNotice(copy.saved,{tone:'success'});
+          fulfillments=await loadFulfillmentSummaries(orders.map(function(order){return order.id}));
+          renderOrders();
+          await showDetails(orderId);
+        } catch(error) {
+          showAppNotice(error.message||'Unable to save account details',{tone:'error'});
+          button.disabled=false;button.textContent=copy.saveActivation;
+        }
+      }
       async function showDetails(id) {
         try {
           let d = await delivery(id),
             o = d.order || {},
+            copy = portalText(),
             old = document.getElementById("details");
           old?.remove();
           let wrap = document.createElement("div");
@@ -711,27 +744,29 @@
           wrap.className =
             "fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center";
           wrap.innerHTML =
-            '<div class="panel rounded-[26px] max-w-2xl w-full max-h-[90vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><h2 class="display text-2xl font-black">تفاصيل الطلب</h2><p class="muted text-xs mt-2 font-mono">' +
+            '<div class="panel rounded-[26px] max-w-2xl w-full max-h-[90vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><h2 class="display text-2xl font-black">'+copy.details+'</h2><p class="muted text-xs mt-2 font-mono">' +
             esc(o.id) +
-            '</p></div><button class="ghost" onclick="document.getElementById(\'details\').remove()">×</button></div><div class="grid sm:grid-cols-2 gap-3 mt-5"><div class="secret"><b>المبلغ</b><br>' +
+            '</p></div><button class="ghost" onclick="document.getElementById(\'details\').remove()">×</button></div><div class="grid sm:grid-cols-2 gap-3 mt-5"><div class="secret"><b>'+copy.amount+'</b><br>' +
             money(o.total_payable) +
-            '</div><div class="secret"><b>المنتجات</b><br>' +
+            '</div><div class="secret"><b>'+copy.products+'</b><br>' +
             itemNames(o) +
             '</div></div><div class="mt-4">' +
             renderDelivery(d.fulfillments || [], o.id) +
             '</div><div class="flex flex-wrap gap-2 mt-5"><button class="ghost" onclick="openReport(\'' +
             esc(o.id) +
-            '\')">الإبلاغ أو متابعة البلاغ</button><a class="btn" target="_blank" rel="noopener" href="https://wa.me/213562961410?text=' +
+            '\')">'+copy.report+'</button><a class="btn" target="_blank" rel="noopener" href="https://wa.me/213562961410?text=' +
             encodeURIComponent("مرحباً، أحتاج دعماً للطلب #" + o.id) +
-            '">WhatsApp لهذا الطلب</a></div></div>';
+            '">'+copy.whatsapp+'</a></div></div>';
           document.body.appendChild(wrap);
+          if(window.accountPortalApply)window.accountPortalApply();
         } catch (e) {
           showAppNotice("تعذر فتح تفاصيل الطلب. تأكد أنك داخل الحساب الذي أجرى الطلب.", { tone: "error" });
         }
       }
       function renderDelivery(fs, orderId) {
+        var copy=portalText();
         if (!fs.length)
-          return '<div class="secret muted">التسليم قيد التحضير.</div>';
+          return '<div class="secret muted">'+copy.preparing+'</div>';
         return fs
           .map((f) => {
             let entries = f.delivery?.entries || [],
@@ -746,22 +781,28 @@
                     (x) =>
                       '<div class="secret mt-2">' +
                       (x.email
-                        ? "البريد: " +
+                        ? copy.email+": " +
                           esc(x.email) +
-                          "<br>كلمة السر: " +
+                          "<br>"+copy.password+": " +
                           esc(x.password) +
-                          "<br>البروفايل: " +
+                          "<br>"+copy.profile+": " +
                           esc(x.profile) +
                           "<br>PIN: " +
                           esc(x.pin || "—") +
-                          (x.ends_at ? '<br><span class="muted text-xs">' + (lang === "fr" ? "Expire le : " : lang === "en" ? "Expires: " : "ينتهي الاشتراك: ") + '<span style="' + expiryStyle(x.ends_at) + '">' + date(x.ends_at) + '</span></span>' : "")
-                        : "الكود: " + esc(x.code)) +
+                          (x.ends_at ? '<br><span class="muted text-xs">' + copy.expires + ' <span style="' + expiryStyle(x.ends_at) + '">' + date(x.ends_at) + '</span></span>' : "")
+                        : copy.code+": " + esc(x.code)) +
                       "</div>",
                   )
                   .join("")
               : '<div class="secret mt-2">' +
                 esc(f.delivery_summary?.message || L(f.status)) +
                 "</div>";
+            if(f.mode==='manual_activation'){
+              var input=f.customer_input||{},closed=['delivered','completed','cancelled','failed'].includes(String(f.status||'').toLowerCase());
+              var state=closed?copy.delivered:(input.account_email?copy.awaitingAdmin:copy.awaitingCustomer);
+              body='<div class="secret mt-2 border-[#39ff14]/25"><b>'+esc(state)+'</b></div>'+
+                (closed?'':'<form class="space-y-2 mt-3" onsubmit="saveActivationInput(event,\''+esc(f.id)+'\',\''+esc(orderId)+'\')"><div><b>'+copy.activationTitle+'</b><p class="muted text-xs mt-1">'+copy.activationHelp+'</p></div><input class="input" type="email" name="account_email" autocomplete="username" required maxlength="254" placeholder="'+copy.activationEmail+'" value="'+esc(input.account_email||'')+'"><input class="input" type="password" name="account_password" autocomplete="current-password" required maxlength="500" placeholder="'+copy.activationPassword+'" value="'+esc(input.account_password||'')+'"><textarea class="input min-h-24" name="note" maxlength="2000" placeholder="'+copy.note+'">'+esc(input.note||'')+'</textarea><button class="btn" type="submit">'+copy.saveActivation+'</button></form>');
+            }
             return (
               '<div class="mt-4"><div class="flex justify-between gap-3"><b class="text-[#39ff14]">' +
               '<span data-delivery-product>' + esc(productLabel(f.delivery?.product_name || f.service_id || "المنتج")) + '</span>' +
@@ -769,14 +810,14 @@
               badge(f.status) +
               "</div>" +
               (end
-                ? '<p class="muted text-xs mt-1"><span data-delivery-expiry-label>ينتهي الاشتراك:</span> ' +
+                ? '<p class="muted text-xs mt-1"><span data-delivery-expiry-label>'+copy.expires+'</span> ' +
                   '<span style="' + expiryStyle(end) + '">' + date(end) + '</span>' +
                   "</p>"
                 : "") +
               body +
               usageTermsHtml(f) +
               (note
-                ? '<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]" data-admin-label>تحديث الإدارة</b><br>' +
+                ? '<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]" data-admin-label>'+copy.admin+'</b><br>' +
                   esc(note) +
                   "</div>"
                 : "") +

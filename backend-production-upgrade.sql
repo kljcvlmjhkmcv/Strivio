@@ -1,6 +1,27 @@
 -- Strivio operations, conversations, projection triggers, and renewals.
 -- Database is the source of truth; Google Sheets consumes the latest projection.
 
+-- Public storefront configuration is deliberately filtered. Bot tokens and
+-- other server-only values must stay in Supabase Secrets, never in browser JSON.
+update public.settings
+set config=(config-'telegram_bot_token') || jsonb_build_object(
+  'wise_dzd_rate',case when coalesce(config->>'wise_dzd_rate','') ~ '^[0-9]+([.][0-9]+)?$' then (config->>'wise_dzd_rate')::numeric else 260 end,
+  'usdt_dzd_rate',case when coalesce(config->>'usdt_dzd_rate','') ~ '^[0-9]+([.][0-9]+)?$' then (config->>'usdt_dzd_rate')::numeric else 250 end
+)
+where id=1;
+drop policy if exists "Allow public read access on settings" on public.settings;
+create or replace function public.get_public_settings()
+returns jsonb language sql stable security definer set search_path=public as $$
+  select jsonb_build_object(
+    'email',config->>'email','phone',config->>'phone','whatsapp',config->>'whatsapp',
+    'instagram',config->>'instagram','facebook',config->>'facebook','tiktok',config->>'tiktok','youtube',config->>'youtube',
+    'wise_dzd_rate',case when coalesce(config->>'wise_dzd_rate','') ~ '^[0-9]+([.][0-9]+)?$' then (config->>'wise_dzd_rate')::numeric else 260 end,
+    'usdt_dzd_rate',case when coalesce(config->>'usdt_dzd_rate','') ~ '^[0-9]+([.][0-9]+)?$' then (config->>'usdt_dzd_rate')::numeric else 250 end
+  ) from public.settings where id=1;
+$$;
+revoke all on function public.get_public_settings() from public;
+grant execute on function public.get_public_settings() to anon,authenticated;
+
 alter table public.orders add column if not exists user_id uuid references auth.users(id) on delete set null;
 alter table public.orders add column if not exists fulfillment_status text;
 alter table public.orders add column if not exists fulfilled_at timestamptz;

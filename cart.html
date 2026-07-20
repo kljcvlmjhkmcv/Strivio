@@ -4,13 +4,12 @@
   <script src="clean-url.js"></script>
 <meta charset="UTF-8"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Strivio — Cart & Checkout</title>
 <meta name="description" content="Review your cart and complete your order on Strivio."/>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="assets/tailwind.css"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"/>
-<script>tailwind.config={theme:{extend:{colors:{brand:{black:'#121212',neon:'#39ff14',card:'#181818',border:'#2A2A2A'}},fontFamily:{sans:['Inter','sans-serif'],display:['Space Grotesk','sans-serif']}}}}</script>
 <style>
 :root{--n:#39ff14;--nr:57,255,20}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -315,9 +314,20 @@ function escapeHtml(str) {
 }
 
 var CONFIG = window.CONFIG || {};
+function wiseRate(){var n=Number((window.CONFIG||CONFIG||{}).wise_dzd_rate);return Number.isFinite(n)&&n>0?n:260;}
+function usdtRate(){var n=Number((window.CONFIG||CONFIG||{}).usdt_dzd_rate);return Number.isFinite(n)&&n>0?n:250;}
+function syncPaymentRateLabels(){
+  Object.keys(TX||{}).forEach(function(code){(TX[code].payMethods||[]).forEach(function(method){
+    if(method.id==='wise')method.desc=code==='ar'?'سعر الصرف الحالي: 1€ = '+wiseRate()+' دج':code==='fr'?'Taux actuel : 1€ = '+wiseRate()+' DZD':'Current rate: 1€ = '+wiseRate()+' DZD';
+    if(method.id==='usdt')method.desc=code==='ar'?'سعر الصرف الحالي: 1 USDT = '+usdtRate()+' دج':code==='fr'?'Taux actuel : 1 USDT = '+usdtRate()+' DZD':'Current rate: 1 USDT = '+usdtRate()+' DZD';
+  });});
+}
 if (typeof loadSettingsFromDB === 'function') {
   loadSettingsFromDB().then(function(cfg){
     if (cfg) CONFIG = cfg;
+    syncPaymentRateLabels();
+    if(typeof renderPayMethods==='function')renderPayMethods();
+    if(typeof renderSummary==='function')renderSummary();
   });
 }
 
@@ -640,8 +650,8 @@ function renderSummary(){
   if(wiseRow){
     if(selPay === 'wise'){
       wiseRow.style.display = 'flex';
-      setT('WISELBL', L==='ar' ? 'سعر الصرف (Wise)' : L==='fr' ? 'Taux Wise (1€ = 260 DZD)' : 'Wise Rate (1€ = 260 DZD)');
-      setT('WISEAMT', (total / 260).toFixed(2) + ' €');
+      setT('WISELBL', L==='ar' ? 'سعر الصرف (Wise)' : L==='fr' ? 'Taux Wise (1€ = '+wiseRate()+' DZD)' : 'Wise Rate (1€ = '+wiseRate()+' DZD)');
+      setT('WISEAMT', (total / wiseRate()).toFixed(2) + ' €');
     } else {
       wiseRow.style.display = 'none';
     }
@@ -652,8 +662,8 @@ function renderSummary(){
   if(usdtRow){
     if(selPay === 'usdt'){
       usdtRow.style.display = 'flex';
-      setT('USDTLBL', L==='ar' ? 'سعر الصرف (USDT)' : L==='fr' ? 'Taux USDT (1$ = 250 DZD)' : 'USDT Rate (1$ = 250 DZD)');
-      setT('USDTAMT', (total / 250).toFixed(2) + ' USDT');
+      setT('USDTLBL', L==='ar' ? 'سعر الصرف (USDT)' : L==='fr' ? 'Taux USDT (1$ = '+usdtRate()+' DZD)' : 'USDT Rate (1$ = '+usdtRate()+' DZD)');
+      setT('USDTAMT', (total / usdtRate()).toFixed(2) + ' USDT');
     } else {
       usdtRow.style.display = 'none';
     }
@@ -661,10 +671,10 @@ function renderSummary(){
 
   setT('TTTLBL', tx.total);
   if(selPay === 'wise'){
-    var eur = (total / 260).toFixed(2);
+    var eur = (total / wiseRate()).toFixed(2);
     setT('TTAMT', eur + ' € (~' + fmtP(total) + ')');
   } else if(selPay === 'usdt'){
-    var usdt = (total / 250).toFixed(2);
+    var usdt = (total / usdtRate()).toFixed(2);
     setT('TTAMT', usdt + ' USDT (~' + fmtP(total) + ')');
   } else {
     setT('TTAMT', fmtP(total));
@@ -675,6 +685,8 @@ function renderSummary(){
    COUPON SYSTEM
 ════════════════════════════════════════════════════════ */
 $('CPN_BTN').addEventListener('click', async function(){
+  if(this.dataset.busy==='1') return;
+  this.dataset.busy='1';this.disabled=true;
   var tx = t();
   var val = ($('CPN_INP').value || '').trim().toUpperCase();
   var msg = $('CPN_MSG');
@@ -683,9 +695,10 @@ $('CPN_BTN').addEventListener('click', async function(){
     couponDiscount = 0;
     msg.classList.add('hidden');
     renderSummary();
+    this.dataset.busy='0';this.disabled=false;
     return;
   }
-  if (typeof validateCouponInDB === 'function') {
+  try { if (typeof validateCouponInDB === 'function') {
     var sub = cart.reduce(function(s,i){ var q=Number(i.qty||1),u=Number(i.unitPrice||0)||Number(i.price||0)/q; return s + u*q; }, 0);
     var res = await validateCouponInDB(val, sub);
     if (res && res.valid) {
@@ -704,8 +717,10 @@ $('CPN_BTN').addEventListener('click', async function(){
     couponDiscount = 0;
     msg.textContent = tx.cpnErr;
     msg.className = 'text-xs mt-1.5 font-semibold text-[#ff5555] block';
+  }} finally {
+    this.dataset.busy='0';this.disabled=false;
+    renderSummary();
   }
-  renderSummary();
 });
 
 /* ══════════════════════════════════════════════════════
@@ -804,13 +819,13 @@ function buildMessage(rpcData){
     lines.push('Flexy fee (19%): +' + fmtP(flexyFee));
   }
   if(selPay === 'wise'){
-    var eur = (total / 260).toFixed(2);
+    var eur = (total / wiseRate()).toFixed(2);
     lines.push('💰 *Total Payable: ' + eur + ' EUR (~' + fmtP(total) + ')*');
-    lines.push('💱 Rate applied: 1 EUR = 260 DZD');
+    lines.push('💱 Rate applied: 1 EUR = '+wiseRate()+' DZD');
   } else if(selPay === 'usdt'){
-    var usdt = (total / 250).toFixed(2);
+    var usdt = (total / usdtRate()).toFixed(2);
     lines.push('💰 *Total Payable: ' + usdt + ' USDT (~' + fmtP(total) + ')*');
-    lines.push('💱 Rate applied: 1 USDT = 250 DZD');
+    lines.push('💱 Rate applied: 1 USDT = '+usdtRate()+' DZD');
   } else {
     lines.push('💰 *Total Payable: ' + fmtP(total) + '*');
   }
@@ -985,7 +1000,7 @@ async function getCustomerInfo(){
   var info = {
     first_name: ($('C_FIRST').value || '').trim(),
     last_name: ($('C_LAST').value || '').trim(),
-    email: ($('C_EMAIL').value || '').trim().toLowerCase(),
+    email: String(session.user.email || '').trim().toLowerCase(),
     phone: ($('C_PHONE').value || '').trim(),
     marketing_email_opt_in: $('C_M_EMAIL').checked,
     marketing_whatsapp_opt_in: $('C_M_WA').checked,
@@ -1015,6 +1030,8 @@ async function prefillCustomer(){
   var {data:{session}} = await window.supabaseClient.auth.getSession();
   if(!session) return;
   $('C_EMAIL').value = session.user.email || '';
+  $('C_EMAIL').readOnly = true;
+  $('C_EMAIL').title = L === 'ar' ? 'الطلبات ترتبط ببريد حسابك المسجل' : L === 'fr' ? 'Les commandes sont liées à l’e-mail de votre compte' : 'Orders are linked to your signed-in email';
   var {data:p} = await window.supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
   if(!p) return;
   $('C_FIRST').value=p.first_name||''; $('C_LAST').value=p.last_name||''; $('C_PHONE').value=p.phone||'';

@@ -796,7 +796,6 @@ CREATE TABLE IF NOT EXISTS public.settings (
 );
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read access on settings" ON public.settings;
-CREATE POLICY "Allow public read access on settings" ON public.settings FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow admin full access on settings" ON public.settings;
 CREATE POLICY "Allow admin full access on settings" ON public.settings FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
@@ -805,13 +804,27 @@ INSERT INTO public.settings (id, config) VALUES (1, '{
   "phone": "tel:+213XXXXXXXXX",
   "whatsapp": "213562961410",
   "telegram": "",
-  "telegram_bot_token": "8861214693:AAHddszeT3JUILS2acEfuxt0FGMevTZBLuw",
+  "telegram_bot_token": "",
   "telegram_chat_id": "5038091659",
   "instagram": "https://instagram.com/strivio.store",
   "facebook": "https://www.facebook.com/people/Strivio/61578300089117",
   "tiktok": "",
-  "youtube": ""
-}'::jsonb) ON CONFLICT (id) DO UPDATE SET config = EXCLUDED.config;
+  "youtube": "",
+  "wise_dzd_rate": 260,
+  "usdt_dzd_rate": 250
+}'::jsonb) ON CONFLICT (id) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.get_public_settings()
+RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$
+  SELECT jsonb_build_object(
+    'email',config->>'email','phone',config->>'phone','whatsapp',config->>'whatsapp',
+    'instagram',config->>'instagram','facebook',config->>'facebook','tiktok',config->>'tiktok','youtube',config->>'youtube',
+    'wise_dzd_rate',CASE WHEN COALESCE(config->>'wise_dzd_rate','') ~ '^[0-9]+([.][0-9]+)?$' THEN (config->>'wise_dzd_rate')::numeric ELSE 260 END,
+    'usdt_dzd_rate',CASE WHEN COALESCE(config->>'usdt_dzd_rate','') ~ '^[0-9]+([.][0-9]+)?$' THEN (config->>'usdt_dzd_rate')::numeric ELSE 250 END
+  ) FROM public.settings WHERE id=1;
+$$;
+REVOKE ALL ON FUNCTION public.get_public_settings() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_public_settings() TO anon,authenticated;
 
 -- ====================================================================
 -- 6. جدول التقييمات (reviews)

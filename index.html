@@ -4,13 +4,12 @@
   <script src="clean-url.js"></script>
 <meta charset="UTF-8"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Strivio — Official Digital Subscriptions | Instant Delivery</title>
 <meta name="description" content="Buy Netflix, Spotify, ChatGPT Plus and more at the best prices. Instant delivery, full warranty."/>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="assets/tailwind.css"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"/>
-<script>tailwind.config={theme:{extend:{colors:{brand:{black:'#121212',neon:'#39ff14',card:'#181818',border:'#2A2A2A'}},fontFamily:{sans:['Inter','sans-serif'],display:['Space Grotesk','sans-serif']}}}}</script>
 <style>
 :root{--n:#39ff14;--nr:57,255,20}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -505,6 +504,7 @@ var TX={
    ║  🎨  SERVICES CATALOG — Loaded dynamically from Supabase    ║
    ╚══════════════════════════════════════════════════════════════╝ */
 var SERVICES = window.SERVICES || [];
+var SERVICES_LOAD_FAILED = false;
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -611,8 +611,10 @@ function applyLang(l){
   setT('FD',tx.fd); setT('FQL',tx.fql); setT('FPL',tx.fpl); setT('FCL',tx.fcl); setT('FRT',tx.frt); setT('FCP',tx.fcp);
   if($('PTBTN')) $('PTBTN').textContent = tx.vc || 'عرض السلة ←';
   $('FQLL').innerHTML=tx.fqll.map(function(x){return'<li><a href="#" style="text-decoration:none;color:inherit" onmouseover="this.style.color=\'#39ff14\'" onmouseout="this.style.color=\'inherit\'">'+x+'</a></li>'}).join('');
-  $('FPLL').innerHTML=tx.fpll.map(function(x){return'<li><a href="#" style="text-decoration:none;color:inherit" onmouseover="this.style.color=\'#39ff14\'" onmouseout="this.style.color=\'inherit\'">'+x+'</a></li>'}).join('');
-  $('FLG').innerHTML=tx.flg.map(function(x){return'<a href="#" style="text-decoration:none;color:inherit" onmouseover="this.style.color=\'#39ff14\'" onmouseout="this.style.color=\'inherit\'">'+x+'</a>'}).join('');
+  var policyRoutes=['warranty','refund','privacy','terms','warranty'];
+  $('FPLL').innerHTML=tx.fpll.map(function(x,i){return'<li><a href="'+policyRoutes[i]+'" style="text-decoration:none;color:inherit" onmouseover="this.style.color=\'#39ff14\'" onmouseout="this.style.color=\'inherit\'">'+x+'</a></li>'}).join('');
+  var legalRoutes=['privacy','terms','warranty'];
+  $('FLG').innerHTML=tx.flg.map(function(x,i){return'<a href="'+legalRoutes[i]+'" style="text-decoration:none;color:inherit" onmouseover="this.style.color=\'#39ff14\'" onmouseout="this.style.color=\'inherit\'">'+x+'</a>'}).join('');
   if($('FLD')) $('FLD').innerHTML=FL[l];
   if($('FLDM')) $('FLDM').innerHTML=FL[l];
   setT('LCD',l.toUpperCase());
@@ -693,8 +695,8 @@ function renderProducts(f){
     });
   }
   if (!list || list.length === 0) {
-    var loadMsg = curSearch ? (L === 'ar' ? '❌ لم يتم العثور على اشتراكات تطابق بحثك: "' + curSearch + '"' : (L === 'en' ? '❌ No subscriptions match your search: "' + curSearch + '"' : '❌ Aucun abonnement ne correspond à votre recherche : "' + curSearch + '"')) : (L === 'ar' ? '⏳ جاري جلب أحدث العروض والأسعار من السيرفر...' : (L === 'en' ? '⏳ Loading latest offers and prices from server...' : '⏳ Chargement des offres et tarifs depuis le serveur...'));
-    $('PG').innerHTML = '<div class="col-span-full text-center py-12 text-gray-400 font-medium">' + loadMsg + '</div>';
+    var loadMsg = curSearch ? (L === 'ar' ? '❌ لم يتم العثور على اشتراكات تطابق بحثك: "' + curSearch + '"' : (L === 'en' ? '❌ No subscriptions match your search: "' + curSearch + '"' : '❌ Aucun abonnement ne correspond à votre recherche : "' + curSearch + '"')) : SERVICES_LOAD_FAILED ? (L==='ar'?'تعذر تحميل العروض الآن. تحقق من الاتصال ثم أعد المحاولة.':L==='en'?'Offers could not be loaded. Check your connection and try again.':'Impossible de charger les offres. Vérifiez votre connexion puis réessayez.') : (L === 'ar' ? '⏳ جاري جلب أحدث العروض والأسعار من السيرفر...' : (L === 'en' ? '⏳ Loading latest offers and prices from server...' : '⏳ Chargement des offres et tarifs depuis le serveur...'));
+    $('PG').innerHTML = '<div class="col-span-full text-center py-12 text-gray-400 font-medium">' + loadMsg + (SERVICES_LOAD_FAILED&&!curSearch?'<br><button type="button" class="BO mt-4" onclick="retryServices()">'+(L==='ar'?'إعادة المحاولة':L==='en'?'Try again':'Réessayer')+'</button>':'') + '</div>';
     return;
   }
   var periodLabels = L === 'ar' ? ['/ شهر', '/ شهرين', '/ 3 أشهر', '/ 6 أشهر', '/ سنة'] : (L === 'en' ? ['/ mo', '/ 2 mo', '/ 3 mo', '/ 6 mo', '/ year'] : ['/ mois', '/ 2 mois', '/ 3 mois', '/ 6 mois', '/ an']);
@@ -987,13 +989,18 @@ updateCartBadge();
 if (typeof loadServicesFromDB === 'function') {
   loadServicesFromDB().then(function(dbServices) {
     if (dbServices && dbServices.length > 0) {
+      SERVICES_LOAD_FAILED = false;
       SERVICES = dbServices;
       window.SERVICES = dbServices;
       if (typeof buildFilters === 'function') buildFilters();
       if (typeof renderProducts === 'function') renderProducts(curFilt || 'all');
+    } else {
+      SERVICES_LOAD_FAILED = true;
+      renderProducts(curFilt || 'all');
     }
-  });
+  }).catch(function(){SERVICES_LOAD_FAILED=true;renderProducts(curFilt||'all');});
 }
+function retryServices(){SERVICES_LOAD_FAILED=false;renderProducts(curFilt||'all');loadServicesFromDB().then(function(rows){if(rows&&rows.length){SERVICES=rows;window.SERVICES=rows;SERVICES_LOAD_FAILED=false;buildFilters();}else SERVICES_LOAD_FAILED=true;renderProducts(curFilt||'all');}).catch(function(){SERVICES_LOAD_FAILED=true;renderProducts(curFilt||'all');});}
 
 if (typeof loadSettingsFromDB === 'function') {
   loadSettingsFromDB().then(function(dbSettings) {

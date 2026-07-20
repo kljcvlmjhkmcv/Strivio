@@ -330,9 +330,9 @@ async function loadSettingsFromDB() {
     return window.CONFIG;
   }
   try {
-    const { data, error } = await supabaseClient.from('settings').select('config').eq('id', 1).single();
-    if (!error && data && data.config) {
-      window.CONFIG = data.config;
+    const { data, error } = await supabaseClient.rpc('get_public_settings');
+    if (!error && data) {
+      window.CONFIG = data;
     }
   } catch (e) {
   }
