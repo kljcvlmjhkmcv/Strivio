@@ -642,12 +642,13 @@
       }
       function itemNames(o) {
         return (o.items || [])
-          .map(function(i){
+          .map(function(i,itemIndex){
             var name=i.nameData?.[lang]||i.nameData?.en||i.nameData?.fr||i.name||i.id,
               identity=String(name||'')+' '+String(i.id||''),
               typeLabel=i.typeLabelData?.[lang]||i.typeLabelData?.en||i.typeLabel||'',
               match=String(typeLabel).match(/(\d+)\s*(?:screen|screens|écran|ecran|شاشة|شاشات)/i),
-              count=/netflix|نتفلكس|نتفليكس/i.test(identity)?(match?Number(match[1]):Number(i.typeIdx||0)+1)*Number(i.qty||1):Number(i.qty||1),
+              fulfillmentQuantity=(fulfillments||[]).find(function(f){return f.order_id===o.id&&Number(f.order_item_index||0)===itemIndex})?.quantity,
+              count=/netflix|نتفلكس|نتفليكس/i.test(identity)?Number(fulfillmentQuantity||((match?Number(match[1]):Number(i.typeIdx||0)+1)*Number(i.qty||1))):Number(i.qty||1),
               suffix=/netflix|نتفلكس|نتفليكس/i.test(identity)?(lang==='ar'?' شاشة':lang==='fr'?' écran':' screen'+(count===1?'':'s')):'';
             return esc(name)+' ×'+count+suffix;
           })
