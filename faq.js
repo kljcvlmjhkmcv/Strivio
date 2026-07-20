@@ -56,7 +56,7 @@ var FAQS = [
     },
     a: {
       fr: 'Nous acceptons BariDi Mob, CCP, Wise (EUR), USDT (Crypto) et Flexy (+19%). Les taux actuels sont affichés dans le panier.',
-      ar: 'نوفر دفع عبر بريدي موب (BariDi Mob)، التحويل البريدي (CCP)، تحويل Wise باليورو (1€ = 260 دج)، تحويل USDT الكريبتو (1$ = 250 دج)، وبطاقات فليكسي Flexy (+19%).',
+      ar: 'نوفر دفع عبر بريدي موب (BariDi Mob)، التحويل البريدي (CCP)، Wise، USDT، وبطاقات فليكسي Flexy (+19%). تظهر أسعار Wise وUSDT الحالية في السلة.',
       en: 'We accept BariDi Mob, CCP, Wise (EUR), USDT Crypto, and Flexy (+19%). Current rates are shown in the cart.'
     }
   },
