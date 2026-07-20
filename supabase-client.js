@@ -23,7 +23,19 @@ const SUPABASE_ANON_KEY = 'sb_publishable_V-uY9E5L4uSY3PP6QNoInw_YSkYmdtw';
   document.head.appendChild(style);
   function host(){var h=document.querySelector('.app-notice-host');if(!h){h=document.createElement('div');h.className='app-notice-host';h.setAttribute('aria-live','polite');document.body.appendChild(h)}return h}
   window.showAppNotice=function(message,options){options=options||{};var tone=options.tone||'info',h=host(),n=document.createElement('div');n.className='app-notice '+tone;n.setAttribute('role','status');var icon=tone==='error'?'!':tone==='success'?'✓':'i';n.innerHTML='<span class="app-notice__icon">'+icon+'</span><div class="app-notice__body"></div><button type="button" class="app-notice__close" aria-label="Close">×</button>';n.querySelector('.app-notice__body').textContent=String(message||'');n.querySelector('.app-notice__close').onclick=function(){n.classList.add('is-leaving');setTimeout(function(){n.remove()},220)};h.appendChild(n);var ttl=Number(options.duration||4200);if(ttl>0)setTimeout(function(){if(n.isConnected)n.querySelector('.app-notice__close').click()},ttl);return n};
-  document.addEventListener('pointerdown',function(e){var b=e.target.closest&&e.target.closest('button,.btn,.ghost,a[role=button]');if(!b||b.disabled)return;var r=b.getBoundingClientRect(),s=Math.max(r.width,r.height)*1.5,span=document.createElement('span');span.className='press-ripple';span.style.width=span.style.height=s+'px';span.style.left=(e.clientX-r.left-s/2)+'px';span.style.top=(e.clientY-r.top-s/2)+'px';if(getComputedStyle(b).position==='static')b.style.position='relative';b.style.overflow='hidden';b.appendChild(span);setTimeout(function(){span.remove()},600)});
+  document.addEventListener('pointerdown',function(e){
+    var b=e.target.closest&&e.target.closest('button,.btn,.ghost,a[role=button]');
+    if(!b||b.disabled||b.matches('[data-notification-trigger]'))return;
+    var r=b.getBoundingClientRect(),s=Math.max(r.width,r.height)*1.5,span=document.createElement('span');
+    span.className='press-ripple';
+    span.style.width=span.style.height=s+'px';
+    span.style.left=(e.clientX-r.left-s/2)+'px';
+    span.style.top=(e.clientY-r.top-s/2)+'px';
+    if(getComputedStyle(b).position==='static')b.style.position='relative';
+    b.style.overflow='hidden';
+    b.appendChild(span);
+    setTimeout(function(){span.remove()},600);
+  });
 })();
 
 let supabaseClient = null;

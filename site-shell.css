@@ -80,6 +80,15 @@ html {
   transform: scale(0.92);
 }
 
+.site-notification-trigger,
+.site-notification-trigger:active {
+  overflow: visible !important;
+}
+
+.site-notification-trigger:active {
+  transform: none !important;
+}
+
 .site-account-entry:focus-visible,
 .site-notification-trigger:focus-visible {
   outline: 2px solid #39ff14;
@@ -91,6 +100,11 @@ html {
   width: 1.2rem;
   height: 1.2rem;
   pointer-events: none;
+  transition: transform 160ms ease;
+}
+
+.site-notification-trigger:active svg {
+  transform: scale(0.86);
 }
 
 .site-account-entry[data-signed-in="true"] {
@@ -117,8 +131,10 @@ html {
 }
 
 [data-notification-entry] {
+  position: relative;
   display: inline-flex;
   flex: 0 0 auto;
+  overflow: visible !important;
 }
 
 [data-notification-badge] {
@@ -136,6 +152,10 @@ html {
   background: #39ff14;
   color: #050505;
   font: 900 0.58rem/1 Inter, sans-serif;
+  box-sizing: border-box;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 4;
 }
 
 [data-notification-badge][hidden] {
