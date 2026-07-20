@@ -340,8 +340,12 @@
     document.addEventListener("keydown", function (event) { if (event.key === "Escape" && state.open) close(); });
     window.addEventListener("storage", function (event) { if (event.key === "strivio_lang") applyLanguage(); });
     window.addEventListener("strivio:language-changed", applyLanguage);
-    new MutationObserver(function () { applyEntries(); }).observe(document.documentElement, {
-      subtree: true, childList: true, attributes: true, attributeFilter: ["lang", "dir"]
+    // Only watch the document language itself. Watching every child mutation
+    // causes a feedback loop because applyEntries/render also update text and
+    // visibility inside the notification UI.
+    new MutationObserver(function () { applyLanguage(); }).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["lang", "dir"],
     });
   }
 

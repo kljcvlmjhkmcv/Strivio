@@ -62,5 +62,8 @@ if(nextStart>=0&&nextEnd>nextStart){
   check(resolveNext('?next=%2Fcart%3Frenewal%3D1')==='cart?renewal=1','Auth rejects a valid cart return path');
 }
 
+const notifications=fs.readFileSync(path.join(root,'notification-center.js'),'utf8');
+check(!notifications.includes('subtree: true, childList: true'),'Notification language observer can recurse on its own renders');
+
 if(failures.length){console.error(failures.map(x=>'FAIL '+x).join('\n'));process.exit(1)}
 console.log(`Smoke checks passed for ${htmlFiles.length} pages.`);
