@@ -321,6 +321,7 @@
             >
               <option value="">كل الحالات</option>
               <option value="awaiting_admin">بانتظار الأدمن</option>
+              <option value="awaiting_customer_input">بانتظار العميل</option>
               <option value="delivered">مكتمل</option>
               <option value="problem">مشكلة</option>
             </select>
@@ -490,6 +491,32 @@
       class="hidden fixed bottom-5 left-5 z-50 panel rounded-xl px-4 py-3 text-sm"
     ></div>
     <div
+      id="activation-modal"
+      class="hidden fixed inset-0 z-[61] p-4 bg-black/80 backdrop-blur-sm flex items-center justify-center"
+    >
+      <div class="panel rounded-[24px] w-full max-w-3xl max-h-[92vh] overflow-auto p-6">
+        <div class="flex justify-between gap-4 items-start">
+          <div>
+            <div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">MANUAL ACTIVATION</div>
+            <h2 id="activation-modal-title" class="display text-xl font-black mt-1">طلب التفعيل</h2>
+            <div id="activation-modal-status" class="mt-2"></div>
+          </div>
+          <button type="button" class="btn" onclick="closeActivationModal()">إغلاق</button>
+        </div>
+        <div id="activation-customer" class="grid md:grid-cols-2 gap-3 mt-5"></div>
+        <div id="activation-thread" class="mt-5 space-y-3 rounded-2xl border border-[#292929] bg-black/30 p-4 max-h-[36vh] overflow-auto"></div>
+        <div id="activation-reply-box" class="mt-4">
+          <label class="muted text-xs block mb-2">رسالة للعميل (مثلاً: كلمة السر غير صحيحة)</label>
+          <textarea id="activation-reply" class="input min-h-24" maxlength="2000" placeholder="اكتب ما تحتاجه من العميل…"></textarea>
+          <div class="flex flex-wrap justify-end gap-2 mt-3">
+            <button class="btn" onclick="sendActivationReply()">إرسال وطلب رد العميل</button>
+            <button class="btn neon" onclick="completeActivation()">تم التفعيل</button>
+          </div>
+          <p class="muted text-[11px] mt-2">الإرسال يبقي الطلب مفتوحًا ويحوّل حالته إلى «بانتظار العميل». زر تم التفعيل هو الإغلاق النهائي.</p>
+        </div>
+      </div>
+    </div>
+    <div
       id="problem-modal"
       class="hidden fixed inset-0 z-[60] p-4 bg-black/80 backdrop-blur-sm flex items-center justify-center"
     >
@@ -551,11 +578,13 @@
           fulfillments: [],
           problems: [],
           problemMessages: [],
+          activationMessages: [],
           audit: [],
           renewals: [],
         },
         editingAccount = null,
-        editingProblem = null;
+        editingProblem = null,
+        editingActivation = null;
       var $ = function (id) {
         return document.getElementById(id);
       };
@@ -724,6 +753,11 @@
               .order("created_at", { ascending: true })
               .limit(1000),
             window.supabaseClient
+              .from("activation_messages")
+              .select("*")
+              .order("created_at", { ascending: true })
+              .limit(1500),
+            window.supabaseClient
               .from("operations_audit_log")
               .select("*")
               .eq("entity_type", "inventory_account")
@@ -755,15 +789,16 @@
           state.problems = value(4, []);
           state.allocations = value(5, []);
           state.problemMessages = value(6, []);
-          state.audit = value(7, []);
+          state.activationMessages = value(7, []);
+          state.audit = value(8, []);
           var inv =
-            results[8].status === "fulfilled"
-              ? results[8].value
+            results[9].status === "fulfilled"
+              ? results[9].value
               : { accounts: [], slots: [], licenses: [] };
           state.accounts = inv.accounts || [];
           state.slots = inv.slots || [];
           state.licenses = inv.licenses || [];
-          state.renewals = value(9, []);
+          state.renewals = value(10, []);
           if (
             results[3].status === "rejected" ||
             results[4].status === "rejected"
@@ -962,6 +997,47 @@
           "</div></div>"
         );
       }
+      function activationCredentialsHtml(f) {
+        var input = f.customer_input || {},
+          secretId = "activation-secret-" + String(f.id || "").replace(/[^a-zA-Z0-9_-]/g, "");
+        if (!input.account_email && !input.account_password)
+          return '<span class="muted">بانتظار بيانات العميل</span>';
+        return (
+          '<div class="grid gap-2 text-xs min-w-[250px]" dir="ltr"><div><span class="muted">Email:</span> <b class="select-all">' +
+          esc(input.account_email || "—") +
+          '</b></div><div class="flex flex-wrap items-center gap-2"><span class="muted">Password:</span><input id="' +
+          esc(secretId) +
+          '" class="input !py-1 !px-2 max-w-[190px] font-mono" type="password" readonly value="' +
+          esc(input.account_password || "") +
+          '"><button type="button" class="btn !py-1" onclick="toggleActivationSecret(\'' +
+          esc(secretId) +
+          '\',this)">إظهار</button><button type="button" class="btn !py-1" onclick="copyActivationSecret(\'' +
+          esc(secretId) +
+          '\')">نسخ</button></div>' +
+          (input.note
+            ? '<div dir="rtl"><span class="muted">ملاحظة:</span> ' + esc(input.note) + "</div>"
+            : "") +
+          "</div>"
+        );
+      }
+      function toggleActivationSecret(id, button) {
+        var field = $(id);
+        if (!field) return;
+        field.type = field.type === "password" ? "text" : "password";
+        if (button) button.textContent = field.type === "password" ? "إظهار" : "إخفاء";
+      }
+      async function copyActivationSecret(id) {
+        var field = $(id);
+        if (!field || !field.value) return toast("لا توجد كلمة سر لنسخها.", true);
+        try {
+          await navigator.clipboard.writeText(field.value);
+          toast("تم نسخ كلمة السر.");
+        } catch (_) {
+          field.type = "text";
+          field.select();
+          toast("حددنا كلمة السر؛ انسخها الآن.");
+        }
+      }
       function serviceFulfillmentTable(rows, mode) {
         if (!rows.length)
           return '<div class="loading">لا توجد عمليات لهذه الخدمة بعد.</div>';
@@ -970,13 +1046,9 @@
           rows
             .map(function (f) {
               var o = orderFor(f.order_id),
-                input = f.customer_input || {},
-                detail =
-                  mode === "manual_activation"
-                    ? (input.account_email || "بانتظار بيانات العميل") +
-                      (input.note ? " — " + input.note : "")
-                    : (f.delivery_summary && f.delivery_summary.message) ||
-                      modeLabel(mode);
+                detail = mode === "manual_activation"
+                  ? activationCredentialsHtml(f)
+                  : esc((f.delivery_summary && f.delivery_summary.message) || modeLabel(mode));
               return (
                 "<tr><td><b>#" +
                 esc(String(f.order_id || "").slice(0, 8)) +
@@ -987,7 +1059,7 @@
                 '</b><div class="muted text-[11px] mt-1">' +
                 esc((o.customer_info || {}).email || "—") +
                 "</div></td><td>" +
-                esc(detail) +
+                detail +
                 "</td><td>" +
                 statusBadge(f.status) +
                 '</td><td class="muted whitespace-nowrap">' +
@@ -996,10 +1068,12 @@
                 (["delivered", "completed"].includes(
                   String(f.status).toLowerCase(),
                 )
-                  ? '<span class="muted">مكتمل</span>'
-                  : '<button class="btn neon" onclick="updateFulfillment(\'' +
-                    esc(f.id) +
-                    "','delivered')\">تأكيد الإنجاز</button>") +
+                  ? (mode === "manual_activation"
+                      ? '<button class="btn" onclick="openActivationModal(\'' + esc(f.id) + '\')">فتح السجل</button>'
+                      : '<span class="muted">مكتمل</span>')
+                  : (mode === "manual_activation"
+                      ? '<button class="btn neon" onclick="openActivationModal(\'' + esc(f.id) + '\')">فتح ومراسلة</button>'
+                      : '<button class="btn neon" onclick="updateFulfillment(\'' + esc(f.id) + "','delivered')\">تأكيد الإنجاز</button>")) +
                 "</td></tr>"
               );
             })
@@ -1623,28 +1697,107 @@
             });
         $("activation-list").innerHTML = !rows.length
           ? '<div class="loading">لا توجد طلبات تفعيل مطابقة.</div>'
-          : '<table class="table"><thead><tr><th>الطلب</th><th>المنتج</th><th>حساب العميل</th><th>ملاحظة</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>' +
+          : '<table class="table"><thead><tr><th>الطلب والعميل</th><th>المنتج</th><th>بيانات الحساب</th><th>آخر محادثة</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>' +
             rows
               .map(function (f) {
-                var input = f.customer_input || {};
+                var o = orderFor(f.order_id),
+                  messages = state.activationMessages.filter(function (message) {
+                    return message.fulfillment_id === f.id;
+                  }),
+                  latest = messages.length ? messages[messages.length - 1].message : "لا توجد رسائل";
                 return (
                   "<tr><td>#" +
                   esc(String(f.order_id || "").slice(0, 8)) +
-                  "</td><td><b>" +
+                  '<div class="muted text-[11px] mt-1">' + esc(customerFor(o)) + "</div></td><td><b>" +
                   esc(serviceName(f.service_id)) +
-                  "</b></td><td>" +
-                  esc(input.account_email || "لم يرسل العميل بياناته") +
-                  '</td><td class="muted max-w-[260px]">' +
-                  esc(input.note || "—") +
+                  "</b></td><td>" + activationCredentialsHtml(f) +
+                  '</td><td class="muted max-w-[260px]">' + esc(latest) +
                   "</td><td>" +
                   statusBadge(f.status) +
-                  '</td><td><button class="btn neon" onclick="updateFulfillment(\'' +
+                  '</td><td><button class="btn neon" onclick="openActivationModal(\'' +
                   esc(f.id) +
-                  "','delivered')\">تم التفعيل</button></td></tr>"
+                  "')\">فتح الطلب</button></td></tr>"
                 );
               })
               .join("") +
             "</tbody></table>";
+      }
+      function openActivationModal(id) {
+        editingActivation = state.fulfillments.find(function (item) { return item.id === id; });
+        if (!editingActivation) return;
+        var f = editingActivation,
+          o = orderFor(f.order_id),
+          info = (o && o.customer_info) || {},
+          input = f.customer_input || {},
+          closed = ["delivered", "completed", "cancelled", "failed"].includes(String(f.status || "").toLowerCase()),
+          messages = state.activationMessages.filter(function (message) { return message.fulfillment_id === id; });
+        $("activation-modal-title").textContent = serviceName(f.service_id) + " — #" + String(f.order_id || "").slice(0, 8);
+        $("activation-modal-status").innerHTML = statusBadge(f.status);
+        $("activation-customer").innerHTML =
+          '<div class="secret"><b>العميل</b><div class="mt-2">' + esc(customerFor(o)) + '</div><div class="muted text-xs mt-1" dir="ltr">' + esc(info.email || "—") + " · " + esc(info.phone || "—") + "</div></div>" +
+          '<div class="secret"><b>حساب الخدمة</b><div class="mt-2">' + activationCredentialsHtml(f) + "</div></div>";
+        $("activation-thread").innerHTML = messages.length
+          ? messages.map(function (message) {
+              var admin = message.sender_role === "admin", system = message.sender_role === "system";
+              return '<div class="max-w-[88%] rounded-2xl p-3 ' +
+                (system ? "mx-auto bg-[#242424]" : admin ? "mr-auto bg-[#171717] border border-[#333]" : "ml-auto bg-[#39ff14] text-black") +
+                '"><b class="text-[10px] block mb-1 ' + (admin ? "text-[#39ff14]" : system ? "text-gray-300" : "text-black/60") + '">' +
+                (admin ? "فريق Strivio" : system ? "النظام" : "العميل") + '</b><div class="text-sm whitespace-pre-wrap">' + esc(message.message) +
+                '</div><div class="text-[10px] opacity-60 mt-2">' + esc(date(message.created_at)) + "</div></div>";
+            }).join("")
+          : '<div class="loading">لا توجد رسائل بعد. يمكنك بدء المحادثة عند الحاجة.</div>';
+        $("activation-reply").value = "";
+        $("activation-reply-box").classList.toggle("hidden", closed);
+        $("activation-modal").classList.remove("hidden");
+        setTimeout(function () { $("activation-thread").scrollTop = $("activation-thread").scrollHeight; }, 0);
+      }
+      function closeActivationModal() {
+        editingActivation = null;
+        $("activation-modal").classList.add("hidden");
+      }
+      async function sendActivationReply() {
+        if (!editingActivation) return;
+        var message = $("activation-reply").value.trim();
+        if (!message) return toast("اكتب ما تحتاجه من العميل أولاً.", true);
+        try {
+          var r = await window.supabaseClient.rpc("ops_send_activation_message", {
+            p_fulfillment_id: editingActivation.id,
+            p_message: message,
+            p_request_customer_action: true,
+          });
+          if (r.error) throw r.error;
+          closeActivationModal();
+          toast("تم إرسال الرسالة للعميل والطلب الآن بانتظار رده.");
+          await loadAll();
+        } catch (e) {
+          toast("تعذر إرسال الرسالة: " + e.message, true);
+        }
+      }
+      async function completeActivation() {
+        if (!editingActivation) return;
+        var f = editingActivation,
+          message = $("activation-reply").value.trim();
+        try {
+          var r = await window.supabaseClient.rpc("ops_update_activation", {
+            p_fulfillment_id: f.id,
+            p_status: "delivered",
+            p_admin_notes: message,
+          });
+          if (r.error) throw r.error;
+          if (message) {
+            var m = await window.supabaseClient.rpc("ops_send_activation_message", {
+              p_fulfillment_id: f.id,
+              p_message: message,
+              p_request_customer_action: false,
+            });
+            if (m.error) throw m.error;
+          }
+          closeActivationModal();
+          toast("تم اعتماد التفعيل وإغلاق الطلب بنجاح.");
+          await loadAll();
+        } catch (e) {
+          toast("تعذر إتمام التفعيل: " + e.message, true);
+        }
       }
       async function updateFulfillment(id, status) {
         try {

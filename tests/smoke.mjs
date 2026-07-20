@@ -32,9 +32,16 @@ for(const name of ['admin-inventory','customer-delivery','fulfill-order','simula
 }
 const delivery=fs.readFileSync(path.join(root,'supabase','functions','customer-delivery','index.ts'),'utf8');
 check(delivery.includes("save_customer_input"),'Spotify/customer activation input endpoint is missing');
+check(delivery.includes("send_activation_message"),'Customer activation chat endpoint is missing');
+check(delivery.includes("activation_messages"),'Activation conversation data is missing from delivery');
 const account=fs.readFileSync(path.join(root,'my-account.html'),'utf8');
 check(account.includes('saveActivationInput'),'Customer activation form is missing');
+check(account.includes('sendActivationMessage'),'Customer activation chat UI is missing');
 check(account.includes('screen'+"'"+'+(count===1'), 'Netflix screen count rendering is missing');
+const operations=fs.readFileSync(path.join(root,'operations.html'),'utf8');
+check(operations.includes('openActivationModal'),'Operations activation conversation is missing');
+check(operations.includes('activationCredentialsHtml'),'Activation credentials are missing from service records');
+check(allText.includes('ops_send_activation_message'),'Admin activation chat RPC is missing');
 
 if(failures.length){console.error(failures.map(x=>'FAIL '+x).join('\n'));process.exit(1)}
 console.log(`Smoke checks passed for ${htmlFiles.length} pages.`);

@@ -146,6 +146,76 @@ grant execute on function public.customer_reply_problem(uuid,text) to authentica
 grant execute on function public.ops_reply_problem(uuid,text) to authenticated;
 grant execute on function public.ops_resolve_problem(uuid,text) to authenticated;
 
+-- Private conversation attached to manual account activations. Credentials
+-- stay in fulfillments.customer_input; messages never duplicate passwords.
+create table if not exists public.activation_messages (
+  id uuid primary key default gen_random_uuid(),
+  fulfillment_id uuid not null references public.fulfillments(id) on delete cascade,
+  sender_id uuid references auth.users(id) on delete set null,
+  sender_role text not null check (sender_role in ('customer','admin','system')),
+  message text not null check (char_length(trim(message)) between 1 and 2000),
+  created_at timestamptz not null default now()
+);
+create index if not exists activation_messages_thread_idx
+  on public.activation_messages(fulfillment_id,created_at,id);
+
+alter table public.activation_messages enable row level security;
+drop policy if exists activation_messages_read on public.activation_messages;
+create policy activation_messages_read on public.activation_messages for select using (
+  public.is_admin() or exists (
+    select 1
+    from public.fulfillments f
+    join public.orders o on o.id=f.order_id
+    where f.id=activation_messages.fulfillment_id
+      and (
+        o.user_id=auth.uid()
+        or lower(coalesce(o.customer_info->>'email',''))=lower(coalesce(auth.jwt()->>'email',''))
+      )
+  )
+);
+
+create or replace function public.ops_send_activation_message(
+  p_fulfillment_id uuid,
+  p_message text,
+  p_request_customer_action boolean default true
+) returns jsonb language plpgsql security definer set search_path=public as $$
+declare f public.fulfillments%rowtype; clean_message text; next_status text;
+begin
+  if not public.is_admin() then raise exception 'Admin only'; end if;
+  clean_message=left(trim(coalesce(p_message,'')),2000);
+  if char_length(clean_message)<1 then raise exception 'Message is required'; end if;
+  select * into f from public.fulfillments where id=p_fulfillment_id for update;
+  if not found then raise exception 'Activation request not found'; end if;
+  if coalesce(f.mode,'')<>'manual_activation' then raise exception 'This is not a manual activation'; end if;
+  if p_request_customer_action and lower(coalesce(f.status,'')) in ('delivered','completed','cancelled','failed') then
+    raise exception 'Activation is already closed';
+  end if;
+  insert into public.activation_messages(fulfillment_id,sender_id,sender_role,message)
+  values(f.id,auth.uid(),'admin',clean_message);
+  next_status=case when p_request_customer_action then 'awaiting_customer_input' else f.status end;
+  update public.fulfillments set
+    status=next_status,
+    delivery_summary=coalesce(delivery_summary,'{}'::jsonb)||jsonb_build_object(
+      'message',case when p_request_customer_action then 'The Strivio team needs more information from the customer.' else coalesce(delivery_summary->>'message','') end,
+      'last_activation_message_at',now()
+    ),
+    updated_at=now()
+  where id=f.id;
+  insert into public.integration_outbox(event_type,aggregate_id,payload)
+  values('activation_message_created',f.id::text,jsonb_build_object(
+    'order_id',f.order_id,'fulfillment_id',f.id,'service_id',f.service_id,
+    'status',next_status,'source','operations_center','notify_customer',true
+  ));
+  insert into public.operations_audit_log(actor_id,action,entity_type,entity_id,order_id,service_id,before_data,after_data)
+  values(auth.uid(),'message_customer','fulfillment',f.id::text,f.order_id,f.service_id,
+    jsonb_build_object('status',f.status),jsonb_build_object('status',next_status,'message',clean_message));
+  return jsonb_build_object('success',true,'fulfillment_id',f.id,'order_id',f.order_id,'status',next_status);
+end;
+$$;
+
+revoke all on function public.ops_send_activation_message(uuid,text,boolean) from public;
+grant execute on function public.ops_send_activation_message(uuid,text,boolean) to authenticated;
+
 create table if not exists public.renewal_requests (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null unique references public.orders(id) on delete cascade,

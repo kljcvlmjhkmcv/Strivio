@@ -64,7 +64,7 @@ serve(async req=>{
       if(!requested.length)return new Response(JSON.stringify({success:true,fulfillments:[]}),{headers:cors});
       const {data:requestedOrders}=await db.from('orders').select('id,user_id,customer_info').in('id',requested);
       const allowed=(requestedOrders||[]).filter((item:any)=>isAdmin||item.user_id===user.id||String(item.customer_info?.email||'').trim().toLowerCase()===String(user.email||'').trim().toLowerCase()).map((item:any)=>item.id);
-      const {data:summaries}=allowed.length?await db.from('fulfillments').select('id,order_id,status,delivery_summary,service_id,mode,quantity').in('order_id',allowed).order('order_item_index'): {data:[]};
+      const {data:summaries}=allowed.length?await db.from('fulfillments').select('id,order_id,status,delivery_summary,service_id,mode,quantity,customer_input').in('order_id',allowed).order('order_item_index'): {data:[]};
       return new Response(JSON.stringify({success:true,fulfillments:summaries||[]}),{headers:cors});
     }
     const {order_id}=body;
@@ -75,6 +75,33 @@ serve(async req=>{
       await db.from('orders').update({user_id:user.id,updated_at:new Date().toISOString()}).eq('id',order.id).is('user_id',null);
       await db.from('fulfillments').update({user_id:user.id,updated_at:new Date().toISOString()}).eq('order_id',order.id).is('user_id',null);
       order.user_id=user.id;
+    }
+    if(body?.action==='send_activation_message'){
+      const fulfillmentId=String(body?.fulfillment_id||'').trim();
+      const message=String(body?.message||'').trim().slice(0,2000);
+      if(!fulfillmentId)return new Response(JSON.stringify({success:false,error:'Fulfillment is required'}),{status:400,headers:cors});
+      if(!message)return new Response(JSON.stringify({success:false,error:'Message is required'}),{status:400,headers:cors});
+      const {data:fulfillment,error:fulfillmentError}=await db.from('fulfillments')
+        .select('id,order_id,service_id,mode,status,delivery_summary')
+        .eq('id',fulfillmentId).eq('order_id',order.id).maybeSingle();
+      if(fulfillmentError||!fulfillment)return new Response(JSON.stringify({success:false,error:'Activation request not found'}),{status:404,headers:cors});
+      if(String(fulfillment.mode)!=='manual_activation')return new Response(JSON.stringify({success:false,error:'This product does not have an activation conversation'}),{status:400,headers:cors});
+      if(['delivered','completed','cancelled','failed'].includes(String(fulfillment.status||'').toLowerCase()))return new Response(JSON.stringify({success:false,error:'This activation conversation is closed'}),{status:409,headers:cors});
+      const {error:messageError}=await db.from('activation_messages').insert({
+        fulfillment_id:fulfillment.id,sender_id:user.id,sender_role:'customer',message
+      });
+      if(messageError)throw messageError;
+      const {error:updateError}=await db.from('fulfillments').update({
+        status:'awaiting_admin',
+        delivery_summary:{...(fulfillment.delivery_summary||{}),message:'The customer replied. Activation is awaiting the Strivio team.',last_activation_message_at:new Date().toISOString()},
+        updated_at:new Date().toISOString()
+      }).eq('id',fulfillment.id).eq('order_id',order.id);
+      if(updateError)throw updateError;
+      await db.from('integration_outbox').insert({
+        event_type:'activation_message_created',aggregate_id:fulfillment.id,
+        payload:{order_id:order.id,fulfillment_id:fulfillment.id,service_id:fulfillment.service_id,status:'awaiting_admin',source:'customer_reply',notify_admin:true}
+      });
+      return new Response(JSON.stringify({success:true,fulfillment_id:fulfillment.id,status:'awaiting_admin'}),{headers:cors});
     }
     if(body?.action==='save_customer_input'){
       const fulfillmentId=String(body?.fulfillment_id||'').trim();
@@ -99,6 +126,10 @@ serve(async req=>{
         updated_at:new Date().toISOString()
       }).eq('id',fulfillment.id).eq('order_id',order.id);
       if(updateError)throw updateError;
+      await db.from('activation_messages').insert({
+        fulfillment_id:fulfillment.id,sender_id:user.id,sender_role:'system',
+        message:fulfillment.customer_input?.submitted_at?'Account details updated.':'Account details submitted.'
+      });
       await db.from('integration_outbox').insert({
         event_type:'activation_updated',
         aggregate_id:fulfillment.id,
@@ -116,12 +147,15 @@ serve(async req=>{
     const {data:rows}=await db.from('fulfillments').select('id,service_id,mode,status,quantity,order_item_index,customer_input,delivery_summary,encrypted_delivery,delivered_at').eq('order_id',order.id).order('order_item_index');
     const fulfillmentIds=(rows||[]).map((row:any)=>row.id);
     const serviceIds=[...new Set((rows||[]).map((row:any)=>row.service_id).filter(Boolean))];
-    const [{data:allocations},{data:services}]=await Promise.all([
+    const [{data:allocations},{data:services},{data:activationMessages}]=await Promise.all([
       fulfillmentIds.length
         ? db.from('fulfillment_allocations').select('id,fulfillment_id,ends_at,status,renewal_count,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).order('created_at')
         : Promise.resolve({data:[]}),
       serviceIds.length
         ? db.from('services').select('id,n,p,f,type_prices,types,show_types,fulfillment_mode,icon_type,icon_src,bg').in('id',serviceIds)
+        : Promise.resolve({data:[]}),
+      fulfillmentIds.length
+        ? db.from('activation_messages').select('id,fulfillment_id,sender_role,message,created_at').in('fulfillment_id',fulfillmentIds).order('created_at')
         : Promise.resolve({data:[]})
     ]);
     const serviceById=new Map((services||[]).map((item:any)=>[item.id,item]));
@@ -172,6 +206,7 @@ serve(async req=>{
         ...row,
         encrypted_delivery:undefined,
         delivery:visibleDelivery,
+        activation_messages:(activationMessages||[]).filter((message:any)=>message.fulfillment_id===row.id),
         renewal_targets:renewalTargets,
         renewal_options:{
           durations:RENEWAL_DURATION_LABELS,
