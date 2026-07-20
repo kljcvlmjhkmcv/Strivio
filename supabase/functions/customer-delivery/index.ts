@@ -86,7 +86,7 @@ serve(async req=>{
       if(accountPassword.length<2||accountPassword.length>500)return new Response(JSON.stringify({success:false,error:'Enter a valid account password'}),{status:400,headers:cors});
       if(note.length>2000)return new Response(JSON.stringify({success:false,error:'The note is too long'}),{status:400,headers:cors});
       const {data:fulfillment,error:fulfillmentError}=await db.from('fulfillments')
-        .select('id,order_id,service_id,mode,status,customer_input')
+        .select('id,order_id,service_id,mode,status,customer_input,delivery_summary')
         .eq('id',fulfillmentId).eq('order_id',order.id).maybeSingle();
       if(fulfillmentError||!fulfillment)return new Response(JSON.stringify({success:false,error:'Activation request not found'}),{status:404,headers:cors});
       if(String(fulfillment.mode)!=='manual_activation')return new Response(JSON.stringify({success:false,error:'This product does not accept customer account details'}),{status:400,headers:cors});
@@ -95,7 +95,7 @@ serve(async req=>{
       const {error:updateError}=await db.from('fulfillments').update({
         customer_input:customerInput,
         status:'awaiting_admin',
-        delivery_summary:{message:'Customer account information received. Activation is awaiting the Strivio team.'},
+        delivery_summary:{...(fulfillment.delivery_summary||{}),message:'Customer account information received. Activation is awaiting the Strivio team.'},
         updated_at:new Date().toISOString()
       }).eq('id',fulfillment.id).eq('order_id',order.id);
       if(updateError)throw updateError;
