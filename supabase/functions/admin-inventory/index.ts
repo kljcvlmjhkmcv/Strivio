@@ -38,39 +38,32 @@ async function syncInventory(
   id: string,
   serviceId?: string,
 ) {
-  await db
+  const { error } = await db
     .from("integration_outbox")
     .insert({
       event_type: "inventory_changed",
       aggregate_id: String(id),
       payload: { inventory: true, service_id: serviceId || null },
     });
+  if (error) return { ok: false, error: error.message || String(error) };
   const request = fetch(`${url}/functions/v1/sync-google-sheet`, {
     method: "POST",
     headers: { Authorization: `Bearer ${service}` },
   }).catch(() => null);
   const runtime = (globalThis as any).EdgeRuntime;
   if (runtime?.waitUntil) runtime.waitUntil(request);
+  return { ok: true };
 }
 async function syncInventoryNow(
-  db: any,
+  _db: any,
   url: string,
   service: string,
-  id: string,
+  _id: string,
   scope = "all_light",
 ) {
   const includeInventory = ["inventory", "all", "all_light"].includes(scope);
-  await db
-    .from("integration_outbox")
-    .insert({
-      event_type: "admin_sheet_refresh",
-      aggregate_id: String(id),
-      payload: {
-        inventory: includeInventory,
-        scope,
-        source: "admin_manual_refresh",
-      },
-    });
+  // sync-google-sheet persists the requested refresh in the serialized
+  // outbox itself. A 202 response therefore means safely queued, not lost.
   const response = await fetch(`${url}/functions/v1/sync-google-sheet`, {
     method: "POST",
     headers: {
@@ -94,7 +87,19 @@ async function syncInventoryNow(
   }
   if (!response.ok)
     throw new Error(data?.error || text || "Google Sheet sync failed");
-  return data;
+  return { ...data, http_status: response.status };
+}
+function dispatchNotifications(url: string, service: string) {
+  const request = fetch(`${url}/functions/v1/dispatch-notifications`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${service}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ limit: 10, channels: ["email"] }),
+  }).catch(() => null);
+  const runtime = (globalThis as any).EdgeRuntime;
+  if (runtime?.waitUntil) runtime.waitUntil(request);
 }
 async function decrypt(v?: string | null) {
   if (!v) return {};
@@ -111,46 +116,6 @@ async function decrypt(v?: string | null) {
     unb64(p[2]),
   );
   return JSON.parse(dec.decode(plain));
-}
-function escHtml(v: any) {
-  return String(v ?? "").replace(
-    /[&<>"']/g,
-    (c: any) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ],
-  );
-}
-async function sendAccountChangeEmail(notice: any) {
-  const apiKey = Deno.env.get("BREVO_API_KEY"),
-    sender = Deno.env.get("BREVO_SENDER_EMAIL"),
-    to = notice.recipient_email;
-  if (!apiKey || !sender || !to)
-    return {
-      status: "pending_configuration",
-      error: "Brevo is not configured",
-    };
-  const p = notice.payload || {},
-    changes = [
-      p.email_changed ? "تم تغيير إيميل الحساب" : "",
-      p.password_changed ? "تم تغيير كلمة المرور" : "",
-    ]
-      .filter(Boolean)
-      .join(" و ");
-  const html = `<!doctype html><html lang="ar" dir="rtl"><body style="margin:0;background:#050505;color:#fff;font-family:Arial,Tahoma,sans-serif"><div style="max-width:640px;margin:0 auto;padding:24px"><div style="background:#0b0b0b;border:1px solid #263326;border-radius:22px;padding:24px"><div style="color:#39ff14;font-size:28px;font-weight:900">Strivio</div><h2>تم تحديث بيانات اشتراكك</h2><p style="color:#cfcfcf">${escHtml(changes || "تم تحديث الحساب")} للطلب <b>#${escHtml(String(notice.order_id).slice(0, 8))}</b>.</p><div style="background:#111;border:1px solid #263326;border-radius:14px;padding:16px;line-height:2"><div><b>إيميل الحساب:</b> ${escHtml(p.account_email)}</div><div><b>كلمة السر الجديدة:</b> <span style="font-family:Consolas,monospace">${escHtml(p.account_password || "")}</span></div></div><a href="https://www.striviodz.store${escHtml(p.action_url || "/my-account?order=" + notice.order_id)}" style="display:inline-block;margin-top:18px;background:#39ff14;color:#050505;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:900">فتح تفاصيل الطلب</a></div></div></body></html>`;
-  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: { "api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sender: { email: sender, name: "Strivio" },
-      to: [{ email: to }],
-      subject: `تحديث بيانات اشتراكك من Strivio #${String(notice.order_id).slice(0, 8)}`,
-      htmlContent: html,
-    }),
-  });
-  if (!response.ok)
-    return { status: "failed", error: (await response.text()).slice(0, 500) };
-  return { status: "sent", error: null };
 }
 function profileNo(label: any) {
   const match = String(label || "").match(/\d+/);
@@ -211,6 +176,24 @@ serve(async (req) => {
       );
     const body = await req.json();
     const action = body.action;
+    if (action === "flush_sheet_queue") {
+      const response = await fetch(`${url}/functions/v1/sync-google-sheet`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${service}` },
+      });
+      const text = await response.text();
+      let result: any = null;
+      try {
+        result = JSON.parse(text);
+      } catch {
+        result = { raw: text };
+      }
+      if (!response.ok)
+        throw new Error(result?.error || text || "Google Sheet queue failed");
+      return new Response(JSON.stringify({ success: true, sync: result }), {
+        headers: cors,
+      });
+    }
     if (action === "sync_sheet") {
       const scope = String(body.scope || "all_light");
       const result = await syncInventoryNow(
@@ -220,22 +203,16 @@ serve(async (req) => {
         `admin-refresh-${Date.now()}`,
         scope,
       );
-      const { data: acknowledged, error: ackError } = await db.rpc(
-        "ops_ack_sheet_snapshot",
-        { p_scope: scope, p_order_id: null },
-      );
-      if (ackError) throw ackError;
       return new Response(
         JSON.stringify({
           success: true,
           sync: result,
-          acknowledged: Number(acknowledged || 0),
         }),
         { headers: cors },
       );
     }
     if (action === "list") {
-      const [{ data: accounts }, { data: slots }, { data: licenses }] =
+      const [accountsResult, slotsResult, licensesResult, activationResult] =
         await Promise.all([
           db
             .from("inventory_accounts")
@@ -249,7 +226,25 @@ serve(async (req) => {
           db
             .from("inventory_licenses")
             .select("id,service_id,label,status,created_at,updated_at"),
+          db
+            .from("fulfillments")
+            .select("id,customer_input")
+            .eq("mode", "manual_activation")
+            .not("customer_input", "is", null),
         ]);
+      for (const [name, result] of [
+        ["accounts", accountsResult],
+        ["profiles", slotsResult],
+        ["licenses", licensesResult],
+        ["activation inputs", activationResult],
+      ] as const) {
+        if (result.error)
+          throw new Error(`Unable to load ${name}: ${result.error.message || String(result.error)}`);
+      }
+      const accounts = accountsResult.data || [];
+      const slots = slotsResult.data || [];
+      const licenses = licensesResult.data || [];
+      const activationRows = activationResult.data || [];
       const adminAccounts = await Promise.all((accounts || []).map(async (account) => {
         const credentials: any = await decrypt(account.encrypted_credentials);
         const { encrypted_credentials, ...safeAccount } = account;
@@ -259,12 +254,28 @@ serve(async (req) => {
           password: credentials.password || "",
         };
       }));
+      const activationInputs = await Promise.all((activationRows || []).map(async (row: any) => {
+        const input = row.customer_input && typeof row.customer_input === "object"
+          ? { ...row.customer_input }
+          : {};
+        if (input.account_password_cipher) {
+          try {
+            const secret: any = await decrypt(String(input.account_password_cipher));
+            input.account_password = String(secret?.password || "");
+          } catch {
+            input.account_password = "";
+          }
+          delete input.account_password_cipher;
+        }
+        return { fulfillment_id: row.id, customer_input: input };
+      }));
       return new Response(
         JSON.stringify({
           success: true,
           accounts: adminAccounts,
           slots: (slots || []).sort(sortSlots),
           licenses: licenses || [],
+          activation_inputs: activationInputs,
         }),
         { headers: cors },
       );
@@ -298,7 +309,18 @@ serve(async (req) => {
           }),
         });
       const { error: se } = await db.from("inventory_slots").insert(slots);
-      if (se) throw se;
+      if (se) {
+        const { error: cleanupError } = await db
+          .from("inventory_accounts")
+          .delete()
+          .eq("id", a.id);
+        if (cleanupError) {
+          throw new Error(
+            `${se.message || "Profile creation failed"}; account cleanup failed: ${cleanupError.message || String(cleanupError)}`,
+          );
+        }
+        throw se;
+      }
       await syncInventory(db, url, service, a.id, body.service_id);
       return new Response(JSON.stringify({ success: true, id: a.id }), {
         headers: cors,
@@ -336,7 +358,7 @@ serve(async (req) => {
       if (!body.id) throw new Error("Account is required");
       const { data: account, error: accountError } = await db
         .from("inventory_accounts")
-        .select("id,service_id,encrypted_credentials")
+        .select("id,service_id,encrypted_credentials,credentials_version")
         .eq("id", body.id)
         .single();
       if (accountError || !account)
@@ -350,102 +372,113 @@ serve(async (req) => {
       );
       if (!email || !password)
         throw new Error("Email and password are required");
-      const now = new Date().toISOString();
       const emailChanged = String(current.email || "") !== email,
         passwordChanged = String(current.password || "") !== password;
-      const { error: updateError } = await db
-        .from("inventory_accounts")
-        .update({
-          encrypted_credentials: await encrypt({ email, password }),
-          updated_at: now,
-        })
-        .eq("id", account.id);
-      if (updateError) throw updateError;
       const { data: allocations, error: allocError } = await db
         .from("fulfillment_allocations")
         .select(
-          "id,slot_id,ends_at,status,fulfillments!inner(id,order_id,service_id,encrypted_delivery,orders!inner(customer_info,status))",
+          "id,account_id,slot_id,ends_at,status,sheet_version,inventory_slots(label),fulfillments!inner(id,order_id,service_id,encrypted_delivery)",
         )
         .eq("account_id", account.id)
         .eq("status", "active");
       if (allocError) throw allocError;
-      const notices: any[] = [];
-      for (const allocation of allocations || []) {
-        if (
-          allocation.ends_at &&
-          new Date(allocation.ends_at).getTime() <= Date.now()
-        )
-          continue;
-        const f: any = allocation.fulfillments;
+      const activeAllocations = allocations || [];
+      const getFulfillment = (allocation: any) =>
+        Array.isArray(allocation.fulfillments)
+          ? allocation.fulfillments[0]
+          : allocation.fulfillments;
+      const expectedAllocations = activeAllocations.map((allocation: any) => ({
+        id: String(allocation.id),
+        fulfillment_id: String(getFulfillment(allocation)?.id || ""),
+        slot_id: allocation.slot_id ? String(allocation.slot_id) : null,
+        ends_at: allocation.ends_at || null,
+        sheet_version: Number(allocation.sheet_version || 0),
+      }));
+      const currentAllocations = activeAllocations.filter((allocation: any) =>
+        !allocation.ends_at || new Date(allocation.ends_at).getTime() > Date.now()
+      );
+      const noticesByOrder = new Map<string, any>();
+      const processedFulfillments = new Set<string>();
+      const fulfillmentUpdates: Array<Record<string, string>> = [];
+      for (const allocation of currentAllocations) {
+        const f: any = getFulfillment(allocation);
+        if (!f?.id)
+          throw new Error("An active allocation has no fulfillment record");
+        if (processedFulfillments.has(String(f.id))) continue;
+        processedFulfillments.add(String(f.id));
+        const related = currentAllocations.filter((item: any) =>
+          String(getFulfillment(item)?.id || "") === String(f.id)
+        );
+        const allocationIds = new Set(related.map((item: any) => String(item.id)));
+        const slotIds = new Set(related.map((item: any) => String(item.slot_id || "")).filter(Boolean));
+        const labels = new Set(related.map((item: any) =>
+          String(item.inventory_slots?.label || "").trim().toLowerCase()
+        ).filter(Boolean));
         const delivery: any = await decrypt(f.encrypted_delivery);
         if (delivery && typeof delivery === "object") {
           if (Array.isArray(delivery.entries)) {
-            delivery.entries = delivery.entries.map((entry: any) => ({
-              ...entry,
-              email,
-              password,
-            }));
+            let matches = 0;
+            const deliveryLabelCounts = new Map<string, number>();
+            for (const entry of delivery.entries) {
+              const label = String(entry?.profile || entry?.label || "").trim().toLowerCase();
+              if (label) deliveryLabelCounts.set(label, (deliveryLabelCounts.get(label) || 0) + 1);
+            }
+            delivery.entries = delivery.entries.map((entry: any) => {
+              const entryLabel = String(entry?.profile || entry?.label || "").trim().toLowerCase();
+              const stableMatch = allocationIds.has(String(entry?.allocation_id || "")) ||
+                slotIds.has(String(entry?.slot_id || "")) ||
+                String(entry?.account_id || "") === String(account.id);
+              const safeLegacyMatch = !entry?.allocation_id && !entry?.slot_id && !entry?.account_id &&
+                labels.has(entryLabel) && deliveryLabelCounts.get(entryLabel) === 1;
+              if (stableMatch || safeLegacyMatch) {
+                matches++;
+                return { ...entry, email, password };
+              }
+              return entry;
+            });
+            if (matches < 1)
+              throw new Error(
+                `Delivery ${f.id} could not be matched safely to account ${account.id}`,
+              );
           } else {
             delivery.email = email;
             delivery.password = password;
           }
-          const { error: deliveryError } = await db
-            .from("fulfillments")
-            .update({
-              encrypted_delivery: await encrypt(delivery),
-              updated_at: now,
-            })
-            .eq("id", f.id);
-          if (deliveryError) throw deliveryError;
-        }
-        const customer: any = f.orders?.customer_info || {};
-        const recipient = String(customer.email || "")
-          .trim()
-          .toLowerCase();
-        if (body.notify === true && recipient)
-          notices.push({
-            order_id: f.order_id,
-            service_id: account.service_id,
-            notification_type: "account_changed",
-            recipient_email: recipient,
-            payload: {
-              account_id: account.id,
-              account_email: email,
-              account_password: password,
-              password_changed: passwordChanged,
-              email_changed: emailChanged,
-              action_url: "/my-account?order=" + f.order_id,
-            },
+          fulfillmentUpdates.push({
+            id: String(f.id),
+            expected_encrypted_delivery: String(f.encrypted_delivery || ""),
+            encrypted_delivery: await encrypt(delivery),
           });
-      }
-      let notificationsSent = 0;
-      if (notices.length) {
-        for (const notice of notices) {
-          const emailResult = await sendAccountChangeEmail(notice);
-          const { account_password, ...safePayload } = notice.payload;
-          notice.payload = {
-            ...safePayload,
-            email_status: emailResult.status,
-            email_error: emailResult.error,
-          };
-          if (emailResult.status === "sent") notificationsSent++;
         }
-        const { error: notifyError } = await db
-          .from("customer_notification_queue")
-          .insert(notices);
-        if (notifyError) throw notifyError;
+        if (
+          body.notify === true &&
+          (emailChanged || passwordChanged) &&
+          f.order_id &&
+          !noticesByOrder.has(String(f.order_id))
+        ) {
+          noticesByOrder.set(String(f.order_id), {
+            order_id: String(f.order_id),
+            service_id: account.service_id,
+            fulfillment_id: String(f.id),
+            action_url: "/my-account?order=" + f.order_id,
+          });
+        }
       }
-      await db
-        .from("operations_audit_log")
-        .insert({
-          actor_id: user.id,
-          action: "update_account_credentials",
-          entity_type: "inventory_account",
-          entity_id: account.id,
-          service_id: account.service_id,
-          before_data: { email: current.email || "" },
-          after_data: { email },
-          metadata: {
+      const { data: committed, error: commitError } = await db.rpc(
+        "ops_update_inventory_account_credentials_atomic",
+        {
+          p_account_id: account.id,
+          p_expected_credentials: account.encrypted_credentials,
+          p_expected_credentials_version: Number(
+            account.credentials_version || 0,
+          ),
+          p_new_credentials: await encrypt({ email, password }),
+          p_expected_allocations: expectedAllocations,
+          p_fulfillment_updates: fulfillmentUpdates,
+          p_actor_id: user.id,
+          p_before_data: { email: current.email || "" },
+          p_after_data: { email },
+          p_metadata: {
             notify: body.notify === true,
             email_changed: emailChanged,
             password_changed: passwordChanged,
@@ -453,19 +486,78 @@ serve(async (req) => {
               emailChanged ? "email" : null,
               passwordChanged ? "password" : null,
             ].filter(Boolean),
-            affected_orders: (allocations || []).length,
-            notifications_sent: notificationsSent,
+            affected_allocations: activeAllocations.length,
+            affected_fulfillments: fulfillmentUpdates.length,
           },
-        });
-      await syncInventory(db, url, service, account.id, account.service_id);
+        },
+      );
+      if (commitError) throw commitError;
+
+      // The credential update is committed atomically above. Ancillary delivery
+      // is best-effort and is reported as a warning so clients do not retry the
+      // sensitive transaction after a mail or projection outage.
+      const postCommitWarnings: string[] = [];
+      let notificationsQueued = 0;
+      for (const notice of noticesByOrder.values()) {
+        const { error: notifyError } = await db.rpc(
+          "enqueue_customer_notification",
+          {
+            p_event_type: "account.changed",
+            p_order_id: notice.order_id,
+            p_template_key: "account_changed",
+            p_title_i18n: {
+              ar: "تم تحديث معلومات الحساب",
+              fr: "Informations du compte mises à jour",
+              en: "Account information updated",
+            },
+            p_body_i18n: {
+              ar: "تم تحديث بيانات الحساب المرتبط بطلبك. افتح الطلب لمشاهدة المعلومات الأحدث.",
+              fr: "Les identifiants liés à votre commande ont été mis à jour. Ouvrez la commande pour consulter les informations les plus récentes.",
+              en: "The account details linked to your order were updated. Open the order to view the latest information.",
+            },
+            p_service_id: notice.service_id,
+            p_fulfillment_id: notice.fulfillment_id,
+            p_action_url: notice.action_url,
+            p_data: {
+              account_id: account.id,
+              email_changed: emailChanged,
+              password_changed: passwordChanged,
+              action_url: notice.action_url,
+            },
+            p_send_email: true,
+          },
+        );
+        if (notifyError) {
+          postCommitWarnings.push(
+            `Notification for order ${notice.order_id} was not queued: ${notifyError.message || String(notifyError)}`,
+          );
+          continue;
+        }
+        notificationsQueued++;
+      }
+      if (notificationsQueued > 0) dispatchNotifications(url, service);
+      const syncResult = await syncInventory(
+        db,
+        url,
+        service,
+        account.id,
+        account.service_id,
+      );
+      if (!syncResult.ok)
+        postCommitWarnings.push(
+          `Google Sheet synchronization was not queued: ${syncResult.error}`,
+        );
       return new Response(
         JSON.stringify({
           success: true,
-          affected_orders: (allocations || []).length,
-          notifications_queued: notices.length,
-          notifications_sent: notificationsSent,
+          committed: true,
+          affected_allocations: activeAllocations.length,
+          affected_orders: fulfillmentUpdates.length,
+          notifications_queued: notificationsQueued,
           email_changed: emailChanged,
           password_changed: passwordChanged,
+          transaction: committed,
+          post_commit_warnings: postCommitWarnings,
         }),
         { headers: cors },
       );
@@ -488,177 +580,151 @@ serve(async (req) => {
         throw new Error("Only an active profile can be moved");
       if (String(allocation.slot_id) === targetSlotId)
         throw new Error("Choose a different destination profile");
-      const [
-        { data: sourceSlot },
-        { data: targetSlot },
-        { data: fulfillment },
-      ] = await Promise.all([
-        db
-          .from("inventory_slots")
-          .select("id,account_id,label,status")
-          .eq("id", allocation.slot_id)
-          .single(),
-        db
-          .from("inventory_slots")
-          .select("id,account_id,label,status")
-          .eq("id", targetSlotId)
-          .single(),
-        db
-          .from("fulfillments")
-          .select("id,order_id,service_id,encrypted_delivery,delivery_summary")
-          .eq("id", allocation.fulfillment_id)
-          .single(),
-      ]);
+      const [sourceSlotResult, targetSlotResult, fulfillmentResult] =
+        await Promise.all([
+          db
+            .from("inventory_slots")
+            .select("id,account_id,label,status")
+            .eq("id", allocation.slot_id)
+            .single(),
+          db
+            .from("inventory_slots")
+            .select("id,account_id,label,status,encrypted_secret")
+            .eq("id", targetSlotId)
+            .single(),
+          db
+            .from("fulfillments")
+            .select("id,order_id,service_id,encrypted_delivery")
+            .eq("id", allocation.fulfillment_id)
+            .single(),
+        ]);
+      if (sourceSlotResult.error) throw sourceSlotResult.error;
+      if (targetSlotResult.error) throw targetSlotResult.error;
+      if (fulfillmentResult.error) throw fulfillmentResult.error;
+      const sourceSlot = sourceSlotResult.data;
+      const targetSlot = targetSlotResult.data;
+      const fulfillment = fulfillmentResult.data;
       if (!sourceSlot || !targetSlot || !fulfillment)
         throw new Error("Profile or delivery record not found");
       if (String(targetSlot.status || "").toLowerCase() !== "available")
         throw new Error("Destination profile is not available");
-      const [
-        { data: sourceAccount },
-        { data: targetAccount },
-        { data: targetActive },
-      ] = await Promise.all([
+      const [sourceAccountResult, targetAccountResult] = await Promise.all([
         db
           .from("inventory_accounts")
-          .select("id,service_id")
+          .select("id,service_id,status")
           .eq("id", sourceSlot.account_id)
           .single(),
         db
           .from("inventory_accounts")
-          .select("id,service_id")
+          .select(
+            "id,service_id,status,encrypted_credentials,credentials_version",
+          )
           .eq("id", targetSlot.account_id)
           .single(),
-        db
-          .from("fulfillment_allocations")
-          .select("id")
-          .eq("slot_id", targetSlot.id)
-          .eq("status", "active")
-          .maybeSingle(),
       ]);
+      if (sourceAccountResult.error) throw sourceAccountResult.error;
+      if (targetAccountResult.error) throw targetAccountResult.error;
+      const sourceAccount = sourceAccountResult.data;
+      const targetAccount = targetAccountResult.data;
       if (
         !sourceAccount ||
         !targetAccount ||
         String(targetAccount.service_id) !== String(fulfillment.service_id)
       )
         throw new Error("Destination profile must belong to the same service");
-      if (targetActive)
-        throw new Error("Destination profile is already assigned");
-      const now = new Date().toISOString();
-      const { data: reserved, error: reserveError } = await db
-        .from("inventory_slots")
-        .update({ status: "assigned", updated_at: now })
-        .eq("id", targetSlot.id)
-        .eq("status", "available")
-        .select("id")
-        .maybeSingle();
-      if (reserveError) throw reserveError;
-      if (!reserved)
-        throw new Error(
-          "Destination profile was just assigned; refresh and try again",
-        );
-      const note = `Moved from ${sourceSlot.label || "profile"} to ${targetSlot.label || "profile"} by admin`;
-      const { error: moveError } = await db
-        .from("fulfillment_allocations")
-        .update({
-          account_id: targetSlot.account_id,
-          slot_id: targetSlot.id,
-          sheet_version: Number(allocation.sheet_version || 0) + 1,
-          admin_notes: [allocation.admin_notes, note]
-            .filter(Boolean)
-            .join("\n"),
-        })
-        .eq("id", allocation.id)
-        .eq("status", "active");
-      if (moveError) {
-        await db
-          .from("inventory_slots")
-          .update({ status: "available", updated_at: now })
-          .eq("id", targetSlot.id);
-        throw moveError;
-      }
-      await db
-        .from("inventory_slots")
-        .update({ status: "available", updated_at: now })
-        .eq("id", sourceSlot.id);
-      let deliveryChanged = false;
+      if (String(targetAccount.status || "").toLowerCase() !== "active")
+        throw new Error("Destination account is not active");
+
       const delivery: any = await decrypt(fulfillment.encrypted_delivery);
-      if (delivery && Array.isArray(delivery.entries)) {
-        const sourceLabel = String(sourceSlot.label || "")
-          .trim()
-          .toLowerCase();
-        let index = delivery.entries.findIndex(
-          (entry: any) =>
-            String(entry.profile || entry.label || "")
-              .trim()
-              .toLowerCase() === sourceLabel,
-        );
-        if (index < 0 && delivery.entries.length === 1) index = 0;
-        if (index >= 0) {
-          delivery.entries[index] = {
-            ...delivery.entries[index],
-            profile: targetSlot.label,
-          };
-          deliveryChanged = true;
-        }
-      }
-      if (deliveryChanged) {
-        const { error: deliveryError } = await db
-          .from("fulfillments")
-          .update({
-            encrypted_delivery: await encrypt(delivery),
-            updated_at: now,
-          })
-          .eq("id", fulfillment.id);
-        if (deliveryError) throw deliveryError;
-      }
-      await db
-        .from("operations_audit_log")
-        .insert({
-          actor_id: user.id,
-          action: "move_profile",
-          entity_type: "fulfillment_allocation",
-          entity_id: allocation.id,
-          order_id: fulfillment.order_id,
-          service_id: fulfillment.service_id,
-          before_data: {
-            slot_id: sourceSlot.id,
-            profile: sourceSlot.label,
-            account_id: sourceSlot.account_id,
-          },
-          after_data: {
-            slot_id: targetSlot.id,
-            profile: targetSlot.label,
-            account_id: targetSlot.account_id,
-          },
-          metadata: { delivery_updated: deliveryChanged },
-        });
-      await db
-        .from("integration_outbox")
-        .insert({
-          event_type: "subscription_updated",
-          aggregate_id: allocation.id,
-          payload: {
-            order_id: fulfillment.order_id,
-            allocation_id: allocation.id,
-            source_profile: sourceSlot.label,
-            target_profile: targetSlot.label,
-            inventory: true,
-            source: "operations_center",
-          },
-        });
-      await syncInventory(
-        db,
-        url,
-        service,
-        allocation.id,
-        fulfillment.service_id,
+      if (!delivery || !Array.isArray(delivery.entries))
+        throw new Error("Delivery profile could not be matched safely");
+      const targetCredentials: any = await decrypt(
+        targetAccount.encrypted_credentials,
       );
+      const targetSecret: any = await decrypt(targetSlot.encrypted_secret);
+      const sourceLabel = String(sourceSlot.label || "").trim().toLowerCase();
+      let entryIndex = delivery.entries.findIndex((entry: any) =>
+        String(entry.allocation_id || "") === String(allocation.id)
+      );
+      if (entryIndex < 0)
+        entryIndex = delivery.entries.findIndex((entry: any) =>
+          String(entry.slot_id || "") === String(sourceSlot.id)
+        );
+      if (entryIndex < 0)
+        entryIndex = delivery.entries.findIndex((entry: any) =>
+          String(entry.account_id || "") === String(sourceSlot.account_id) &&
+          String(entry.profile || entry.label || "").trim().toLowerCase() ===
+            sourceLabel
+        );
+      if (entryIndex < 0) {
+        const legacyMatches = delivery.entries
+          .map((entry: any, index: number) => ({ entry, index }))
+          .filter(({ entry }: any) =>
+            !entry?.allocation_id &&
+            !entry?.slot_id &&
+            !entry?.account_id &&
+            String(entry.profile || entry.label || "")
+                .trim()
+                .toLowerCase() === sourceLabel
+          );
+        if (legacyMatches.length === 1) entryIndex = legacyMatches[0].index;
+      }
+      if (entryIndex < 0 && delivery.entries.length === 1) entryIndex = 0;
+      if (entryIndex < 0)
+        throw new Error("Delivery profile could not be matched safely");
+      delivery.entries[entryIndex] = {
+        ...delivery.entries[entryIndex],
+        email: targetCredentials.email || "",
+        password: targetCredentials.password || "",
+        profile: targetSlot.label,
+        pin: targetSecret.pin || targetSecret.code || "",
+        account_id: targetSlot.account_id,
+        slot_id: targetSlot.id,
+        allocation_id: allocation.id,
+      };
+      const newEncryptedDelivery = await encrypt(delivery);
+      const { data: moved, error: moveError } = await db.rpc(
+        "ops_move_inventory_allocation_atomic",
+        {
+          p_allocation_id: allocation.id,
+          p_target_slot_id: targetSlot.id,
+          p_expected_source_account_id: sourceSlot.account_id,
+          p_expected_source_slot_id: sourceSlot.id,
+          p_expected_fulfillment_id: fulfillment.id,
+          p_expected_allocation_sheet_version: Number(
+            allocation.sheet_version || 0,
+          ),
+          p_expected_allocation_admin_notes: allocation.admin_notes || null,
+          p_expected_source_slot_label: sourceSlot.label,
+          p_expected_target_account_id: targetSlot.account_id,
+          p_expected_target_account_credentials:
+            targetAccount.encrypted_credentials,
+          p_expected_target_credentials_version: Number(
+            targetAccount.credentials_version || 0,
+          ),
+          p_expected_target_slot_label: targetSlot.label,
+          p_expected_target_slot_secret: targetSlot.encrypted_secret,
+          p_expected_fulfillment_delivery:
+            fulfillment.encrypted_delivery || null,
+          p_new_fulfillment_delivery: newEncryptedDelivery,
+          p_actor_id: user.id,
+        },
+      );
+      if (moveError) throw moveError;
+
+      const sheetKick = fetch(`${url}/functions/v1/sync-google-sheet`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${service}` },
+      }).catch(() => null);
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (runtime?.waitUntil) runtime.waitUntil(sheetKick);
       return new Response(
         JSON.stringify({
           success: true,
           allocation_id: allocation.id,
           source_profile: sourceSlot.label,
           target_profile: targetSlot.label,
+          transaction: moved,
         }),
         { headers: cors },
       );
@@ -703,6 +769,20 @@ serve(async (req) => {
           : body.kind === "slots"
             ? "inventory_slots"
             : "inventory_licenses";
+      if (body.kind === "slots" || body.kind === "licenses") {
+        const foreignKey = body.kind === "slots" ? "slot_id" : "license_id";
+        const { data: activeAllocation, error: allocationLookupError } = await db
+          .from("fulfillment_allocations")
+          .select("id")
+          .eq(foreignKey, body.id)
+          .eq("status", "active")
+          .maybeSingle();
+        if (allocationLookupError) throw allocationLookupError;
+        if (activeAllocation && body.status !== "assigned")
+          throw new Error("This inventory item is linked to an active customer subscription");
+        if (!activeAllocation && body.status === "assigned")
+          throw new Error("Assigned status requires an active customer allocation");
+      }
       const { error } = await db
         .from(table)
         .update({ status: body.status, updated_at: new Date().toISOString() })

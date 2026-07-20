@@ -3,6 +3,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const enc=new TextEncoder(),dec=new TextDecoder();
 function unb64(v:string){return Uint8Array.from(atob(v),c=>c.charCodeAt(0));}
+async function constantTimeEqual(left:string,right:string){
+  const [leftHash,rightHash]=await Promise.all([
+    crypto.subtle.digest('SHA-256',enc.encode(left)),
+    crypto.subtle.digest('SHA-256',enc.encode(right)),
+  ]);
+  const a=new Uint8Array(leftHash),b=new Uint8Array(rightHash);
+  let diff=left.length^right.length;
+  for(let i=0;i<a.length;i++)diff|=a[i]^b[i];
+  return diff===0;
+}
 async function decrypt(value?:string|null){
   if(!value)return {};
   const raw=Deno.env.get('FULFILLMENT_ENCRYPTION_KEY')||'';
@@ -12,6 +22,32 @@ async function decrypt(value?:string|null){
   const [,iv,cipher]=value.split('.');
   const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(iv)},key,unb64(cipher));
   return JSON.parse(dec.decode(plain));
+}
+async function visibleCustomerInput(value:any){
+  if(!value||typeof value!=='object')return {};
+  const input={...value};
+  if(input.account_password_cipher){
+    try{
+      const secret=await decrypt(String(input.account_password_cipher));
+      input.account_password=String(secret?.password||'');
+    }catch(error:any){
+      throw new Error(`Unable to decrypt customer account password: ${error?.message||String(error)}`);
+    }
+    delete input.account_password_cipher;
+  }
+  return input;
+}
+function queryError(context:string,error:any){
+  return new Error(`${context}: ${error?.message||error?.details||String(error)}`);
+}
+function requireRows(result:any,context:string){
+  if(result?.error)throw queryError(context,result.error);
+  if(!Array.isArray(result?.data))throw new Error(`${context}: database returned no row set`);
+  return result.data;
+}
+function requiresOrder(event:any){
+  if(event?.payload?.order_id)return true;
+  return !['inventory_changed','inventory_refresh','admin_sheet_refresh'].includes(String(event?.event_type||''));
 }
 function label(value:any){return value?.ar||value?.fr||value?.en||value||'';}
 function sheetDate(value:any){return value?String(value).slice(0,10):'';}
@@ -45,7 +81,7 @@ async function enrichProblems(problems:any[],fulfillments:any[],order:any,messag
     const f=fulfillmentMap.get(p.fulfillment_id)||null;
     const item=(order?.items||[])[Number(f?.order_item_index||0)]||{};
     const delivery=await decrypt(f?.encrypted_delivery);
-    const input=f?.customer_input||{};
+    const input=await visibleCustomerInput(f?.customer_input);
     rows.push({
       ...p,
       product_name:p.product_name||itemName(item)||f?.service_id||p.service_id||'',
@@ -68,13 +104,20 @@ async function enrichProblems(problems:any[],fulfillments:any[],order:any,messag
 }
 
 async function inventorySnapshot(db:any){
-  const [{data:accounts},{data:slots},{data:allocations}]=await Promise.all([
+  const [accountsResult,slotsResult,allocationsResult]=await Promise.all([
     db.from('inventory_accounts').select('id,service_id,label,encrypted_credentials,capacity,status,expires_at,created_at').order('created_at'),
     db.from('inventory_slots').select('id,account_id,label,encrypted_secret,status,created_at').order('created_at'),
     db.from('fulfillment_allocations').select('id,account_id,slot_id,starts_at,ends_at,status,admin_notes,sheet_version,renewal_count,fulfillments!inner(order_id,order_item_index,service_id)').order('created_at',{ascending:false}),
   ]);
+  const accounts=requireRows(accountsResult,'Loading inventory accounts');
+  const slots=requireRows(slotsResult,'Loading inventory slots');
+  const allocations=requireRows(allocationsResult,'Loading inventory allocations');
   const orderIds=[...new Set((allocations||[]).map((a:any)=>a.fulfillments?.order_id).filter(Boolean))];
-  const {data:orders}=orderIds.length?await db.from('orders').select('id,created_at,customer_info,items,total_payable,status').in('id',orderIds):{data:[]};
+  let orders:any[]=[];
+  if(orderIds.length){
+    const ordersResult=await db.from('orders').select('id,created_at,customer_info,items,total_payable,status').in('id',orderIds);
+    orders=requireRows(ordersResult,'Loading inventory customer orders');
+  }
   const orderMap=new Map((orders||[]).map((o:any)=>[o.id,o]));
   const allocationBySlot=new Map();
   for(const a of allocations||[])if(a.slot_id&&!allocationBySlot.has(a.slot_id)&&a.status==='active')allocationBySlot.set(a.slot_id,a);
@@ -82,9 +125,11 @@ async function inventorySnapshot(db:any){
   for(const a of accounts||[])accountMap.set(a.id,{...a,credentials:await decrypt(a.encrypted_credentials)});
   const rows=[];
   for(const slot of slots||[]){
-    const account=accountMap.get(slot.account_id);if(!account)continue;
+    const account=accountMap.get(slot.account_id);
+    if(!account)throw new Error(`Inventory slot ${slot.id||'unknown'} references a missing account`);
     const secret=await decrypt(slot.encrypted_secret);const allocation=slot.status==='assigned'?allocationBySlot.get(slot.id)||null:null;
     const fulfillment=allocation?.fulfillments||{};const order=orderMap.get(fulfillment.order_id)||null;
+    if(allocation&&fulfillment.order_id&&!order)throw new Error(`Inventory allocation ${allocation.id||'unknown'} references a missing order`);
     const item=order?.items?.[Number(fulfillment.order_item_index||0)]||{};const customer=order?.customer_info||{};
     rows.push({
       service_id:account.service_id,account_id:account.id,account_label:account.label,account_status:account.status,
@@ -122,22 +167,25 @@ async function scopedEvents(db:any, scope:string, max:number){
     return [{id:null,event_type:'inventory_refresh',aggregate_id:'inventory-refresh',payload:{inventory:true,source:`scope:${normalized}`},attempts:0}];
   }
   if(normalized==='spotify'||normalized==='activations'){
-    const {data}=await db.from('fulfillments').select('order_id,updated_at').eq('mode','manual_activation').order('updated_at',{ascending:false}).limit(max);
-    return uniqueOrderEvents(data||[],`scope:${normalized}`,max);
+    const result=await db.from('fulfillments').select('order_id,updated_at').eq('mode','manual_activation').order('updated_at',{ascending:false}).limit(max);
+    return uniqueOrderEvents(requireRows(result,'Loading manual activations'),`scope:${normalized}`,max);
   }
   if(normalized==='problems'){
-    const {data}=await db.from('problem_reports').select('order_id,created_at').order('created_at',{ascending:false}).limit(max);
-    return uniqueOrderEvents(data||[],`scope:${normalized}`,max);
+    const result=await db.from('problem_reports').select('order_id,created_at').order('created_at',{ascending:false}).limit(max);
+    return uniqueOrderEvents(requireRows(result,'Loading problem reports'),`scope:${normalized}`,max);
   }
   if(normalized==='orders'||normalized==='customers'){
-    const {data}=await db.from('orders').select('id,created_at').order('created_at',{ascending:false}).limit(max);
-    return uniqueOrderEvents(data||[],`scope:${normalized}`,max);
+    const result=await db.from('orders').select('id,created_at').order('created_at',{ascending:false}).limit(max);
+    return uniqueOrderEvents(requireRows(result,'Loading recent orders'),`scope:${normalized}`,max);
   }
-  const [{data:manualFulfillments},{data:problemRows},{data:recentOrders}]=await Promise.all([
+  const [manualResult,problemResult,orderResult]=await Promise.all([
     db.from('fulfillments').select('order_id,updated_at').eq('mode','manual_activation').order('updated_at',{ascending:false}).limit(max),
     db.from('problem_reports').select('order_id,created_at').order('created_at',{ascending:false}).limit(max),
     db.from('orders').select('id,created_at').order('created_at',{ascending:false}).limit(max),
   ]);
+  const manualFulfillments=requireRows(manualResult,'Loading manual activations');
+  const problemRows=requireRows(problemResult,'Loading problem reports');
+  const recentOrders=requireRows(orderResult,'Loading recent orders');
   return uniqueOrderEvents([
     ...(manualFulfillments||[]),
     ...(problemRows||[]),
@@ -149,10 +197,12 @@ serve(async req=>{
   try{
     const url=Deno.env.get('SUPABASE_URL')!,service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,cron=Deno.env.get('SYNC_SECRET')||'';
     const provided=req.headers.get('x-sync-secret')||req.headers.get('authorization')?.replace(/^Bearer\s+/i,'')||'';
-    let jwtRole='';
-    try{jwtRole=JSON.parse(dec.decode(unb64(provided.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))))?.role||'';}catch{/* not a JWT */}
     if(!provided)return new Response('Unauthorized',{status:401});
-    if(provided!==service&&!(cron&&provided===cron)&&!['service_role','postgres'].includes(jwtRole))return new Response('Unauthorized',{status:401});
+    const [serviceMatch,syncSecretMatch]=await Promise.all([
+      constantTimeEqual(provided,service),
+      constantTimeEqual(provided,cron),
+    ]);
+    if(!serviceMatch&&!(cron&&syncSecretMatch))return new Response('Unauthorized',{status:401});
     const webhook=Deno.env.get('GOOGLE_SHEETS_WEBHOOK_URL'),secret=Deno.env.get('GOOGLE_SHEETS_SYNC_SECRET');
     const requestBody=await req.json().catch(()=>({}));
     if(requestBody?.diagnostic===true)return new Response(JSON.stringify({success:true,webhook_configured:!!webhook,secret_configured:!!secret}),{headers:{'Content-Type':'application/json'}});
@@ -162,7 +212,8 @@ serve(async req=>{
     const directOrderId=requestBody?.order_id;
     let directEvents:any[]|null=null;
     if(directProblemId){
-      const {data:problem}=await db.from('problem_reports').select('id,order_id').eq('id',directProblemId).maybeSingle();
+      const {data:problem,error:problemError}=await db.from('problem_reports').select('id,order_id').eq('id',directProblemId).maybeSingle();
+      if(problemError)throw queryError('Loading requested problem report',problemError);
       if(!problem)return new Response(JSON.stringify({success:false,error:'Problem report not found'}),{status:404,headers:{'Content-Type':'application/json'}});
       directEvents=[{id:null,event_type:'problem_reported',aggregate_id:problem.id,payload:{order_id:problem.order_id,problem_report_id:problem.id},attempts:0}];
     }else if(directOrderId){
@@ -170,50 +221,133 @@ serve(async req=>{
     }else if(requestBody?.full_refresh===true){
       const max=Math.max(3,Math.min(Number(requestBody?.limit||8),20));
       directEvents=await scopedEvents(db,requestBody?.refresh_scope||requestBody?.scope||'all_light',max);
+      if(!directEvents.length)directEvents=[{id:null,event_type:'inventory_refresh',aggregate_id:'inventory-refresh',payload:{inventory:true,source:`scope:${requestBody?.refresh_scope||requestBody?.scope||'all_light'}`},attempts:0}];
     }
-    const {data:events}=directEvents?{data:directEvents}:await db.from('integration_outbox').select('*').in('status',['pending','failed']).lt('attempts',5).order('id').limit(8);
+    const requestedEventKeys=new Set<string>();
+    const hadDirectRequest=directEvents!==null;
+    if(directEvents){
+      const queuedEvents=directEvents.map((event:any)=>{
+        requestedEventKeys.add(`${event.event_type}\u0000${event.aggregate_id}`);
+        return {
+          event_type:event.event_type,
+          aggregate_id:String(event.aggregate_id),
+          payload:{...(event.payload||{}),direct_refresh:true},
+        };
+      });
+      const {error:enqueueError}=await db.from('integration_outbox').insert(queuedEvents);
+      if(enqueueError)throw queryError('Queueing direct Google Sheets refresh',enqueueError);
+      directEvents=null;
+    }
+    const workerId=`sheet-sync:${crypto.randomUUID()}`;
+    let events:any[]=directEvents||[];
+    if(!directEvents){
+      const {data:claimed,error:claimError}=await db.rpc('claim_sheet_outbox',{
+        p_worker_id:workerId,
+        p_limit:hadDirectRequest?20:8,
+        p_lease_seconds:300,
+      });
+      if(claimError)throw queryError('Claiming Google Sheets outbox',claimError);
+      if(claimed!==null&&!Array.isArray(claimed))throw new Error('Claiming Google Sheets outbox: database returned an invalid result');
+      events=claimed||[];
+    }
     let sent=0;
-    const queue=(events&&events.length)?events:[{id:null,event_type:'inventory_refresh',aggregate_id:'manual-refresh',payload:{inventory:true,source:'manual_refresh'},attempts:0}];
-    const includeInventory=requestBody?.include_inventory===true||requestBody?.full_refresh===true||!directEvents;
-    const sharedInventory=includeInventory?await inventorySnapshot(db):[];
+    let processed=0;
+    const queue=events||[];
+    if(!queue.length)return new Response(JSON.stringify({success:true,queued:hadDirectRequest,processed:0,sent:0,failed:0,failures:[]}),{status:hadDirectRequest?202:200,headers:{'Content-Type':'application/json'}});
+    const includeInventory=requestBody?.include_inventory===true||requestBody?.full_refresh===true||!hadDirectRequest||queue.some((event:any)=>event?.payload?.inventory===true||['inventory_changed','inventory_refresh','admin_sheet_refresh'].includes(String(event?.event_type||'')));
+    let sharedInventory:any[]|null=null;
     const failures:any[]=[];
+    const completedEventKeys=new Set<string>();
     for(let idx=0;idx<(queue||[]).length;idx++){
       const ev=queue[idx];
-      const orderId=ev.payload?.order_id||ev.aggregate_id;
-      const {data:order}=await db.from('orders').select('id,created_at,status,total_payable,payment_method,customer_info,items,fulfillment_status').eq('id',orderId).maybeSingle();
-      const {data:allocations}=order?await db.from('fulfillment_allocations').select('id,starts_at,ends_at,status,admin_notes,sheet_version,fulfillments!inner(order_id,service_id,user_id)').eq('fulfillments.order_id',orderId):{data:[]};
-      const {data:fulfillments}=order?await db.from('fulfillments').select('id,order_id,order_item_index,service_id,mode,status,quantity,customer_input,delivery_summary,encrypted_delivery,delivered_at,email_status,email_error,updated_at,created_at').eq('order_id',orderId).order('order_item_index'):{data:[]};
-      const {data:problems}=order?await db.from('problem_reports').select('*').eq('order_id',orderId).order('created_at',{ascending:false}):{data:[]};
-      const problemIds=(problems||[]).map((problem:any)=>problem.id);
-      const {data:problemMessages}=problemIds.length?await db.from('problem_messages').select('problem_id,sender_role,message,created_at').in('problem_id',problemIds).order('created_at'):{data:[]};
-      const safeFulfillments=(fulfillments||[]).map((f:any)=>({...f,encrypted_delivery:undefined}));
-      const safeSubscriptions=(allocations||[]).map((a:any)=>({...a,...expiryMeta(a.ends_at)}));
-      const payload={secret,event:{id:ev.id,type:ev.event_type,source:ev.payload?.source||requestBody?.source||'',scope:requestBody?.refresh_scope||requestBody?.scope||''},order:order?{...order,customer_info:{first_name:order.customer_info?.first_name,last_name:order.customer_info?.last_name,email:order.customer_info?.email,phone:order.customer_info?.phone,marketing_email_opt_in:!!order.customer_info?.marketing_email_opt_in,marketing_whatsapp_opt_in:!!order.customer_info?.marketing_whatsapp_opt_in}}:null,subscriptions:safeSubscriptions,fulfillments:safeFulfillments,problems:await enrichProblems(problems||[],fulfillments||[],order,problemMessages||[]),problem_messages:problemMessages||[],inventory:idx===0?sharedInventory:[]};
+      const orderId=ev.payload?.order_id||ev.aggregate_id||'';
       try{
-        const response=await fetch(webhook,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
-        const responseText=await response.text();
-        let sheetResult:any=null;
-        try{sheetResult=JSON.parse(responseText);}catch{/* Apps Script may return plain text on platform errors */}
-        if(!response.ok||sheetResult?.success===false)throw new Error(sheetResult?.error||responseText||`Google Sheets webhook failed (${response.status})`);
-        const processedAt=new Date().toISOString();
-        if(ev.id) {
-          await db.from('integration_outbox').update({status:'sent',attempts:(ev.attempts||0)+1,processed_at:processedAt,last_error:null}).eq('id',ev.id);
-        } else if(directEvents) {
-          if(ev.event_type==='inventory_refresh') {
-            const {error:ackInventoryError}=await db.rpc('ops_ack_sheet_snapshot',{p_scope:requestBody?.refresh_scope||requestBody?.scope||'inventory',p_order_id:null});
-            if(ackInventoryError)throw ackInventoryError;
-          }
-          if(order) {
-            const {error:ackOrderError}=await db.rpc('ops_ack_sheet_snapshot',{p_scope:requestBody?.refresh_scope||requestBody?.scope||'',p_order_id:order.id});
-            if(ackOrderError)throw ackOrderError;
+        if(ev.id){
+          const {data:renewed,error:renewError}=await db.rpc('renew_sheet_outbox_lease',{p_worker_id:workerId});
+          if(renewError)throw queryError('Renewing Google Sheets outbox lease',renewError);
+          if(typeof renewed!=='number'||renewed<1)throw new Error('Sheet outbox lease was lost before delivery');
+        }
+
+        if(includeInventory&&idx===0)sharedInventory=await inventorySnapshot(db);
+
+        const mustLoadOrder=requiresOrder(ev)||Boolean(ev.payload?.order_id);
+        if(mustLoadOrder&&!orderId)throw new Error(`Sheet event ${ev.event_type||'unknown'} is missing its order id`);
+        let order:any=null;
+        let allocations:any[]=[];
+        let fulfillments:any[]=[];
+        let problems:any[]=[];
+        let problemMessages:any[]=[];
+        if(mustLoadOrder){
+          const orderResult=await db.from('orders').select('id,created_at,status,total_payable,payment_method,customer_info,items,fulfillment_status').eq('id',orderId).maybeSingle();
+          if(orderResult.error)throw queryError(`Loading order ${orderId}`,orderResult.error);
+          order=orderResult.data;
+          if(!order)throw new Error(`Order ${orderId} was not found for Sheet event ${ev.event_type||'unknown'}`);
+
+          const [allocationResult,fulfillmentResult,problemResult]=await Promise.all([
+            db.from('fulfillment_allocations').select('id,starts_at,ends_at,status,admin_notes,sheet_version,renewal_count,fulfillments!inner(order_id,service_id,user_id)').eq('fulfillments.order_id',orderId),
+            db.from('fulfillments').select('id,order_id,order_item_index,service_id,mode,status,quantity,customer_input,delivery_summary,encrypted_delivery,delivered_at,email_status,email_error,updated_at,created_at').eq('order_id',orderId).order('order_item_index'),
+            db.from('problem_reports').select('*').eq('order_id',orderId).order('created_at',{ascending:false}),
+          ]);
+          allocations=requireRows(allocationResult,`Loading subscriptions for order ${orderId}`);
+          fulfillments=requireRows(fulfillmentResult,`Loading fulfillments for order ${orderId}`);
+          problems=requireRows(problemResult,`Loading problems for order ${orderId}`);
+          const problemIds=problems.map((problem:any)=>problem.id).filter(Boolean);
+          if(problemIds.length){
+            const messagesResult=await db.from('problem_messages').select('problem_id,sender_role,message,created_at').in('problem_id',problemIds).order('created_at');
+            problemMessages=requireRows(messagesResult,`Loading problem conversation for order ${orderId}`);
           }
         }
+
+        const safeFulfillments=await Promise.all(fulfillments.map(async(f:any)=>({
+          ...f,
+          encrypted_delivery:undefined,
+          customer_input:await visibleCustomerInput(f.customer_input)
+        })));
+        const safeSubscriptions=allocations.map((a:any)=>({...a,...expiryMeta(a.ends_at)}));
+        const payload={secret,event:{id:ev.id,type:ev.event_type,source:ev.payload?.source||requestBody?.source||'',scope:requestBody?.refresh_scope||requestBody?.scope||''},order:order?{...order,customer_info:{first_name:order.customer_info?.first_name,last_name:order.customer_info?.last_name,email:order.customer_info?.email,phone:order.customer_info?.phone,marketing_email_opt_in:!!order.customer_info?.marketing_email_opt_in,marketing_whatsapp_opt_in:!!order.customer_info?.marketing_whatsapp_opt_in}}:null,subscriptions:safeSubscriptions,fulfillments:safeFulfillments,problems:await enrichProblems(problems,fulfillments,order,problemMessages),problem_messages:problemMessages,inventory:idx===0?(sharedInventory||[]):[]};
+        const response=await fetch(webhook,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+        const responseText=await response.text();
+        if(!response.ok)throw new Error(`Google Sheets webhook failed (${response.status}): ${responseText.trim().slice(0,300)||'empty response'}`);
+        let sheetResult:any;
+        try{sheetResult=JSON.parse(responseText);}catch{
+          throw new Error(`Google Sheets webhook returned invalid JSON: ${responseText.trim().slice(0,300)||'empty response'}`);
+        }
+        if(!sheetResult||typeof sheetResult!=='object'||Array.isArray(sheetResult)||sheetResult.success!==true){
+          throw new Error(String(sheetResult?.error||'Google Sheets webhook did not confirm success').slice(0,500));
+        }
+        if(ev.id) {
+          const {data:completed,error:completeError}=await db.rpc('complete_sheet_outbox',{
+            p_event_id:ev.id,
+            p_worker_id:workerId,
+          });
+          if(completeError)throw queryError('Completing Google Sheets outbox event',completeError);
+          if(completed!==true)throw new Error('Sheet outbox lease was lost before completion');
+        }
+        completedEventKeys.add(`${ev.event_type}\u0000${ev.aggregate_id}`);
         sent++;
+        processed++;
       }catch(e:any){
-        failures.push({event:ev.event_type,order_id:orderId,error:String(e?.message||e).slice(0,500)});
-        if(ev.id)await db.from('integration_outbox').update({status:'failed',last_error:String(e?.message||e).slice(0,500)}).eq('id',ev.id);
+        const cleanupErrors:string[]=[];
+        const primaryError=String(e?.message||e).slice(0,500);
+        processed++;
+        if(ev.id){
+          const {data:failed,error:failError}=await db.rpc('fail_sheet_outbox',{
+            p_event_id:ev.id,
+            p_worker_id:workerId,
+            p_error:primaryError,
+          });
+          if(failError)cleanupErrors.push(queryError('Failing Google Sheets outbox event',failError).message);
+          else if(failed!==true)cleanupErrors.push('Google Sheets outbox event was no longer owned while recording its failure');
+          const {data:released,error:releaseError}=await db.rpc('release_sheet_outbox_lease',{p_worker_id:workerId});
+          if(releaseError)cleanupErrors.push(queryError('Releasing Google Sheets outbox lease',releaseError).message);
+          else if(typeof released!=='number'||released<0)cleanupErrors.push('Releasing Google Sheets outbox lease returned an invalid result');
+          failures.push({event:ev.event_type,order_id:orderId,error:[primaryError,...cleanupErrors].join(' | ').slice(0,1000)});
+          break;
+        }
+        failures.push({event:ev.event_type,order_id:orderId,error:primaryError});
       }
     }
-    return new Response(JSON.stringify({success:failures.length===0,processed:queue.length,sent,failed:failures.length,failures}),{status:failures.length?502:200,headers:{'Content-Type':'application/json'}});
+    const requestedStillQueued=hadDirectRequest&&[...requestedEventKeys].some(key=>!completedEventKeys.has(key));
+    return new Response(JSON.stringify({success:failures.length===0,queued:requestedStillQueued,processed,sent,failed:failures.length,failures}),{status:failures.length?502:requestedStillQueued?202:200,headers:{'Content-Type':'application/json'}});
   }catch(e:any){return new Response(JSON.stringify({success:false,error:e?.message||String(e)}),{status:500,headers:{'Content-Type':'application/json'}});}
 });

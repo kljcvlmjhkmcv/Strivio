@@ -4,7 +4,9 @@
   <script src="clean-url.js"></script>
 <meta charset="UTF-8"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="theme-color" content="#121212"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <title>Strivio — Official Digital Subscriptions | Instant Delivery</title>
 <meta name="description" content="Buy Netflix, Spotify, ChatGPT Plus and more at the best prices. Instant delivery, full warranty."/>
 <link rel="stylesheet" href="assets/tailwind.css"/>
@@ -148,6 +150,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 })();
 </script>
 
+<link rel="stylesheet" href="site-shell.css"/>
 </head>
 <body class="overflow-x-hidden" style="background:#121212">
 
@@ -1024,5 +1027,5 @@ if (typeof loadReviewsFromDB === 'function') {
 
 
 </script>
-<script src="account-entry.js"></script></body>
+<script src="account-entry.js"></script><script src="notification-center.js"></script></body>
 </html>

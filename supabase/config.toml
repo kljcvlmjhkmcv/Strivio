@@ -1,0 +1,13 @@
+project_id = "rrfguexpsfizyijekkmi"
+
+[functions.dispatch-notifications]
+verify_jwt = false
+
+[functions.resend-webhook]
+verify_jwt = false
+
+# This endpoint performs its own constant-time comparison against the server
+# service key or SYNC_SECRET. Disabling gateway JWT parsing keeps server-to-
+# server sync compatible with Supabase's current and legacy key formats.
+[functions.sync-google-sheet]
+verify_jwt = false

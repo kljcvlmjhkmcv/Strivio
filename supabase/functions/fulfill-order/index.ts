@@ -26,10 +26,6 @@ function unb64(value: string) {
   return Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
 }
 
-function esc(value: unknown) {
-  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
-}
-
 function firstLabel(value: any) {
   return value?.ar || value?.fr || value?.en || value || "";
 }
@@ -96,91 +92,51 @@ async function decrypt(value?: string | null): Promise<any> {
   return JSON.parse(dec.decode(plain));
 }
 
-function emailHtml(order: any, deliveries: any[]) {
-  const customer = order.customer_info || {};
-  const amount = Number(order.total_payable || 0).toLocaleString("en-US");
-  const customerName = [customer.first_name || customer.firstname, customer.last_name || customer.lastname].filter(Boolean).join(" ") || "عميل Strivio";
-  const blocks = deliveries.map((delivery: any) => {
-    const entries = Array.isArray(delivery.entries) ? delivery.entries : [];
-    const productIdentity = [delivery.service_id, delivery.product_name].filter(Boolean).join(" ").toLowerCase();
-    const isNetflix = /netflix|نتفلكس|نتفليكس/i.test(productIdentity);
-    const ends = delivery.ends_at ? `<div style="margin-top:10px;color:#9ca3af;font-size:13px">ينتهي الاشتراك: ${esc(new Date(delivery.ends_at).toLocaleDateString("fr-DZ"))}</div>` : "";
-    const rules = isNetflix ? `<div dir="rtl" lang="ar" style="margin-top:12px;padding:14px;border-radius:14px;background:#1b1605;border:1px solid #5f4b12;color:#fff3b0;line-height:1.8;text-align:right"><b>شروط الاستخدام:</b><ul style="margin:8px 0 0;padding-right:20px"><li>معلومات الحساب مخصصة لصاحب الطلب فقط ولا يجوز نشرها أو مشاركتها.</li><li>البروفايل أو الشاشة مخصصان لشخص واحد فقط، ويمنع أن يتشارك أكثر من شخص في نفس البروفايل أو الشاشة.</li><li>يمنع تشغيل أو مشاهدة المحتوى من جهازين في الوقت نفسه حتى لو كانا لنفس الشخص.</li><li>يمنع تغيير كلمة سر الحساب أو إعداداته العامة.</li><li>يسمح فقط بتعديل اسم البروفايل ورمز PIN الخاص بك.</li><li>أي مخالفة قد تؤدي إلى إيقاف الاشتراك دون استرداد الأموال.</li></ul></div>` : "";
-    const body = entries.length ? entries.map((entry: any, index: number) => {
-      if (entry.code) return `<div style="margin-top:12px;padding:14px;border-radius:14px;background:#070707;border:1px solid #263326"><div style="color:#39ff14;font-weight:900;margin-bottom:8px">الكود ${index + 1}</div><div style="font-family:Consolas,monospace;color:#fff;word-break:break-all">${esc(entry.code)}</div></div>`;
-      const profileEnd = entry.ends_at ? `<div style="margin-top:6px;color:#9ca3af;font-size:13px">ينتهي هذا البروفايل: ${esc(new Date(entry.ends_at).toLocaleDateString("fr-DZ"))}</div>` : "";
-      return `<div style="margin-top:12px;padding:14px;border-radius:14px;background:#070707;border:1px solid #263326;line-height:1.9"><div style="color:#39ff14;font-weight:900;margin-bottom:8px">${esc(entry.profile || `Profile ${index + 1}`)}</div><div><b>إيميل الحساب:</b> ${esc(entry.email)}</div><div><b>كلمة السر:</b> <span style="font-family:Consolas,monospace">${esc(entry.password)}</span></div><div><b>اسم الشاشة:</b> ${esc(entry.profile)}</div><div><b>PIN:</b> ${esc(entry.pin || "بدون")}</div>${profileEnd}</div>`;
-    }).join("") : `<div style="margin-top:12px;color:#d1d5db;line-height:1.8">${esc(delivery.message || deliveryMessage(delivery.mode))}</div>`;
-    return `<section style="margin:18px 0;padding:18px;border:1px solid #263326;border-radius:18px;background:#111"><h3 style="margin:0;color:#39ff14;font-size:20px">${esc(delivery.product_name || "Strivio")}</h3>${ends}${rules}${body}</section>`;
-  }).join("");
-  const accountUrl = `https://www.striviodz.store/my-account?order=${encodeURIComponent(order.id)}&download=1`;
-  return `<!doctype html><html lang="ar" dir="rtl"><body style="margin:0;background:#050505;color:#f4f4f4;font-family:Arial,Tahoma,sans-serif"><div style="max-width:720px;margin:0 auto;padding:28px"><div style="border:1px solid #263326;border-radius:24px;background:#0b0b0b;overflow:hidden"><div style="padding:26px 24px;background:linear-gradient(135deg,#0b0b0b,#102010)"><div style="color:#39ff14;font-weight:900;font-size:30px;letter-spacing:.5px">Strivio</div><h1 style="margin:18px 0 8px;color:#fff;font-size:24px">تم تسليم طلبك يا ${esc(customerName)}</h1><p style="margin:0;color:#bdbdbd">معلومات الحساب والشاشات بالأسفل.</p></div><div style="padding:24px"><div style="display:grid;gap:8px;color:#d8d8d8;line-height:1.8"><div><b>رقم الطلب:</b> <span style="font-family:Consolas,monospace">${esc(order.id)}</span></div><div><b>الإيميل:</b> ${esc(customer.email || "")}</div><div><b>رقم الهاتف:</b> ${esc(customer.phone || "")}</div><div><b>الإجمالي:</b> ${amount} DZD</div></div>${blocks}<a href="${accountUrl}" style="display:inline-block;margin-top:8px;background:#39ff14;color:#050505;text-decoration:none;padding:14px 20px;border-radius:14px;font-weight:900">فتح الطلب وتحميل المستند</a><p style="margin-top:24px;color:#909090;font-size:12px;line-height:1.7">المعلومات خاصة بصاحب الطلب فقط. لا تشارك كلمة السر أو رمز PIN مع أي شخص.</p></div></div></div></body></html>`;
-}
-async function sendEmail(order: any, deliveries: any[]) {
-  const apiKey = Deno.env.get("BREVO_API_KEY");
-  const sender = Deno.env.get("BREVO_SENDER_EMAIL");
-  const to = order.customer_info?.email;
-  if (!apiKey || !sender || !to) return { status: "pending_configuration", error: !to ? "Customer email missing" : "Brevo is not configured" };
-  const name = [order.customer_info?.first_name, order.customer_info?.last_name].filter(Boolean).join(" ");
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: { "api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sender: { email: sender, name: "Strivio" },
-      to: [{ email: to, name }],
-      subject: `تم تسليم طلبك من Strivio #${String(order.id).slice(0, 8)}`,
-      htmlContent: emailHtml(order, deliveries),
-    }),
+async function renewFulfillmentClaim(db: any, orderId: string, workerId: string) {
+  const { data, error } = await db.rpc("renew_order_fulfillment_claim", {
+    p_order_id: orderId,
+    p_worker_id: workerId,
+    p_lease_seconds: 300,
   });
-  if (!res.ok) return { status: "failed", error: (await res.text()).slice(0, 500) };
-  return { status: "sent", error: null };
+  if (error) throw error;
+  if (data !== true) throw new Error("Fulfillment claim was lost; retry the order safely");
 }
 
-async function sendRenewalEmail(order: any, result: any) {
-  const apiKey = Deno.env.get("BREVO_API_KEY");
-  const sender = Deno.env.get("BREVO_SENDER_EMAIL");
-  const to = order.customer_info?.email;
-  if (!apiKey || !sender || !to) return;
-  const effectiveEnd = result?.new_ends_at || result?.updates?.[0]?.ends_at;
-  const end = effectiveEnd ? new Date(effectiveEnd).toLocaleDateString("fr-DZ") : "—";
-  const accountUrl = `https://www.striviodz.store/my-account?order=${encodeURIComponent(order.id)}`;
-  await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: { "api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sender: { email: sender, name: "Strivio" },
-      to: [{ email: to }],
-      subject: `تم تمديد اشتراكك في Strivio #${String(order.id).slice(0, 8)}`,
-      htmlContent: `<!doctype html><html lang="ar" dir="rtl"><body style="margin:0;background:#050505;color:#fff;font-family:Arial,Tahoma,sans-serif"><div style="max-width:680px;margin:auto;padding:28px"><div style="background:#0b0b0b;border:1px solid #263326;border-radius:24px;padding:26px"><div style="color:#39ff14;font-size:30px;font-weight:900">Strivio</div><h1 style="font-size:24px">تم تمديد اشتراكك بنجاح</h1><p style="color:#cfcfcf;line-height:1.8">تم تأكيد دفع طلب التجديد وتحديث نفس الاشتراك الذي اخترته. تاريخ الانتهاء الجديد: <b style="color:#39ff14">${esc(end)}</b>.</p><a href="${accountUrl}" style="display:inline-block;margin-top:12px;background:#39ff14;color:#050505;text-decoration:none;padding:14px 20px;border-radius:14px;font-weight:900">عرض الاشتراك المحدّث</a></div></div></body></html>`,
-    }),
-  }).catch(() => null);
+async function releaseFulfillmentInventory(
+  db: any,
+  fulfillmentId: string,
+  workerId: string,
+  note = "reallocated",
+  reservedSlotIds: string[] = [],
+  reservedLicenseIds: string[] = [],
+) {
+  const { data, error } = await db.rpc("release_fulfillment_inventory_atomic", {
+    p_fulfillment_id: fulfillmentId,
+    p_worker_id: workerId,
+    p_note: note,
+    p_reserved_slot_ids: [...new Set(reservedSlotIds.filter(Boolean))],
+    p_reserved_license_ids: [...new Set(reservedLicenseIds.filter(Boolean))],
+  });
+  if (error) throw error;
+  if (!data?.success) throw new Error("Inventory release was not committed");
+  return data;
 }
 
-async function releaseStaleSlots(db: any, serviceId: string) {
-  const { data: slots } = await db
-    .from("inventory_slots")
-    .select("id,inventory_accounts!inner(service_id)")
-    .eq("status", "assigned")
-    .eq("inventory_accounts.service_id", serviceId)
-    .limit(500);
-  const ids = (slots || []).map((slot: any) => slot.id).filter(Boolean);
-  if (!ids.length) return;
-  const { data: active } = await db.from("fulfillment_allocations").select("slot_id").in("slot_id", ids).eq("status", "active");
-  const activeIds = new Set((active || []).map((row: any) => row.slot_id));
-  const stale = ids.filter((id: string) => !activeIds.has(id));
-  if (stale.length) await db.from("inventory_slots").update({ status: "available", updated_at: new Date().toISOString() }).in("id", stale);
-}
-
-async function releaseFulfillmentAllocations(db: any, fulfillmentId: string) {
-  const { data: allocations } = await db
-    .from("fulfillment_allocations")
-    .select("id,slot_id")
-    .eq("fulfillment_id", fulfillmentId)
-    .eq("status", "active");
-  const allocationIds = (allocations || []).map((row: any) => row.id).filter(Boolean);
-  const slotIds = (allocations || []).map((row: any) => row.slot_id).filter(Boolean);
-  if (allocationIds.length) await db.from("fulfillment_allocations").update({ status: "expired", admin_notes: "reallocated" }).in("id", allocationIds);
-  if (slotIds.length) await db.from("inventory_slots").update({ status: "available", updated_at: new Date().toISOString() }).in("id", slotIds);
+async function rollbackInventoryAllocation(
+  db: any,
+  fulfillmentId: string,
+  workerId: string,
+  reservedSlotIds: string[] = [],
+  reservedLicenseIds: string[] = [],
+) {
+  await releaseFulfillmentInventory(
+    db,
+    fulfillmentId,
+    workerId,
+    "automatic allocation rolled back",
+    reservedSlotIds,
+    reservedLicenseIds,
+  );
 }
 
 function sortSlotsTopToBottom(a: any, b: any) {
@@ -214,11 +170,23 @@ function chooseStrictSlots(accounts: any[], freeSlots: any[], qty: number) {
   throw new Error("OUT_OF_STOCK");
 }
 
-async function allocateSlots(db: any, serviceId: string, fulfillmentId: string, qty: number, endsAt: string, includePin: boolean) {
-  await releaseStaleSlots(db, serviceId);
+async function allocateSlots(
+  db: any,
+  serviceId: string,
+  fulfillmentId: string,
+  qty: number,
+  endsAt: string,
+  includePin: boolean,
+  workerId: string,
+  renewLease: () => Promise<void>,
+  credentialRetry = 0,
+) {
+  // Never run stale-slot cleanup inside the allocation hot path. A different
+  // worker may have reserved a slot and not inserted its allocation yet.
+  await renewLease();
   const { data: accounts, error: accountsError } = await db
     .from("inventory_accounts")
-    .select("id,label,encrypted_credentials,created_at")
+    .select("id,label,encrypted_credentials,credentials_version,created_at")
     .eq("service_id", serviceId)
     .eq("status", "active")
     .order("created_at", { ascending: true });
@@ -235,57 +203,342 @@ async function allocateSlots(db: any, serviceId: string, fulfillmentId: string, 
   if (slotsError) throw slotsError;
 
   const slotIds = (slots || []).map((s: any) => s.id);
-  const { data: activeAllocations } = slotIds.length
+  const { data: activeAllocations, error: activeAllocationsError } = slotIds.length
     ? await db.from("fulfillment_allocations").select("slot_id").in("slot_id", slotIds).eq("status", "active")
-    : { data: [] };
+    : { data: [], error: null };
+  if (activeAllocationsError) throw activeAllocationsError;
   const activeSlotIds = new Set((activeAllocations || []).map((a: any) => a.slot_id));
   const freeSlots = (slots || []).filter((s: any) => !activeSlotIds.has(s.id));
   const selected = chooseStrictSlots(orderedAccounts, freeSlots, qty);
 
   const entries: any[] = [];
-  for (const slot of selected) {
-    const account = orderedAccounts.find((a: any) => a.id === slot.account_id);
-    const { data: updatedSlot, error: slotError } = await db
-      .from("inventory_slots")
-      .update({ status: "assigned", updated_at: new Date().toISOString() })
-      .eq("id", slot.id)
-      .eq("status", "available")
-      .select("id")
-      .maybeSingle();
-    if (slotError) throw slotError;
-    if (!updatedSlot) throw new Error("OUT_OF_STOCK");
-    const { error: allocationError } = await db.from("fulfillment_allocations").insert({ fulfillment_id: fulfillmentId, account_id: slot.account_id, slot_id: slot.id, ends_at: endsAt });
-    if (allocationError) throw allocationError;
-    const credentials = await decrypt(account?.encrypted_credentials);
-    const secret = await decrypt(slot.encrypted_secret);
-    entries.push({ email: credentials.email, password: credentials.password, profile: slot.label, pin: includePin ? secret.pin || secret.code || "" : "", ends_at: endsAt });
+  const reservedSlotIds: string[] = [];
+  try {
+    for (const slot of selected) {
+      await renewLease();
+      const account = orderedAccounts.find((a: any) => a.id === slot.account_id);
+      const { data: updatedSlot, error: slotError } = await db
+        .from("inventory_slots")
+        .update({ status: "assigned", updated_at: new Date().toISOString() })
+        .eq("id", slot.id)
+        .eq("status", "available")
+        .select("id")
+        .maybeSingle();
+      if (slotError) throw slotError;
+      if (!updatedSlot) throw new Error("OUT_OF_STOCK");
+      reservedSlotIds.push(slot.id);
+      const { data: allocation, error: allocationError } = await db.from("fulfillment_allocations")
+        .insert({ fulfillment_id: fulfillmentId, account_id: slot.account_id, slot_id: slot.id, ends_at: endsAt })
+        .select("id")
+        .single();
+      if (allocationError || !allocation) throw allocationError || new Error("Could not record subscription allocation");
+      const credentials = await decrypt(account?.encrypted_credentials);
+      const secret = await decrypt(slot.encrypted_secret);
+      entries.push({
+        email: credentials.email,
+        password: credentials.password,
+        profile: slot.label,
+        pin: includePin ? secret.pin || secret.code || "" : "",
+        ends_at: endsAt,
+        account_id: slot.account_id,
+        slot_id: slot.id,
+        allocation_id: allocation.id,
+      });
+    }
+
+    // A credential rotation can race with fulfillment after the first account
+    // read. Recheck the exact value and version before publishing delivery;
+    // any mismatch rolls all reservations back for a clean retry.
+    await renewLease();
+    const selectedAccountIds = [...new Set(
+      selected.map((slot: any) => String(slot.account_id)).filter(Boolean),
+    )];
+    if (selectedAccountIds.length) {
+      const { data: latestAccounts, error: latestAccountsError } = await db
+        .from("inventory_accounts")
+        .select("id,encrypted_credentials,credentials_version")
+        .in("id", selectedAccountIds);
+      if (latestAccountsError) throw latestAccountsError;
+      const latestById = new Map(
+        (latestAccounts || []).map((latest: any) => [String(latest.id), latest]),
+      );
+      for (const accountId of selectedAccountIds) {
+        const original = orderedAccounts.find((value: any) => String(value.id) === accountId);
+        const latest: any = latestById.get(accountId);
+        if (
+          !original ||
+          !latest ||
+          String(original.encrypted_credentials || "") !== String(latest.encrypted_credentials || "") ||
+          Number(original.credentials_version || 0) !== Number(latest.credentials_version || 0)
+        ) {
+          throw new Error("INVENTORY_CREDENTIALS_CHANGED");
+        }
+      }
+    }
+  } catch (error: any) {
+    const failure: any = error && typeof error === "object" ? error : new Error(String(error));
+    try {
+      await rollbackInventoryAllocation(db, fulfillmentId, workerId, reservedSlotIds);
+    } catch (cleanupError: any) {
+      failure.allocationCleanupError = String(cleanupError?.message || cleanupError);
+    }
+    failure.reservedSlotIds = reservedSlotIds;
+    if (
+      String(failure.message || "").includes("INVENTORY_CREDENTIALS_CHANGED") &&
+      !failure.allocationCleanupError &&
+      credentialRetry < 1
+    ) {
+      return await allocateSlots(
+        db,
+        serviceId,
+        fulfillmentId,
+        qty,
+        endsAt,
+        includePin,
+        workerId,
+        renewLease,
+        credentialRetry + 1,
+      );
+    }
+    throw failure;
   }
   return entries;
 }
 
-async function allocateLicenses(db: any, serviceId: string, fulfillmentId: string, qty: number, endsAt: string) {
-  const { data: rows, error } = await db.rpc("allocate_inventory_licenses", { p_fulfillment_id: fulfillmentId, p_service_id: serviceId, p_quantity: qty, p_ends_at: endsAt });
+async function allocateLicenses(
+  db: any,
+  serviceId: string,
+  fulfillmentId: string,
+  qty: number,
+  endsAt: string,
+  workerId: string,
+) {
+  const { data: rows, error } = await db.rpc("allocate_fulfillment_licenses_atomic", {
+    p_fulfillment_id: fulfillmentId,
+    p_service_id: serviceId,
+    p_quantity: qty,
+    p_ends_at: endsAt,
+    p_worker_id: workerId,
+  });
   if (error) throw error;
   const entries = [];
   for (const row of rows || []) {
     const secret = await decrypt(row.encrypted_secret);
-    entries.push({ code: secret.code || secret.key || secret.license });
+    entries.push({
+      code: secret.code || secret.key || secret.license,
+      allocation_id: row.allocation_id,
+      license_id: row.license_id,
+      ends_at: endsAt,
+    });
   }
   return entries;
 }
 
-async function runBackground(db: any, url: string, serviceKey: string, order: any, deliveries: any[], shouldEmail: boolean, finalStatus: string) {
-  let email = { status: shouldEmail ? "queued" : "already_sent", error: null as string | null };
-  if (shouldEmail) {
-    email = await sendEmail(order, deliveries);
-    await db.from("fulfillments").update({ email_status: email.status, email_error: email.error }).eq("order_id", order.id).neq("email_status", "sent");
+type CustomerNotification = {
+  eventType: string;
+  templateKey: string;
+  orderId: string;
+  serviceId?: string | null;
+  fulfillmentId?: string | null;
+  actionUrl: string;
+  title: Record<string, string>;
+  body: Record<string, string>;
+  data: Record<string, unknown>;
+  dedupeKey: string;
+};
+
+async function enqueueCustomerNotification(db: any, input: CustomerNotification) {
+  const { data: eventId, error } = await db.rpc("enqueue_customer_notification", {
+    p_event_type: input.eventType,
+    p_order_id: input.orderId,
+    p_template_key: input.templateKey,
+    p_title_i18n: input.title,
+    p_body_i18n: input.body,
+    p_fulfillment_id: input.fulfillmentId || null,
+    p_problem_id: null,
+    p_service_id: input.serviceId || null,
+    p_action_url: input.actionUrl,
+    p_data: input.data,
+    p_send_email: true,
+    p_dedupe_key: input.dedupeKey,
+  });
+  if (error) throw error;
+  if (!eventId) throw new Error("Notification event was not persisted");
+
+  const { data: ownDelivery, error: deliveryError } = await db.from("notification_deliveries")
+    .select("status,last_error")
+    .eq("event_id", eventId)
+    .eq("channel", "email")
+    .maybeSingle();
+  if (deliveryError) throw deliveryError;
+  if (!ownDelivery) {
+    // Orders without an email still retain their in-site notification event.
+    return { status: "skipped", error: null as string | null, event_id: eventId };
   }
-  await db.from("integration_outbox").insert({ event_type: "order_fulfilled", aggregate_id: order.id, payload: { order_id: order.id, fulfillment_status: finalStatus, email_status: email.status } });
-  await fetch(`${url}/functions/v1/sync-google-sheet`, { method: "POST", headers: { Authorization: `Bearer ${serviceKey}` } }).catch(() => null);
+  const ownStatus = String(ownDelivery.status || "pending").toLowerCase();
+  return {
+    status: ["pending", "processing"].includes(ownStatus) ? "queued" : ownStatus,
+    error: ownDelivery.last_error ? String(ownDelivery.last_error).slice(0, 500) : null,
+    event_id: eventId,
+  };
+}
+
+function fulfillmentNotification(
+  orderId: string,
+  finalStatus: string,
+  fulfillment?: { id: string; service_id?: string | null } | null,
+): CustomerNotification {
+  const actionUrl = `/my-account?order=${encodeURIComponent(orderId)}`;
+  if (fulfillment || finalStatus === "delivered") {
+    return {
+      eventType: fulfillment ? "fulfillment.delivered" : "order.delivered",
+      templateKey: "order_delivered",
+      orderId,
+      serviceId: fulfillment?.service_id || null,
+      fulfillmentId: fulfillment?.id || null,
+      actionUrl,
+      title: { ar: "تم تسليم طلبك", fr: "Votre commande a été livrée", en: "Your order has been delivered" },
+      body: {
+        ar: "تم تسليم طلبك بنجاح. افتح حسابك للاطلاع على التفاصيل والتعليمات.",
+        fr: "Votre commande a été livrée. Ouvrez votre compte pour consulter les détails et les instructions.",
+        en: "Your order has been delivered. Open your account to view the details and instructions.",
+      },
+      data: { fulfillment_status: fulfillment ? "delivered" : finalStatus },
+      dedupeKey: fulfillment
+        ? `fulfillment-delivered:${fulfillment.id}`
+        : `order-fulfillment:${orderId}:order.delivered`,
+    };
+  }
+  if (finalStatus === "needs_stock") {
+    return {
+      eventType: "order.delayed",
+      templateKey: "order_delayed",
+      orderId,
+      actionUrl,
+      title: { ar: "طلبك يحتاج إلى مراجعة", fr: "Votre commande nécessite une vérification", en: "Your order needs attention" },
+      body: {
+        ar: "يحتاج طلبك إلى مراجعة المخزون أو فريق Strivio. سنحدّث حالته فور تجهيزه.",
+        fr: "Votre commande nécessite une vérification du stock ou de l’équipe Strivio. Son statut sera mis à jour dès qu’elle sera prête.",
+        en: "Your order needs a stock or Strivio team review. We will update its status as soon as it is ready.",
+      },
+      data: { fulfillment_status: finalStatus },
+      dedupeKey: `order-fulfillment:${orderId}:order.delayed`,
+    };
+  }
+  return {
+    eventType: "order.processing",
+    templateKey: "order_processing",
+    orderId,
+    actionUrl,
+    title: { ar: "طلبك قيد التجهيز", fr: "Votre commande est en cours de préparation", en: "Your order is being prepared" },
+    body: {
+      ar: "تم تأكيد الدفع، وبعض خدمات الطلب تحتاج إلى بيانات الحساب أو إجراء من فريق Strivio.",
+      fr: "Le paiement est confirmé. Certains services nécessitent les informations du compte ou une intervention de l’équipe Strivio.",
+      en: "Payment is confirmed. Some services need account details or action from the Strivio team.",
+    },
+    data: { fulfillment_status: finalStatus },
+    dedupeKey: `order-fulfillment:${orderId}:order.processing`,
+  };
+}
+
+async function persistFulfillmentSideEffects(db: any, order: any, shouldNotify: boolean, finalStatus: string) {
+  // Persist the Sheet projection before returning success. The HTTP call that
+  // wakes the Sheet worker is optional; the serialized outbox is authoritative.
+  const outboxResult = await db.from("integration_outbox").insert({
+    event_type: "order_fulfilled",
+    aggregate_id: order.id,
+    payload: {
+      order_id: order.id,
+      fulfillment_status: finalStatus,
+      email_status: "pending",
+      source: "fulfill_order",
+    },
+  });
+  if (outboxResult.error) throw outboxResult.error;
+
+  const { data: fulfillmentRows, error: fulfillmentRowsError } = await db
+    .from("fulfillments")
+    .select("id,service_id,status,email_status")
+    .eq("order_id", order.id)
+    .order("order_item_index");
+  if (fulfillmentRowsError) throw fulfillmentRowsError;
+
+  const rows = fulfillmentRows || [];
+  const emailIsFinal = (value: unknown) =>
+    ["sent", "delivered", "suppressed", "dead", "cancelled", "skipped"]
+      .includes(String(value || "").toLowerCase());
+  const deliveredRows = rows.filter((row: any) =>
+    ["delivered", "completed"].includes(String(row.status || "").toLowerCase()) &&
+    !emailIsFinal(row.email_status)
+  );
+  const pendingRows = rows.filter((row: any) =>
+    !["delivered", "completed"].includes(String(row.status || "").toLowerCase()) &&
+    !emailIsFinal(row.email_status)
+  );
+  const outcomes: Array<{ status: string; error: string | null }> = [];
+
+  for (const fulfillment of deliveredRows) {
+    const outcome = await enqueueCustomerNotification(
+      db,
+      fulfillmentNotification(order.id, "delivered", fulfillment),
+    );
+    outcomes.push(outcome);
+    const updateResult = await db.from("fulfillments").update({
+      email_status: outcome.status,
+      email_error: outcome.error,
+    }).eq("id", fulfillment.id);
+    if (updateResult.error) throw updateResult.error;
+  }
+
+  if (finalStatus !== "delivered" && pendingRows.length && shouldNotify) {
+    const outcome = await enqueueCustomerNotification(
+      db,
+      fulfillmentNotification(order.id, finalStatus),
+    );
+    outcomes.push(outcome);
+    const updateResult = await db.from("fulfillments").update({
+      email_status: outcome.status,
+      email_error: outcome.error,
+    }).in("id", pendingRows.map((row: any) => row.id));
+    if (updateResult.error) throw updateResult.error;
+  }
+
+  // Keep a fallback for unusual paid orders that contain no service row.
+  if (!rows.length && shouldNotify) {
+    outcomes.push(await enqueueCustomerNotification(db, fulfillmentNotification(order.id, finalStatus)));
+  }
+
+  return outcomes.find((item) => item.status === "failed") ||
+    outcomes.find((item) => item.status === "queued") ||
+    outcomes.find((item) => item.status === "sent") ||
+    { status: "already_sent", error: null };
+}
+
+async function wakeDeliveryWorkers(url: string, serviceKey: string, syncBody: Record<string, unknown> = {}) {
+  const headers = { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" };
+  const calls = [
+    fetch(`${url}/functions/v1/dispatch-notifications`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ limit: 10, channels: ["email"] }),
+    }),
+    fetch(`${url}/functions/v1/sync-google-sheet`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(syncBody),
+    }),
+  ];
+  await Promise.allSettled(calls.map(async (request) => {
+    const response = await request;
+    await response.text().catch(() => "");
+  }));
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(JSON.stringify({ ok: true }), { headers: cors });
+  let db: any = null;
+  let claimedOrderId: string | null = null;
+  const workerId = `fulfill-order:${crypto.randomUUID()}`;
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -294,99 +547,202 @@ serve(async (req) => {
     }
 
     const { order_id } = await req.json();
-    const db = createClient(url, serviceKey);
+    db = createClient(url, serviceKey);
     const { data: order, error: orderError } = await db.from("orders").select("*").eq("id", order_id).single();
     if (orderError || !order) throw orderError || new Error("Order not found");
     if (!["paid", "completed"].includes(order.status)) return new Response(JSON.stringify({ success: false, error: "Order is not paid" }), { status: 409, headers: cors });
 
-    const { data: renewalRequest } = await db.from("renewal_requests").select("id,status").eq("order_id", order.id).maybeSingle();
+    const { data: claimed, error: claimError } = await db.rpc("claim_order_fulfillment", {
+      p_order_id: order.id,
+      p_worker_id: workerId,
+      p_lease_seconds: 300,
+    });
+    if (claimError) throw claimError;
+    if (!claimed) {
+      return new Response(JSON.stringify({
+        success: true,
+        status: "processing",
+        claimed: false,
+        retryable: true,
+      }), { status: 202, headers: { ...cors, "Retry-After": "2" } });
+    }
+    claimedOrderId = order.id;
+    const renewLease = () => renewFulfillmentClaim(db, order.id, workerId);
+
+    const { data: renewalRequest, error: renewalRequestError } = await db.from("renewal_requests").select("id,status,metadata,months,service_id").eq("order_id", order.id).maybeSingle();
+    if (renewalRequestError) throw renewalRequestError;
     if (renewalRequest) {
+      await renewLease();
       const { data: renewalResult, error: renewalError } = await db.rpc("apply_paid_renewal_order", { p_order_id: order.id });
       if (renewalError) throw renewalError;
-      waitUntil(Promise.all([
-        sendRenewalEmail(order, renewalResult),
-        fetch(`${url}/functions/v1/sync-google-sheet`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ full_refresh: true, refresh_scope: "inventory", include_inventory: true }),
-        }).catch(() => null),
-      ]));
-      return new Response(JSON.stringify({ success: true, status: "delivered", renewal: true, renewal_result: renewalResult }), { headers: cors });
+      const sourceOrderId = renewalRequest.metadata?.source_order_id || order.id;
+      const effectiveEnd = renewalResult?.new_ends_at || renewalResult?.updates?.[0]?.ends_at || null;
+      const renewalNotification = await enqueueCustomerNotification(db, {
+        eventType: "subscription.renewed",
+        templateKey: "subscription_renewed",
+        orderId: order.id,
+        serviceId: renewalRequest.service_id,
+        actionUrl: `/my-account?order=${encodeURIComponent(sourceOrderId)}`,
+        title: { ar: "تم تجديد اشتراكك", fr: "Votre abonnement a été renouvelé", en: "Your subscription has been renewed" },
+        body: {
+          ar: "تم تأكيد الدفع وتمديد نفس الاشتراك بنجاح. يمكنك الاطلاع على تاريخ الانتهاء المحدّث من حسابك.",
+          fr: "Le paiement est confirmé et le même abonnement a été prolongé. Consultez la nouvelle date d’expiration dans votre compte.",
+          en: "Payment is confirmed and the same subscription has been extended. View the updated expiry date in your account.",
+        },
+        data: {
+          months: renewalRequest.months || renewalResult?.months || null,
+          ends_at: effectiveEnd,
+          source_order_id: sourceOrderId,
+        },
+        dedupeKey: `subscription-renewed:${order.id}`,
+      });
+      waitUntil(wakeDeliveryWorkers(url, serviceKey, {
+        full_refresh: true,
+        refresh_scope: "inventory",
+        include_inventory: true,
+      }));
+      return new Response(JSON.stringify({
+        success: true,
+        status: "delivered",
+        renewal: true,
+        renewal_result: renewalResult,
+        email_status: renewalNotification.status,
+      }), { headers: cors });
     }
 
-    await db.from("orders").update({ fulfillment_status: "processing", fulfillment_started_at: new Date().toISOString() }).eq("id", order.id);
-    const deliveries: any[] = [];
+    const { data: processingOrder, error: processingOrderError } = await db.from("orders")
+      .update({ fulfillment_status: "processing", fulfillment_started_at: new Date().toISOString() })
+      .eq("id", order.id)
+      .eq("fulfillment_worker_id", workerId)
+      .select("id")
+      .maybeSingle();
+    if (processingOrderError || !processingOrder) {
+      throw processingOrderError || new Error("Fulfillment claim was lost before processing");
+    }
     let hasStockFailure = false;
     let hasPending = false;
-    let shouldEmail = false;
+    let shouldNotify = false;
 
     for (let i = 0; i < (order.items || []).length; i++) {
+      await renewLease();
       const item = order.items[i] || {};
       const serviceId = item.id || item.service_id;
-      const { data: svc } = await db.from("services").select("id,n,fulfillment_mode,fulfillment_config").eq("id", serviceId).single();
-      if (!svc) continue;
+      const { data: svc, error: serviceError } = await db.from("services").select("id,n,fulfillment_mode,fulfillment_config").eq("id", serviceId).single();
+      if (serviceError || !svc) {
+        throw serviceError || new Error(`Service not found for order item ${i}`);
+      }
 
       const mode = svc.fulfillment_mode || "manual_delivery";
       const qty = mode === "automatic_slot" || mode === "automatic_account" ? screenCountFor(item) : quantityFor(item);
       const endsAt = endDate(monthsFor(item));
       const productName = firstLabel(svc.n) || item.name || svc.id;
-      const { data: existing } = await db.from("fulfillments").select("*").eq("order_id", order.id).eq("order_item_index", i).maybeSingle();
+      const { data: existing, error: existingError } = await db.from("fulfillments")
+        .select("*")
+        .eq("order_id", order.id)
+        .eq("order_item_index", i)
+        .maybeSingle();
+      if (existingError) throw existingError;
+      const existingStatus = String(existing?.status || "").toLowerCase();
+      const isTerminal = existingStatus === "delivered" || existingStatus === "completed";
+      const isManual = !["automatic_slot", "automatic_account", "automatic_license"].includes(mode);
 
-      if (existing?.status === "delivered" && existing.encrypted_delivery) {
-        const current = await decrypt(existing.encrypted_delivery);
-        if ((current.entries || []).length >= qty) {
-          deliveries.push({ ...current, service_id: svc.id });
-          if (existing.email_status !== "sent") shouldEmail = true;
-          continue;
-        }
-        await releaseFulfillmentAllocations(db, existing.id);
-        await db.from("fulfillments").update({ status: "processing", encrypted_delivery: null, delivered_at: null }).eq("id", existing.id);
-      } else if (existing?.status === "awaiting_customer" || existing?.status === "awaiting_admin") {
-        hasPending = true;
-        if (existing.email_status !== "sent") shouldEmail = true;
-        deliveries.push({ service_id: svc.id, mode, product_name: productName, entries: [], message: existing.delivery_summary?.message || deliveryMessage(mode), ends_at: endsAt });
+      // A completed manual activation/delivery is authoritative. Re-running this
+      // function must never reopen it as awaiting_customer/awaiting_admin.
+      if (existing && isTerminal && isManual) {
         continue;
       }
 
-      shouldEmail = true;
+      if (existing && isTerminal && existing.encrypted_delivery) {
+        const current = await decrypt(existing.encrypted_delivery);
+        if ((current.entries || []).length >= qty) {
+          if (!["sent", "delivered", "suppressed", "dead", "cancelled", "skipped"].includes(String(existing.email_status || "").toLowerCase())) shouldNotify = true;
+          continue;
+        }
+        await renewLease();
+        await releaseFulfillmentInventory(db, existing.id, workerId, "reallocated after quantity change");
+        const { error: resetError } = await db.from("fulfillments")
+          .update({ status: "processing", encrypted_delivery: null, delivered_at: null })
+          .eq("id", existing.id);
+        if (resetError) throw resetError;
+      } else if (existing?.status === "awaiting_customer" || existing?.status === "awaiting_admin") {
+        hasPending = true;
+        if (!["sent", "delivered", "suppressed", "dead", "cancelled", "skipped"].includes(String(existing.email_status || "").toLowerCase())) shouldNotify = true;
+        continue;
+      }
+
+      shouldNotify = true;
       const base = { order_id: order.id, order_item_index: i, user_id: order.user_id, service_id: svc.id, mode, quantity: qty, status: "processing" };
       const { data: fulfillment, error: fulfillmentError } = existing
         ? await db.from("fulfillments").update(base).eq("id", existing.id).select().single()
         : await db.from("fulfillments").insert(base).select().single();
       if (fulfillmentError || !fulfillment) throw fulfillmentError || new Error("Could not create fulfillment");
-      await releaseFulfillmentAllocations(db, fulfillment.id);
+      await renewLease();
+      await releaseFulfillmentInventory(db, fulfillment.id, workerId, "reallocated before fulfillment retry");
 
       try {
         const delivery: any = { service_id: svc.id, mode, product_name: productName, entries: [], ends_at: endsAt };
         if (mode === "automatic_slot" || mode === "automatic_account") {
-          delivery.entries = await allocateSlots(db, svc.id, fulfillment.id, qty, endsAt, mode === "automatic_slot");
+          delivery.entries = await allocateSlots(
+            db,
+            svc.id,
+            fulfillment.id,
+            qty,
+            endsAt,
+            mode === "automatic_slot",
+            workerId,
+            renewLease,
+          );
         } else if (mode === "automatic_license") {
-          delivery.entries = await allocateLicenses(db, svc.id, fulfillment.id, qty, endsAt);
+          await renewLease();
+          delivery.entries = await allocateLicenses(db, svc.id, fulfillment.id, qty, endsAt, workerId);
         } else {
           const status = mode === "manual_activation" ? "awaiting_customer" : "awaiting_admin";
           delivery.message = deliveryMessage(mode);
           hasPending = true;
-          await db.from("fulfillments").update({ status, delivery_summary: { mode, product_name: productName, message: delivery.message, ends_at: endsAt } }).eq("id", fulfillment.id);
-          deliveries.push(delivery);
+          await renewLease();
+          const { error: manualUpdateError } = await db.from("fulfillments")
+            .update({ status, delivery_summary: { mode, product_name: productName, message: delivery.message, ends_at: endsAt } })
+            .eq("id", fulfillment.id);
+          if (manualUpdateError) throw manualUpdateError;
           continue;
         }
 
         if (delivery.entries.length !== qty) throw new Error(`OUT_OF_STOCK: allocated ${delivery.entries.length} of ${qty}`);
-        await db.from("fulfillments").update({
+        const encryptedDelivery = await encrypt(delivery);
+        await renewLease();
+        const { error: deliveryUpdateError } = await db.from("fulfillments").update({
           status: "delivered",
-          encrypted_delivery: await encrypt(delivery),
+          encrypted_delivery: encryptedDelivery,
           delivery_summary: { mode, product_name: productName, count: delivery.entries.length, requested: qty, ends_at: endsAt },
           delivered_at: new Date().toISOString(),
-          email_status: "queued",
+          // The notification queue is persisted synchronously below. Keep this
+          // recoverable until that commit succeeds.
+          email_status: "pending",
         }).eq("id", fulfillment.id);
-        deliveries.push(delivery);
+        if (deliveryUpdateError) throw deliveryUpdateError;
       } catch (error: any) {
-        const message = String(error?.message || error);
+        let cleanupError = String(error?.allocationCleanupError || "");
+        if (["automatic_slot", "automatic_account", "automatic_license"].includes(mode)) {
+          try {
+            await rollbackInventoryAllocation(
+              db,
+              fulfillment.id,
+              workerId,
+              Array.isArray(error?.reservedSlotIds) ? error.reservedSlotIds : [],
+              Array.isArray(error?.reservedLicenseIds) ? error.reservedLicenseIds : [],
+            );
+          } catch (rollbackError: any) {
+            cleanupError = [cleanupError, String(rollbackError?.message || rollbackError)].filter(Boolean).join("; ");
+          }
+        }
+        const originalMessage = String(error?.message || error);
+        const message = cleanupError ? `${originalMessage}; ${cleanupError}` : originalMessage;
         const outOfStock = message.includes("OUT_OF_STOCK");
         const manualSplit = message.includes("NEEDS_MANUAL_SPLIT");
         hasStockFailure ||= outOfStock;
         hasPending = true;
-        await db.from("fulfillments").update({
+        await renewLease();
+        const { error: failureUpdateError } = await db.from("fulfillments").update({
           status: manualSplit ? "awaiting_admin" : outOfStock ? "out_of_stock" : "failed",
           delivery_summary: {
             mode,
@@ -396,15 +752,42 @@ serve(async (req) => {
           },
           email_error: message.slice(0, 500),
         }).eq("id", fulfillment.id);
+        if (failureUpdateError) throw failureUpdateError;
       }
     }
 
     const finalStatus = hasStockFailure ? "needs_stock" : hasPending ? "partially_delivered" : "delivered";
-    await db.from("orders").update({ fulfillment_status: finalStatus, fulfilled_at: finalStatus === "delivered" ? new Date().toISOString() : null }).eq("id", order.id);
-    waitUntil(runBackground(db, url, serviceKey, order, deliveries, shouldEmail, finalStatus));
+    await renewLease();
+    const { data: finalizedOrder, error: finalizedOrderError } = await db.from("orders")
+      .update({ fulfillment_status: finalStatus, fulfilled_at: finalStatus === "delivered" ? new Date().toISOString() : null })
+      .eq("id", order.id)
+      .eq("fulfillment_worker_id", workerId)
+      .select("id")
+      .maybeSingle();
+    if (finalizedOrderError || !finalizedOrder) {
+      throw finalizedOrderError || new Error("Fulfillment claim was lost before finalizing the order");
+    }
+    const notification = await persistFulfillmentSideEffects(db, order, shouldNotify, finalStatus);
+    waitUntil(wakeDeliveryWorkers(url, serviceKey));
 
-    return new Response(JSON.stringify({ success: true, status: finalStatus, email_status: shouldEmail ? "queued" : "already_sent" }), { headers: cors });
+    return new Response(JSON.stringify({ success: true, status: finalStatus, email_status: notification.status }), { headers: cors });
   } catch (error: any) {
     return new Response(JSON.stringify({ success: false, error: error?.message || String(error) }), { status: 500, headers: cors });
+  } finally {
+    if (db && claimedOrderId) {
+      try {
+        const { data: released, error: releaseError } = await db.rpc("release_order_fulfillment_claim", {
+          p_order_id: claimedOrderId,
+          p_worker_id: workerId,
+        });
+        if (releaseError || !released) {
+          console.error("Could not release order fulfillment claim", releaseError || "claim no longer owned");
+        }
+      } catch (releaseError) {
+        // The database lease expires automatically, so a network error here
+        // must not replace the actual fulfillment response.
+        console.error("Could not release order fulfillment claim", releaseError);
+      }
+    }
   }
 });

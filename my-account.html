@@ -3,11 +3,12 @@
   <head>
     <script src="clean-url.js"></script>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#080808" />
     <meta name="robots" content="noindex,nofollow" />
     <title>Strivio — My Account</title>
     <link rel="stylesheet" href="assets/tailwind.css" />
+    <link rel="stylesheet" href="site-shell.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
@@ -266,9 +267,9 @@
       }
     </style>
   </head>
-  <body class="grid-bg min-h-screen">
+  <body class="grid-bg min-h-screen site-safe-root">
     <header
-      class="sticky top-0 z-40 bg-black/80 backdrop-blur-xl border-b border-white/5"
+      class="site-safe-topbar sticky top-0 z-40 bg-black/80 backdrop-blur-xl border-b border-white/5"
     >
       <div
         class="max-w-7xl h-16 px-4 mx-auto flex items-center justify-between gap-3"
@@ -277,6 +278,12 @@
           >Strivio</a
         >
         <div class="flex items-center gap-2">
+          <span data-notification-entry>
+            <button type="button" class="site-notification-trigger" data-notification-trigger aria-haspopup="dialog" aria-expanded="false" aria-label="الإشعارات">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+              <span data-notification-badge hidden>0</span>
+            </button>
+          </span>
           <a href="./" class="ghost hidden sm:block">متابعة التسوق</a
           ><a href="cart" class="ghost">السلة</a
           ><button class="lang" data-lang="ar">AR</button
@@ -486,7 +493,13 @@
         fulfillments = [],
         problems = [],
         problemMessages = [],
-        lang = localStorage.getItem("strivio_lang") || "ar";
+        lang = localStorage.getItem("strivio_lang") || "ar",
+        detailsPollTimer = null,
+        detailsPollSignature = "",
+        accountStatePollTimer = null,
+        accountStatePollBusy = false,
+        accountRealtimeChannel = null,
+        accountRealtimeTimer = null;
       const renewalDurationLabels = {
         ar: ["شهر واحد", "شهران", "3 أشهر", "6 أشهر", "سنة كاملة"],
         fr: ["1 mois", "2 mois", "3 mois", "6 mois", "1 an"],
@@ -706,7 +719,8 @@
       }
       async function loadFulfillmentSummaries(orderIds) {
         const { data: { session } } = await window.supabaseClient.auth.getSession();
-        if (!session || !orderIds.length) return [];
+        if (!session) throw new Error("Authentication required");
+        if (!orderIds.length) return [];
         const response = await fetch(SUPABASE_URL + "/functions/v1/customer-delivery", {
           method: "POST",
           headers: {
@@ -717,14 +731,186 @@
           body: JSON.stringify({ order_ids: orderIds }),
         });
         const data = await response.json().catch(function () { return null; });
-        return response.ok && data?.success ? data.fulfillments || [] : [];
+        if (!response.ok || !data?.success)
+          throw new Error(data?.error || actionText().summariesFailed);
+        return data.fulfillments || [];
       }
       function portalText() {
         return ({
-          ar: { details:"تفاصيل الطلب", viewDetails:"عرض التفاصيل", amount:"المبلغ", products:"المنتجات", preparing:"التسليم قيد التحضير.", email:"البريد", password:"كلمة السر", profile:"البروفايل", code:"الكود", expires:"ينتهي الاشتراك:", admin:"تحديث الإدارة", report:"الإبلاغ أو متابعة البلاغ", reportSupport:"بلاغ / دعم", followReport:"متابعة البلاغ", subscription:"الاشتراك", whatsapp:"WhatsApp لهذا الطلب", activationTitle:"بيانات الحساب المطلوب تفعيله", activationHelp:"أدخل بريد وكلمة سر حسابك، ويمكنك العودة وتعديلها ما دام التفعيل لم يكتمل.", activationEmail:"بريد الحساب", activationPassword:"كلمة سر الحساب", note:"ملاحظات اختيارية", saveActivation:"حفظ وإرسال البيانات", saving:"جاري الحفظ…", saved:"تم حفظ بيانات الحساب وإرسالها لفريق Strivio.", awaitingCustomer:"مطلوب منك مراجعة البيانات والرد على الفريق", awaitingAdmin:"تم استلام البيانات والتفعيل قيد المعالجة", delivered:"تم التفعيل والتسليم", activationChat:"محادثة التفعيل", noActivationMessages:"لا توجد رسائل بعد.", replyPlaceholder:"اكتب ردك أو وضّح المعلومة المطلوبة…", sendMessage:"إرسال الرد", messageSent:"تم إرسال ردك لفريق Strivio.", team:"فريق Strivio", customer:"أنت", system:"تحديث" },
-          fr: { details:"Détails de la commande", viewDetails:"Voir les détails", amount:"Montant", products:"Produits", preparing:"Livraison en préparation.", email:"E-mail", password:"Mot de passe", profile:"Profil", code:"Code", expires:"Expire le :", admin:"Mise à jour de l’équipe", report:"Signaler ou suivre", reportSupport:"Support / signalement", followReport:"Suivre le signalement", subscription:"l’abonnement", whatsapp:"WhatsApp pour cette commande", activationTitle:"Compte à activer", activationHelp:"Saisissez l’e-mail et le mot de passe du compte. Vous pourrez les modifier tant que l’activation n’est pas terminée.", activationEmail:"E-mail du compte", activationPassword:"Mot de passe du compte", note:"Note facultative", saveActivation:"Enregistrer et envoyer", saving:"Enregistrement…", saved:"Les informations du compte ont été envoyées à l’équipe Strivio.", awaitingCustomer:"Une vérification ou une réponse est requise", awaitingAdmin:"Informations reçues — activation en cours", delivered:"Activation terminée", activationChat:"Conversation d’activation", noActivationMessages:"Aucun message pour le moment.", replyPlaceholder:"Répondez ou précisez l’information demandée…", sendMessage:"Envoyer la réponse", messageSent:"Votre réponse a été envoyée à l’équipe Strivio.", team:"Équipe Strivio", customer:"Vous", system:"Mise à jour" },
-          en: { details:"Order details", viewDetails:"View details", amount:"Amount", products:"Products", preparing:"Delivery is being prepared.", email:"Email", password:"Password", profile:"Profile", code:"Code", expires:"Expires:", admin:"Team update", report:"Report or follow up", reportSupport:"Report / support", followReport:"Follow report", subscription:"subscription", whatsapp:"WhatsApp for this order", activationTitle:"Account to activate", activationHelp:"Enter the account email and password. You can edit them until activation is completed.", activationEmail:"Account email", activationPassword:"Account password", note:"Optional note", saveActivation:"Save and send details", saving:"Saving…", saved:"Your account details were sent to the Strivio team.", awaitingCustomer:"Your review or reply is required", awaitingAdmin:"Details received — activation in progress", delivered:"Activation completed", activationChat:"Activation conversation", noActivationMessages:"No messages yet.", replyPlaceholder:"Reply or provide the requested information…", sendMessage:"Send reply", messageSent:"Your reply was sent to the Strivio team.", team:"Strivio team", customer:"You", system:"Update" }
+          ar: { details:"تفاصيل الطلب", viewDetails:"عرض التفاصيل", amount:"المبلغ", products:"المنتجات", preparing:"التسليم قيد التحضير.", email:"البريد", password:"كلمة السر", profile:"البروفايل", code:"الكود", expires:"ينتهي الاشتراك:", admin:"تحديث الإدارة", report:"الإبلاغ أو متابعة البلاغ", reportSupport:"بلاغ / دعم", followReport:"متابعة البلاغ", subscription:"الاشتراك", whatsapp:"WhatsApp لهذا الطلب", activationTitle:"بيانات الحساب المطلوب تفعيله", activationHelp:"أدخل بريد وكلمة سر حسابك، ويمكنك العودة وتعديلها ما دام التفعيل لم يكتمل.", activationEmail:"بريد الحساب", activationPassword:"كلمة سر الحساب", note:"ملاحظات اختيارية", saveActivation:"حفظ وإرسال البيانات", saving:"جاري الحفظ…", saved:"تم حفظ بيانات الحساب وإرسالها لفريق Strivio.", awaitingCustomer:"مطلوب منك مراجعة البيانات والرد على الفريق", awaitingAdmin:"تم استلام البيانات والتفعيل قيد المعالجة", delivered:"تم التفعيل والتسليم", activationCompletedHelp:"تم تفعيل حسابك بنجاح. إذا واجهتك أي مشكلة استخدم زر البلاغ أدناه لفتح محادثة دعم جديدة.", activationChat:"محادثة التفعيل", noActivationMessages:"لا توجد رسائل بعد.", replyPlaceholder:"اكتب ردك أو وضّح المعلومة المطلوبة…", sendMessage:"إرسال الرد", messageSent:"تم إرسال ردك لفريق Strivio.", team:"فريق Strivio", customer:"أنت", system:"تحديث" },
+          fr: { details:"Détails de la commande", viewDetails:"Voir les détails", amount:"Montant", products:"Produits", preparing:"Livraison en préparation.", email:"E-mail", password:"Mot de passe", profile:"Profil", code:"Code", expires:"Expire le :", admin:"Mise à jour de l’équipe", report:"Signaler ou suivre", reportSupport:"Support / signalement", followReport:"Suivre le signalement", subscription:"l’abonnement", whatsapp:"WhatsApp pour cette commande", activationTitle:"Compte à activer", activationHelp:"Saisissez l’e-mail et le mot de passe du compte. Vous pourrez les modifier tant que l’activation n’est pas terminée.", activationEmail:"E-mail du compte", activationPassword:"Mot de passe du compte", note:"Note facultative", saveActivation:"Enregistrer et envoyer", saving:"Enregistrement…", saved:"Les informations du compte ont été envoyées à l’équipe Strivio.", awaitingCustomer:"Une vérification ou une réponse est requise", awaitingAdmin:"Informations reçues — activation en cours", delivered:"Activation terminée", activationCompletedHelp:"Votre compte a été activé avec succès. En cas de problème, utilisez le bouton de signalement ci-dessous pour ouvrir une nouvelle conversation d’assistance.", activationChat:"Conversation d’activation", noActivationMessages:"Aucun message pour le moment.", replyPlaceholder:"Répondez ou précisez l’information demandée…", sendMessage:"Envoyer la réponse", messageSent:"Votre réponse a été envoyée à l’équipe Strivio.", team:"Équipe Strivio", customer:"Vous", system:"Mise à jour" },
+          en: { details:"Order details", viewDetails:"View details", amount:"Amount", products:"Products", preparing:"Delivery is being prepared.", email:"Email", password:"Password", profile:"Profile", code:"Code", expires:"Expires:", admin:"Team update", report:"Report or follow up", reportSupport:"Report / support", followReport:"Follow report", subscription:"subscription", whatsapp:"WhatsApp for this order", activationTitle:"Account to activate", activationHelp:"Enter the account email and password. You can edit them until activation is completed.", activationEmail:"Account email", activationPassword:"Account password", note:"Optional note", saveActivation:"Save and send details", saving:"Saving…", saved:"Your account details were sent to the Strivio team.", awaitingCustomer:"Your review or reply is required", awaitingAdmin:"Details received — activation in progress", delivered:"Activation completed", activationCompletedHelp:"Your account was activated successfully. If you experience a problem, use the report button below to open a new support conversation.", activationChat:"Activation conversation", noActivationMessages:"No messages yet.", replyPlaceholder:"Reply or provide the requested information…", sendMessage:"Send reply", messageSent:"Your reply was sent to the Strivio team.", team:"Strivio team", customer:"You", system:"Update" }
         })[lang] || {};
+      }
+      const customerActionText = {
+        ar: {
+          authRequired: "يرجى تسجيل الدخول مجددًا للمتابعة.",
+          summariesFailed: "تعذر تحديث تفاصيل التسليم الآن. احتفظنا بآخر بيانات صحيحة وسنحاول مجددًا تلقائيًا.",
+          detailsFailed: "تعذر فتح تفاصيل الطلب. تأكد أنك داخل الحساب الذي أجرى الطلب.",
+          renewalUnavailable: "هذا الاشتراك غير متاح للتجديد الآن.",
+          renewalTitle: "تجديد الاشتراك",
+          renewalDescription: "اختر البروفيلات أو الاشتراكات التي تريد تمديدها فقط.",
+          renewalDuration: "مدة التمديد",
+          renewalOpenFailed: "تعذر فتح التجديد.",
+          renewalSelectOne: "اختر اشتراكًا واحدًا على الأقل.",
+          renewalOneKind: "جدّد نوعًا واحدًا من الاشتراكات في كل عملية.",
+          renewalPreparing: "جاري تجهيز سلة التجديد…",
+          renewalPriceInvalid: "سعر هذه المدة غير مضبوط في المنتج.",
+          renewalAdd: "إضافة التجديد إلى السلة",
+          renewalInfoTitle: "كيف يُحسب التمديد؟",
+          renewalInfoBody: "تُضاف المدة الجديدة إلى تاريخ انتهاء اشتراكك الحالي، وليس إلى تاريخ اليوم. ويمكنك بعد ذلك استخدام كوبون واختيار طريقة الدفع من السلة.",
+          renewalStartFailed: "تعذر بدء التجديد:",
+          orderNotRenewable: "هذا الطلب لا يحتوي على اشتراك قابل للتجديد.",
+          renewEnds: "ينتهي:",
+          renewCount: "مرات التجديد السابقة:",
+          reportTitle: "الإبلاغ عن مشكلة",
+          followTitle: "متابعة البلاغ",
+          reportOrder: "طلب",
+          reportThread: "محادثة البلاغ",
+          reportCustomer: "أنت",
+          reportTeam: "فريق Strivio",
+          reportWaiting: "تم استلام البلاغ، وسيظهر رد الفريق هنا فور تحديثه.",
+          reportClosed: "تم إغلاق هذا البلاغ. يمكنك الرجوع للطلب وفتح بلاغ جديد إذا ظهرت مشكلة أخرى.",
+          reportReplyLabel: "إضافة رد جديد",
+          reportProblemLabel: "وصف المشكلة",
+          reportPlaceholder: "اشرح المشكلة بالتفصيل",
+          reportSendReply: "إرسال الرد",
+          reportSend: "إرسال البلاغ",
+          viewReport: "عرض البلاغ",
+          emptyOrders: "لا توجد طلبات حتى الآن.",
+          emptyPayments: "لا توجد مدفوعات بعد.",
+          emptyProblems: "لا توجد بلاغات. إذا احتجت مساعدة افتح الطلب ثم اختر بلاغ / دعم.",
+          subscriptionsTitle: "اشتراكاتك ومعلومات انتهائها",
+          subscriptionsHelp: "افتح تفاصيل أي طلب لرؤية تاريخ انتهاء الاشتراك عند توفره.",
+          reportSaveFailed: "تعذر حفظ البلاغ:",
+          reportReplySent: "تم إرسال ردك داخل البلاغ.",
+          reportSent: "تم إرسال البلاغ.",
+          whatsappReportMessage: "مرحباً، أحتاج دعماً للطلب #",
+          whatsappGeneralMessage: "مرحباً، أحتاج مساعدة في حسابي على Strivio",
+          profileSaveFailed: "تعذر حفظ البيانات:",
+          profileSaved: "تم حفظ بياناتك بنجاح",
+          activationSaveFailed: "تعذر حفظ بيانات الحساب.",
+          activationMessageFailed: "تعذر إرسال الرسالة.",
+        },
+        fr: {
+          authRequired: "Reconnectez-vous pour continuer.",
+          summariesFailed: "Impossible d’actualiser la livraison. Les dernières données valides sont conservées et une nouvelle tentative sera effectuée automatiquement.",
+          detailsFailed: "Impossible d’ouvrir la commande. Vérifiez que vous utilisez le compte qui l’a passée.",
+          renewalUnavailable: "Cet abonnement ne peut pas être renouvelé pour le moment.",
+          renewalTitle: "Renouvellement de l’abonnement",
+          renewalDescription: "Choisissez uniquement les profils ou abonnements à prolonger.",
+          renewalDuration: "Durée du renouvellement",
+          renewalOpenFailed: "Impossible d’ouvrir le renouvellement.",
+          renewalSelectOne: "Sélectionnez au moins un abonnement.",
+          renewalOneKind: "Renouvelez un seul type d’abonnement par opération.",
+          renewalPreparing: "Préparation du panier de renouvellement…",
+          renewalPriceInvalid: "Le tarif de cette durée n’est pas configuré pour ce produit.",
+          renewalAdd: "Ajouter le renouvellement au panier",
+          renewalInfoTitle: "Comment le renouvellement est-il calculé ?",
+          renewalInfoBody: "La nouvelle durée est ajoutée à la date d’expiration actuelle, et non à la date du jour. Vous pourrez ensuite utiliser un coupon et choisir le mode de paiement dans le panier.",
+          renewalStartFailed: "Impossible de démarrer le renouvellement :",
+          orderNotRenewable: "Cette commande ne contient aucun abonnement renouvelable.",
+          renewEnds: "Expire le :",
+          renewCount: "Renouvellements précédents :",
+          reportTitle: "Signaler un problème",
+          followTitle: "Suivre le signalement",
+          reportOrder: "Commande",
+          reportThread: "Conversation du signalement",
+          reportCustomer: "Vous",
+          reportTeam: "Équipe Strivio",
+          reportWaiting: "Le signalement a été reçu. La réponse de l’équipe apparaîtra ici dès sa mise à jour.",
+          reportClosed: "Ce signalement est fermé. Vous pouvez en ouvrir un nouveau depuis la commande si un autre problème apparaît.",
+          reportReplyLabel: "Ajouter une réponse",
+          reportProblemLabel: "Description du problème",
+          reportPlaceholder: "Décrivez le problème en détail",
+          reportSendReply: "Envoyer la réponse",
+          reportSend: "Envoyer le signalement",
+          viewReport: "Voir le signalement",
+          emptyOrders: "Aucune commande pour le moment.",
+          emptyPayments: "Aucun paiement pour le moment.",
+          emptyProblems: "Aucun signalement. Ouvrez une commande pour demander de l’aide.",
+          subscriptionsTitle: "Vos abonnements et leurs dates d’expiration",
+          subscriptionsHelp: "Ouvrez une commande pour consulter la date d’expiration de chaque abonnement.",
+          reportSaveFailed: "Impossible d’enregistrer le signalement :",
+          reportReplySent: "Votre réponse a été envoyée dans le signalement.",
+          reportSent: "Le signalement a été envoyé.",
+          whatsappReportMessage: "Bonjour, j’ai besoin d’aide pour la commande #",
+          whatsappGeneralMessage: "Bonjour, j’ai besoin d’aide avec mon compte Strivio",
+          profileSaveFailed: "Impossible d’enregistrer les informations :",
+          profileSaved: "Vos informations ont été enregistrées",
+          activationSaveFailed: "Impossible d’enregistrer les informations du compte.",
+          activationMessageFailed: "Impossible d’envoyer le message.",
+        },
+        en: {
+          authRequired: "Sign in again to continue.",
+          summariesFailed: "Delivery details could not be refreshed. The latest valid data is still shown and we will retry automatically.",
+          detailsFailed: "Could not open this order. Make sure you are using the account that placed it.",
+          renewalUnavailable: "This subscription is not available for renewal right now.",
+          renewalTitle: "Subscription renewal",
+          renewalDescription: "Choose only the profiles or subscriptions you want to extend.",
+          renewalDuration: "Renewal duration",
+          renewalOpenFailed: "Could not open renewal.",
+          renewalSelectOne: "Select at least one subscription.",
+          renewalOneKind: "Renew one subscription type per checkout.",
+          renewalPreparing: "Preparing the renewal cart…",
+          renewalPriceInvalid: "This duration does not have a configured product price.",
+          renewalAdd: "Add renewal to cart",
+          renewalInfoTitle: "How is the extension calculated?",
+          renewalInfoBody: "The new duration is added to the current expiry date, not today. You can then apply a coupon and choose the payment method in the cart.",
+          renewalStartFailed: "Could not start renewal:",
+          orderNotRenewable: "This order has no renewable subscription.",
+          renewEnds: "Expires:",
+          renewCount: "Previous renewals:",
+          reportTitle: "Report a problem",
+          followTitle: "Follow report",
+          reportOrder: "Order",
+          reportThread: "Report conversation",
+          reportCustomer: "You",
+          reportTeam: "Strivio team",
+          reportWaiting: "Your report was received. The team reply will appear here as soon as it is updated.",
+          reportClosed: "This report is closed. You can open a new one from the order if another problem appears.",
+          reportReplyLabel: "Add a reply",
+          reportProblemLabel: "Problem description",
+          reportPlaceholder: "Describe the problem in detail",
+          reportSendReply: "Send reply",
+          reportSend: "Send report",
+          viewReport: "View report",
+          emptyOrders: "No orders yet.",
+          emptyPayments: "No payments yet.",
+          emptyProblems: "No reports. Open an order to request support.",
+          subscriptionsTitle: "Your subscriptions and expiry dates",
+          subscriptionsHelp: "Open any order to see each subscription expiry date when available.",
+          reportSaveFailed: "Could not save the report:",
+          reportReplySent: "Your reply was added to the report.",
+          reportSent: "Your report was sent.",
+          whatsappReportMessage: "Hello, I need help with order #",
+          whatsappGeneralMessage: "Hello, I need help with my Strivio account",
+          profileSaveFailed: "Could not save your information:",
+          profileSaved: "Your information was saved",
+          activationSaveFailed: "Could not save the account details.",
+          activationMessageFailed: "Could not send the message.",
+        },
+      };
+      function actionText() {
+        return customerActionText[lang] || customerActionText.ar;
+      }
+      function localizedError(error, fallback) {
+        var message = String(error?.message || "").trim();
+        if (/authentication required/i.test(message)) return actionText().authRequired;
+        return message || fallback;
+      }
+      async function dispatchCustomerEmails() {
+        try {
+          var result = await window.supabaseClient.functions.invoke(
+            "dispatch-notifications",
+            { body: { limit: 5, channels: ["email"] } },
+          );
+          if (result.error) throw result.error;
+          return result.data || null;
+        } catch (error) {
+          console.warn("Email notification is queued for retry", error);
+          return null;
+        }
       }
       async function saveActivationInput(event, fulfillmentId, orderId) {
         event.preventDefault();
@@ -740,11 +926,15 @@
           var data=await response.json().catch(function(){return null});
           if(!response.ok||!data?.success)throw new Error(data?.error||'Unable to save account details');
           showAppNotice(copy.saved,{tone:'success'});
-          fulfillments=await loadFulfillmentSummaries(orders.map(function(order){return order.id}));
+          try {
+            fulfillments=await loadFulfillmentSummaries(orders.map(function(order){return order.id}));
+          } catch (summaryError) {
+            console.warn("Account details saved; keeping the latest delivery snapshot", summaryError);
+          }
           renderOrders();
           await showDetails(orderId);
         } catch(error) {
-          showAppNotice(error.message||'Unable to save account details',{tone:'error'});
+          showAppNotice(localizedError(error, actionText().activationSaveFailed),{tone:'error'});
           button.disabled=false;button.textContent=copy.saveActivation;
         }
       }
@@ -765,39 +955,105 @@
           showAppNotice(copy.messageSent,{tone:'success'});
           await showDetails(orderId);
         } catch(error) {
-          showAppNotice(error.message||'Unable to send message',{tone:'error'});
+          showAppNotice(localizedError(error, actionText().activationMessageFailed),{tone:'error'});
           button.disabled=false;button.textContent=copy.sendMessage;
         }
       }
-      async function showDetails(id) {
+      function deliveryStateSignature(data) {
+        return JSON.stringify({
+          order: data?.order?.fulfillment_status || "",
+          fulfillments: (data?.fulfillments || []).map(function (f) {
+            var messages = f.activation_messages || [];
+            return [
+              f.id,
+              f.status,
+              f.updated_at,
+              f.delivered_at,
+              f.delivery_summary?.activation_completed_at,
+              messages.length,
+              messages.length ? messages[messages.length - 1].created_at : "",
+            ];
+          }),
+        });
+      }
+      function closeDetails() {
+        if (detailsPollTimer) clearInterval(detailsPollTimer);
+        detailsPollTimer = null;
+        detailsPollSignature = "";
+        document.getElementById("details")?.remove();
+      }
+      function startDetailsPolling(id) {
+        if (detailsPollTimer) clearInterval(detailsPollTimer);
+        detailsPollTimer = setInterval(async function () {
+          if (document.hidden || !document.getElementById("details")) return;
+          try {
+            var latest = await delivery(id),
+              signature = deliveryStateSignature(latest);
+            if (signature !== detailsPollSignature)
+              await showDetails(id, true, latest);
+          } catch (_) {}
+        }, 6000);
+      }
+      async function mergeLatestOrderState(id, data) {
+        var index = orders.findIndex(function (order) { return order.id === id; });
+        if (index >= 0 && data?.order)
+          orders[index] = Object.assign({}, orders[index], data.order);
+        var summaries;
         try {
-          let d = await delivery(id),
+          summaries = await loadFulfillmentSummaries([id]);
+        } catch (summaryError) {
+          console.warn("Keeping the latest delivery snapshot", summaryError);
+          return;
+        }
+        if (summaries.length)
+          fulfillments = fulfillments
+            .filter(function (fulfillment) { return fulfillment.order_id !== id; })
+            .concat(summaries);
+        renderOrders();
+      }
+      async function showDetails(id, fromPoll, preparedData) {
+        try {
+          let d = preparedData || await delivery(id),
             o = d.order || {},
             copy = portalText(),
-            old = document.getElementById("details");
+            old = document.getElementById("details"),
+            report = activeProblem(o.id),
+            fulfillmentRows = d.fulfillments || [],
+            deliveryCompleted = fulfillmentRows.some(function (f) {
+              return ["delivered", "completed"].includes(String(f.status || "").toLowerCase());
+            }),
+            reportFulfillment = fulfillmentRows.find(function (f) {
+              return ["delivered", "completed"].includes(String(f.status || "").toLowerCase());
+            }),
+            reportButton = report || deliveryCompleted
+              ? '<button class="ghost" onclick="openReport(\'' + esc(o.id) + "', null, '" + esc(reportFulfillment?.id || "") + '\')">' + (report ? copy.followReport : copy.reportSupport) + '</button>'
+              : '';
+          detailsPollSignature = deliveryStateSignature(d);
+          await mergeLatestOrderState(id, d);
           old?.remove();
           let wrap = document.createElement("div");
           wrap.id = "details";
+          wrap.dataset.orderId = id;
           wrap.className =
             "fixed inset-0 z-50 bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center";
           wrap.innerHTML =
             '<div class="panel rounded-[26px] max-w-2xl w-full max-h-[90vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><h2 class="display text-2xl font-black">'+copy.details+'</h2><p class="muted text-xs mt-2 font-mono">' +
             esc(o.id) +
-            '</p></div><button class="ghost" onclick="document.getElementById(\'details\').remove()">×</button></div><div class="grid sm:grid-cols-2 gap-3 mt-5"><div class="secret"><b>'+copy.amount+'</b><br>' +
+            '</p></div><button class="ghost" onclick="closeDetails()">×</button></div><div class="grid sm:grid-cols-2 gap-3 mt-5"><div class="secret"><b>'+copy.amount+'</b><br>' +
             money(o.total_payable) +
             '</div><div class="secret"><b>'+copy.products+'</b><br>' +
             itemNames(o) +
             '</div></div><div class="mt-4">' +
-            renderDelivery(d.fulfillments || [], o.id) +
-            '</div><div class="flex flex-wrap gap-2 mt-5"><button class="ghost" onclick="openReport(\'' +
-            esc(o.id) +
-            '\')">'+copy.report+'</button><a class="btn" target="_blank" rel="noopener" href="https://wa.me/213562961410?text=' +
-            encodeURIComponent("مرحباً، أحتاج دعماً للطلب #" + o.id) +
+            renderDelivery(fulfillmentRows, o.id) +
+            '</div><div class="flex flex-wrap gap-2 mt-5">' + reportButton + '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/213562961410?text=' +
+            encodeURIComponent(actionText().whatsappReportMessage + o.id) +
             '">'+copy.whatsapp+'</a></div></div>';
           document.body.appendChild(wrap);
           if(window.accountPortalApply)window.accountPortalApply();
+          if (!fromPoll) startDetailsPolling(id);
         } catch (e) {
-          showAppNotice("تعذر فتح تفاصيل الطلب. تأكد أنك داخل الحساب الذي أجرى الطلب.", { tone: "error" });
+          if (!fromPoll)
+            showAppNotice(localizedError(e, actionText().detailsFailed), { tone: "error" });
         }
       }
       function renderDelivery(fs, orderId) {
@@ -835,17 +1091,23 @@
                 esc(f.delivery_summary?.message || L(f.status)) +
                 "</div>";
             if(f.mode==='manual_activation'){
-              var input=f.customer_input||{},closed=['delivered','completed','cancelled','failed'].includes(String(f.status||'').toLowerCase()),messages=f.activation_messages||[];
-              var state=closed?copy.delivered:(String(f.status||'').toLowerCase()==='awaiting_customer'?copy.awaitingCustomer:(input.account_email?copy.awaitingAdmin:copy.awaitingCustomer));
-              var activationThread='<div class="secret mt-3"><div class="flex items-center justify-between gap-2"><b>'+copy.activationChat+'</b>'+badge(f.status)+'</div><div class="space-y-2 mt-3">'+
-                (messages.length?messages.map(function(message){var admin=message.sender_role==='admin',system=message.sender_role==='system';return '<div class="rounded-xl p-3 '+(system?'bg-white/5':admin?'bg-[#171717] border border-white/10':'bg-[#39ff14] text-black')+'"><b class="text-[10px] block mb-1">'+(admin?copy.team:system?copy.system:copy.customer)+'</b><div class="text-sm whitespace-pre-wrap">'+esc(message.message)+'</div><div class="text-[10px] opacity-60 mt-1">'+date(message.created_at)+'</div></div>'}).join(''):'<p class="muted text-xs">'+copy.noActivationMessages+'</p>')+
-                '</div>'+(closed?'':'<form class="flex flex-col sm:flex-row gap-2 mt-3" onsubmit="sendActivationMessage(event,\''+esc(f.id)+'\',\''+esc(orderId)+'\')"><textarea class="input min-h-20 flex-1" name="message" required maxlength="2000" placeholder="'+copy.replyPlaceholder+'"></textarea><button class="btn self-stretch" type="submit">'+copy.sendMessage+'</button></form>')+'</div>';
-              body='<div class="secret mt-2 border-[#39ff14]/25"><b>'+esc(state)+'</b></div>'+
-                (closed?'':'<form class="space-y-2 mt-3" onsubmit="saveActivationInput(event,\''+esc(f.id)+'\',\''+esc(orderId)+'\')"><div><b>'+copy.activationTitle+'</b><p class="muted text-xs mt-1">'+copy.activationHelp+'</p></div><input class="input" type="email" name="account_email" autocomplete="username" required maxlength="254" placeholder="'+copy.activationEmail+'" value="'+esc(input.account_email||'')+'"><input class="input" type="password" name="account_password" autocomplete="current-password" required maxlength="500" placeholder="'+copy.activationPassword+'" value="'+esc(input.account_password||'')+'"><textarea class="input min-h-24" name="note" maxlength="2000" placeholder="'+copy.note+'">'+esc(input.note||'')+'</textarea><button class="btn" type="submit">'+copy.saveActivation+'</button></form>')+activationThread;
+              var input=f.customer_input||{},normalizedStatus=String(f.status||'').toLowerCase(),activationDone=['delivered','completed'].includes(normalizedStatus),closed=activationDone||['cancelled','failed'].includes(normalizedStatus),messages=f.activation_messages||[];
+              var state=activationDone?copy.delivered:(normalizedStatus==='awaiting_customer'?copy.awaitingCustomer:(input.account_email?copy.awaitingAdmin:copy.awaitingCustomer));
+              if(closed){
+                body=activationDone
+                  ? '<div class="secret mt-2 border-[#39ff14]/35" style="background:#39ff140d"><b class="text-[#39ff14]">'+esc(state)+'</b><p class="muted text-sm mt-2">'+esc(copy.activationCompletedHelp)+'</p></div>'
+                  : '<div class="secret mt-2 border-red-400/35"><b class="text-red-300">'+esc(L(normalizedStatus))+'</b></div>';
+              }else{
+                var activationThread='<div class="secret mt-3"><div class="flex items-center justify-between gap-2"><b>'+copy.activationChat+'</b>'+badge(f.status)+'</div><div class="space-y-2 mt-3">'+
+                  (messages.length?messages.map(function(message){var admin=message.sender_role==='admin',system=message.sender_role==='system';return '<div class="rounded-xl p-3 '+(system?'bg-white/5':admin?'bg-[#171717] border border-white/10':'bg-[#39ff14] text-black')+'"><b class="text-[10px] block mb-1">'+(admin?copy.team:system?copy.system:copy.customer)+'</b><div class="text-sm whitespace-pre-wrap">'+esc(system?activationSystemMessage(message.message):message.message)+'</div><div class="text-[10px] opacity-60 mt-1">'+date(message.created_at)+'</div></div>'}).join(''):'<p class="muted text-xs">'+copy.noActivationMessages+'</p>')+
+                  '</div><form class="flex flex-col sm:flex-row gap-2 mt-3" onsubmit="sendActivationMessage(event,\''+esc(f.id)+'\',\''+esc(orderId)+'\')"><textarea class="input min-h-20 flex-1" name="message" required maxlength="2000" placeholder="'+copy.replyPlaceholder+'"></textarea><button class="btn self-stretch" type="submit">'+copy.sendMessage+'</button></form></div>';
+                body='<div class="secret mt-2 border-[#39ff14]/25"><b>'+esc(state)+'</b></div>'+
+                  '<form class="space-y-2 mt-3" onsubmit="saveActivationInput(event,\''+esc(f.id)+'\',\''+esc(orderId)+'\')"><div><b>'+copy.activationTitle+'</b><p class="muted text-xs mt-1">'+copy.activationHelp+'</p></div><input class="input" type="email" name="account_email" autocomplete="username" required maxlength="254" placeholder="'+copy.activationEmail+'" value="'+esc(input.account_email||'')+'"><input class="input" type="password" name="account_password" autocomplete="current-password" required maxlength="500" placeholder="'+copy.activationPassword+'" value="'+esc(input.account_password||'')+'"><textarea class="input min-h-24" name="note" maxlength="2000" placeholder="'+copy.note+'">'+esc(input.note||'')+'</textarea><button class="btn" type="submit">'+copy.saveActivation+'</button></form>'+activationThread;
+              }
             }
             return (
               '<div class="mt-4"><div class="flex justify-between gap-3"><b class="text-[#39ff14]">' +
-              '<span data-delivery-product>' + esc(productLabel(f.delivery?.product_name || f.delivery_summary?.product_name || f.renewal_options?.service_name?.[lang] || f.renewal_options?.service_name?.en || f.service_id || "المنتج")) + '</span>' +
+              '<span data-delivery-product>' + esc(productLabel(f.delivery?.product_name || f.delivery_summary?.product_name || f.renewal_options?.service_name?.[lang] || f.renewal_options?.service_name?.en || f.service_id || "")) + '</span>' +
               "</b>" +
               badge(f.status) +
               "</div>" +
@@ -866,12 +1128,27 @@
                   esc(orderId) +
                   "','" +
                   esc(f.id) +
-                  "')\" data-renew-button data-renew-end=\"" + esc(end || "") + "\">" + renewalActionLabel(end) + " هذا الاشتراك</button>"
+                  "')\" data-renew-button data-renew-end=\"" + esc(end || "") + "\">" + renewalActionLabel(end) + " " + copy.subscription + "</button>"
                 : "") +
               "</div>"
             );
           })
           .join("");
+      }
+      function activationSystemMessage(value) {
+        var messages = {
+          "Account details submitted.": {
+            ar: "تم إرسال بيانات الحساب إلى فريق Strivio.",
+            fr: "Les informations du compte ont été envoyées à l’équipe Strivio.",
+            en: "The account details were sent to the Strivio team.",
+          },
+          "Account details updated.": {
+            ar: "تم تحديث بيانات الحساب وإرسالها إلى فريق Strivio.",
+            fr: "Les informations du compte ont été mises à jour et envoyées à l’équipe Strivio.",
+            en: "The account details were updated and sent to the Strivio team.",
+          },
+        };
+        return messages[value]?.[lang] || value || "";
       }
       async function openRenewal(orderId, fulfillmentId) {
         try {
@@ -880,7 +1157,7 @@
               return item.id === fulfillmentId;
             });
           if (!fulfillment || !(fulfillment.renewal_targets || []).length)
-            throw new Error("هذا الاشتراك غير متاح للتجديد الآن.");
+            throw new Error(actionText().renewalUnavailable);
           document.getElementById("renewal")?.remove();
           var targets = fulfillment.renewal_targets || [],
             durations = renewalDurationLabels[lang] || renewalDurationLabels.ar,
@@ -894,15 +1171,15 @@
           wrap.className =
             "fixed inset-0 z-[70] bg-black/85 backdrop-blur-sm p-4 flex items-center justify-center";
           wrap.innerHTML =
-            '<form id="renewalForm" class="panel rounded-[26px] max-w-xl w-full max-h-[92vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">SUBSCRIPTION RENEWAL</div><h2 class="display text-2xl font-black mt-1">تجديد الاشتراك</h2><p class="muted text-xs mt-2">اختر البروفيلات أو الاشتراكات التي تريد تمديدها فقط.</p></div><button type="button" class="ghost" onclick="document.getElementById(\'renewal\').remove()">×</button></div><div class="space-y-2 mt-5">' +
+            '<form id="renewalForm" class="panel rounded-[26px] max-w-xl w-full max-h-[92vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">SUBSCRIPTION RENEWAL</div><h2 class="display text-2xl font-black mt-1">' + esc(actionText().renewalTitle) + '</h2><p class="muted text-xs mt-2">' + esc(actionText().renewalDescription) + '</p></div><button type="button" class="ghost" onclick="document.getElementById(\'renewal\').remove()">×</button></div><div class="space-y-2 mt-5">' +
             targets
               .map(function (target) {
                 return (
                   '<label class="secret flex items-center justify-between gap-3 cursor-pointer"><div><b>' +
-                  esc(target.label || "الاشتراك") +
-                  '</b><div class="muted text-xs mt-1">ينتهي: ' +
+                  esc(target.label || portalText().subscription) +
+                  '</b><div class="muted text-xs mt-1">' + actionText().renewEnds + ' ' +
                   date(target.ends_at) +
-                  '</div><div class="text-[11px] mt-1" style="color:#39ff14" data-renew-preview data-current-end="' + esc(target.ends_at || "") + '"></div><div class="muted text-[10px] mt-1">مرات التجديد السابقة: ' + Number(target.renewal_count || 0) + '</div></div><input type="checkbox" name="renew_target" value="' +
+                  '</div><div class="text-[11px] mt-1" style="color:#39ff14" data-renew-preview data-current-end="' + esc(target.ends_at || "") + '"></div><div class="muted text-[10px] mt-1">' + actionText().renewCount + ' ' + Number(target.renewal_count || 0) + '</div></div><input type="checkbox" name="renew_target" value="' +
                   esc(target.id) +
                   '" data-kind="' +
                   esc(target.kind) +
@@ -910,7 +1187,7 @@
                 );
               })
               .join("") +
-            '</div><label class="block text-xs font-black mt-5 mb-2">مدة التمديد</label><select id="renewal-duration" class="input">' +
+            '</div><label class="block text-xs font-black mt-5 mb-2">' + esc(actionText().renewalDuration) + '</label><select id="renewal-duration" class="input">' +
             durations
               .map(function (label, index) {
                 return (
@@ -918,7 +1195,7 @@
                 );
               })
               .join("") +
-            '</select><div class="secret mt-4 text-xs"><b class="text-[#39ff14]">كيف يُحسب التمديد؟</b><br>المدة الجديدة تُضاف إلى تاريخ انتهاء اشتراكك الحالي، وليست محسوبة من تاريخ اليوم. تستطيع بعدها استعمال كوبون واختيار طريقة الدفع من السلة.</div><button class="btn w-full mt-4" type="submit">إضافة التجديد إلى السلة</button></form>';
+            '</select><div class="secret mt-4 text-xs"><b class="text-[#39ff14]">' + esc(actionText().renewalInfoTitle) + '</b><br><span data-renew-info-body>' + esc(actionText().renewalInfoBody) + '</span></div><button class="btn w-full mt-4" type="submit">' + esc(actionText().renewalAdd) + '</button></form>';
           document.body.appendChild(wrap);
           var renewalTitle = wrap.querySelector("h2"),
             renewalDescription = wrap.querySelector("h2 + p"),
@@ -944,7 +1221,7 @@
             return submitRenewal(event, orderId, fulfillmentId);
           };
         } catch (error) {
-          showAppNotice(error.message || "تعذر فتح التجديد.", { tone: "error" });
+          showAppNotice(localizedError(error, actionText().renewalOpenFailed), { tone: "error" });
         }
       }
       async function submitRenewal(event, orderId, fulfillmentId) {
@@ -955,7 +1232,7 @@
             ),
           ),
           button = event.target.querySelector('button[type="submit"]');
-        if (!selected.length) return showAppNotice("اختر اشتراكًا واحدًا على الأقل.", { tone: "error" });
+        if (!selected.length) return showAppNotice(actionText().renewalSelectOne, { tone: "error" });
         var kinds = Array.from(
           new Set(
             selected.map(function (input) {
@@ -964,9 +1241,9 @@
           ),
         );
         if (kinds.length !== 1)
-          return showAppNotice("جدّد نوعًا واحدًا من الاشتراكات في كل عملية.", { tone: "error" });
+          return showAppNotice(actionText().renewalOneKind, { tone: "error" });
         button.disabled = true;
-        button.textContent = "جاري تجهيز سلة التجديد…";
+        button.textContent = actionText().renewalPreparing;
         try {
           var context = window.__renewalContext || {},
             fulfillment = context.fulfillment || {},
@@ -984,7 +1261,7 @@
               fr: renewalDurationLabels.fr[durationIdx],
               en: renewalDurationLabels.en[durationIdx],
             };
-          if (!unitPrice || unitPrice < 0) throw new Error("سعر هذه المدة غير مضبوط في المنتج.");
+          if (!unitPrice || unitPrice < 0) throw new Error(actionText().renewalPriceInvalid);
           var renewalItem = {
             id: fulfillment.service_id,
             name: "تجديد اشتراك " + (serviceNames.ar || fulfillment.service_id),
@@ -1015,13 +1292,18 @@
             addedAt: Date.now(),
           };
           var existingCart = JSON.parse(localStorage.getItem("strivio_cart") || "[]");
-          if (existingCart.length) localStorage.setItem("strivio_saved_cart_before_renewal", JSON.stringify(existingCart));
+          if (
+            existingCart.length &&
+            existingCart.some(function (item) { return !item.renewal; }) &&
+            !localStorage.getItem("strivio_saved_cart_before_renewal")
+          )
+            localStorage.setItem("strivio_saved_cart_before_renewal", JSON.stringify(existingCart));
           localStorage.setItem("strivio_cart", JSON.stringify([renewalItem]));
           window.location.href = "cart?renewal=1";
         } catch (error) {
           button.disabled = false;
-          button.textContent = "إضافة التجديد إلى السلة";
-          showAppNotice("تعذر بدء التجديد: " + error.message, { tone: "error" });
+          button.textContent = actionText().renewalAdd;
+          showAppNotice(actionText().renewalStartFailed + " " + localizedError(error, actionText().renewalOpenFailed), { tone: "error" });
         }
       }
       async function openRenewalForOrder(orderId) {
@@ -1030,11 +1312,29 @@
             target = (data.fulfillments || []).find(function (item) {
               return (item.renewal_targets || []).length;
             });
-          if (!target) throw new Error("هذا الطلب لا يحتوي على اشتراك قابل للتجديد.");
+          if (!target) throw new Error(actionText().orderNotRenewable);
           await openRenewal(orderId, target.id);
         } catch (error) {
-          showAppNotice(error.message || "تعذر فتح التجديد.", { tone: "error" });
+          showAppNotice(localizedError(error, actionText().renewalOpenFailed), { tone: "error" });
         }
+      }
+      function canReportOrder(orderId) {
+        var rows = fulfillments.filter(function (fulfillment) {
+          return fulfillment.order_id === orderId;
+        });
+        return rows.some(function (fulfillment) {
+          return ["delivered", "completed"].includes(
+            String(fulfillment.status || "").toLowerCase(),
+          );
+        });
+      }
+      function reportableFulfillmentId(orderId) {
+        var fulfillment = fulfillments.find(function (item) {
+          return item.order_id === orderId && ["delivered", "completed"].includes(
+            String(item.status || "").toLowerCase(),
+          );
+        });
+        return fulfillment?.id || "";
       }
       function orderCard(o, small = false) {
         const copy = portalText();
@@ -1067,20 +1367,20 @@
               (['paid','completed'].includes(String(o.status || '').toLowerCase())
                 ? '<button class="btn" data-renew-order="1" data-renew-end="' + esc(expiry || "") + '" onclick="openRenewalForOrder(\'' + esc(o.id) + '\')">' + renewalActionLabel(expiry) + ' '+copy.subscription+'</button>'
                 : '') +
-              '<button class="ghost" onclick="openReport(\'' +
+              (report || canReportOrder(o.id) ? '<button class="ghost" onclick="openReport(\'' +
               esc(o.id) +
               "')\" data-report-order=\"" +
               esc(o.id) +
               '\">' +
               (report ? copy.followReport : copy.reportSupport) +
-              "</button></div>") +
+              "</button>" : "") + "</div>") +
           "</article>"
         );
       }
       function renderOrders() {
         document.getElementById("ordersList").innerHTML = orders.length
           ? orders.map((o) => orderCard(o)).join("")
-          : '<div class="panel rounded-2xl p-12 text-center muted">لا توجد طلبات حتى الآن.</div>';
+          : '<div class="panel rounded-2xl p-12 text-center muted">' + actionText().emptyOrders + '</div>';
         const overviewBox = document.getElementById("overviewOrders");
         if (overviewBox)
           overviewBox.innerHTML = orders.length
@@ -1088,7 +1388,7 @@
                 .slice(0, 3)
                 .map((o) => orderCard(o, true))
                 .join("")
-            : '<p class="muted">لا توجد طلبات بعد.</p>';
+            : '<p class="muted">' + actionText().emptyOrders + '</p>';
         document.getElementById("paymentsList").innerHTML = orders.length
           ? '<table class="w-full text-sm min-w-[620px]"><thead class="text-right text-xs text-gray-500 bg-black/30"><tr><th class="p-4">الطلب</th><th class="p-4">التاريخ</th><th class="p-4">المبلغ</th><th class="p-4">الحالة</th></tr></thead><tbody>' +
             orders
@@ -1106,7 +1406,7 @@
               )
               .join("") +
             "</tbody></table>"
-          : '<p class="p-8 muted">لا توجد مدفوعات بعد.</p>';
+          : '<p class="p-8 muted">' + actionText().emptyPayments + '</p>';
       }
       function activeProblem(o) {
         return problems.find(
@@ -1117,7 +1417,8 @@
             ),
         );
       }
-      async function openReport(orderId, reportId) {
+      async function openReport(orderId, reportId, fulfillmentId) {
+        const reportCopy = actionText();
         let p = reportId
             ? problems.find((item) => item.id === reportId)
             : activeProblem(orderId),
@@ -1167,12 +1468,12 @@
           "fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center";
         wrap.innerHTML =
           '<form id="reportForm" class="panel rounded-[26px] max-w-xl w-full max-h-[92vh] overflow-auto p-6"><div class="flex justify-between gap-3"><div><h2 class="display text-2xl font-black">' +
-          (p ? "متابعة البلاغ" : "الإبلاغ عن مشكلة") +
-          '</h2><p class="muted text-xs mt-2">طلب #' +
+          (p ? reportCopy.followTitle : reportCopy.reportTitle) +
+          '</h2><p class="muted text-xs mt-2">' + reportCopy.reportOrder + ' #' +
           esc(String(orderId).slice(0, 8)) +
           '</p></div><button type="button" class="ghost" onclick="document.getElementById(\'report\').remove()">×</button></div>' +
           (p
-            ? '<div class="flex items-center justify-between gap-3 mt-4"><b class="text-sm">محادثة البلاغ</b>' +
+            ? '<div class="flex items-center justify-between gap-3 mt-4"><b class="text-sm">' + reportCopy.reportThread + '</b>' +
               badge(p.status) +
               '</div><div class="report-thread mt-3 space-y-3">' +
               thread
@@ -1184,8 +1485,8 @@
                       : "thread-customer") +
                     '"><b class="block text-[10px] opacity-70 mb-1">' +
                     (item.sender_role === "admin"
-                      ? "فريق Strivio"
-                      : "أنت") +
+                      ? '<span data-thread-label="admin">' + reportCopy.reportTeam + '</span>'
+                      : '<span data-thread-label="customer">' + reportCopy.reportCustomer + '</span>') +
                     "</b>" +
                     esc(item.message) +
                     '<div class="text-[10px] opacity-50 mt-2">' +
@@ -1194,32 +1495,33 @@
                 )
                 .join("") +
               (!thread.some((item) => item.sender_role === "admin")
-                ? '<div class="thread-bubble thread-admin"><span data-waiting-reply>تم استلام البلاغ، وسيظهر رد الفريق هنا فور تحديثه.</span></div>'
+                ? '<div class="thread-bubble thread-admin"><span data-waiting-reply>' + reportCopy.reportWaiting + '</span></div>'
                 : "") +
               "</div>"
             : "") +
           (closed
-            ? '<div data-report-closed class="secret mt-4 text-sm text-[#39ff14]">تم إغلاق هذا البلاغ. يمكنك الرجوع للطلب وفتح بلاغ جديد إذا ظهرت مشكلة أخرى.</div>'
+            ? '<div data-report-closed class="secret mt-4 text-sm text-[#39ff14]">' + reportCopy.reportClosed + '</div>'
             : '<label data-report-editor-label class="block text-xs font-black mt-4">' +
-              (p ? "إضافة رد جديد" : "وصف المشكلة") +
-              '</label><textarea name="message" required minlength="3" maxlength="2000" rows="5" class="input mt-2" placeholder="اشرح المشكلة بالتفصيل">' +
+              (p ? reportCopy.reportReplyLabel : reportCopy.reportProblemLabel) +
+              '</label><textarea name="message" required minlength="3" maxlength="2000" rows="5" class="input mt-2" placeholder="' + esc(reportCopy.reportPlaceholder) + '">' +
           "" +
               '</textarea>') +
           '<div class="flex flex-wrap gap-2 mt-4">' +
           (closed
             ? ""
             : '<button class="btn">' +
-          (p ? "إرسال الرد" : "إرسال البلاغ") +
+          (p ? reportCopy.reportSendReply : reportCopy.reportSend) +
               "</button>") +
           '<a class="ghost" target="_blank" rel="noopener" href="https://wa.me/213562961410?text=' +
-          encodeURIComponent("مرحباً، أحتاج دعماً للطلب #" + orderId) +
+          encodeURIComponent(reportCopy.whatsappReportMessage + orderId) +
           '">WhatsApp</a></div></form>';
         document.body.appendChild(wrap);
+        fulfillmentId = fulfillmentId || p?.fulfillment_id || reportableFulfillmentId(orderId);
         if (!closed)
           document.getElementById("reportForm").onsubmit = (e) =>
-            submitReport(e, orderId, p?.id);
+            submitReport(e, orderId, p?.id, fulfillmentId);
       }
-      async function submitReport(e, orderId, existingId) {
+      async function submitReport(e, orderId, existingId, fulfillmentId) {
         e.preventDefault();
         let message = new FormData(e.target).get("message"),
           btn = e.target.querySelector("button");
@@ -1247,7 +1549,7 @@
         else
           result = await window.supabaseClient.rpc("report_order_problem", {
             p_order_id: orderId,
-            p_fulfillment_id: null,
+            p_fulfillment_id: fulfillmentId || null,
             p_message: message,
           });
         if (result.error) {
@@ -1259,13 +1561,14 @@
             return;
           }
           btn.disabled = false;
-          return showAppNotice("تعذر حفظ البلاغ: " + result.error.message, { tone: "error" });
+            return showAppNotice(actionText().reportSaveFailed + " " + result.error.message, { tone: "error" });
         }
+        if (!existingId) dispatchCustomerEmails().catch(function () {});
         await loadProblems();
         renderOrders();
         if (window.accountPortalApply) window.accountPortalApply();
         document.getElementById("report")?.remove();
-        showAppNotice(existingId ? "تم إرسال ردك داخل البلاغ." : "تم إرسال البلاغ.", { tone: "success" });
+        showAppNotice(existingId ? actionText().reportReplySent : actionText().reportSent, { tone: "success" });
       }
       async function loadProblems() {
         let [r, m] = await Promise.all([
@@ -1290,7 +1593,7 @@
           ? problems
               .map(
                 (p) =>
-                  '<article class="panel rounded-2xl p-5"><div class="flex flex-wrap justify-between gap-3"><div><b>طلب #' +
+                  '<article class="panel rounded-2xl p-5"><div class="flex flex-wrap justify-between gap-3"><div><b>' + actionText().reportOrder + ' #' +
                   esc(String(p.order_id || "").slice(0, 8)) +
                   '</b><p class="muted text-sm mt-2">' +
                   esc(p.message || p.description || "—") +
@@ -1298,7 +1601,7 @@
                   badge(p.status) +
                   "</div>" +
                   (p.admin_notes
-                    ? '<div class="secret mt-3 border-[#39ff14]/30"><b class="text-[#39ff14]">تحديث الإدارة</b><br>' +
+                    ? '<div class="secret mt-3 border-[#39ff14]/30"><b class="text-[#39ff14]">' + portalText().admin + '</b><br>' +
                       esc(p.admin_notes) +
                       "</div>"
                     : "") +
@@ -1312,12 +1615,12 @@
                   (!["resolved", "closed"].includes(
                     String(p.status || "").toLowerCase(),
                   )
-                    ? "متابعة البلاغ"
-                    : "عرض البلاغ") +
+                    ? portalText().followReport
+                    : actionText().viewReport) +
                   "</button></article>",
               )
               .join("")
-          : '<div class="panel rounded-2xl p-10 text-center muted">لا توجد بلاغات. إذا احتجت مساعدة افتح الطلب ثم اختر بلاغ / دعم.</div>';
+          : '<div class="panel rounded-2xl p-10 text-center muted">' + actionText().emptyProblems + '</div>';
       }
       function renderAll() {
         renderOrders();
@@ -1327,11 +1630,76 @@
         document.getElementById("statOrders").textContent = orders.length;
         document.getElementById("statActive").textContent = paid.length;
         document.getElementById("expiryAlert").innerHTML = paid.length
-          ? '<div class="panel rounded-2xl p-4 border-[#39ff14]/20"><b class="text-[#39ff14]">اشتراكاتك ومعلومات انتهائها</b><p class="muted text-sm mt-1">افتح تفاصيل أي طلب لرؤية تاريخ انتهاء الاشتراك عند توفره.</p></div>'
+          ? '<div class="panel rounded-2xl p-4 border-[#39ff14]/20"><b class="text-[#39ff14]">' + actionText().subscriptionsTitle + '</b><p class="muted text-sm mt-1">' + actionText().subscriptionsHelp + '</p></div>'
           : "";
         document.getElementById("generalWhatsApp").href =
           "https://wa.me/213562961410?text=" +
-          encodeURIComponent("مرحباً، أحتاج مساعدة في حسابي على Strivio");
+          encodeURIComponent(actionText().whatsappGeneralMessage);
+      }
+      async function refreshAccountState() {
+        if (accountStatePollBusy || document.hidden || !user) return;
+        accountStatePollBusy = true;
+        try {
+          var result = await window.supabaseClient
+            .from("orders")
+            .select("*")
+            .order("created_at", { ascending: false });
+          if (result.error) return;
+          var nextOrders = (result.data || []).filter(function (order) {
+              return String(order.customer_info?.order_kind || "").toLowerCase() !== "renewal";
+            }),
+            nextFulfillments;
+          try {
+            nextFulfillments = await loadFulfillmentSummaries(nextOrders.map(function (order) { return order.id; }));
+          } catch (summaryError) {
+            console.warn("Delivery refresh failed; preserving the current state", summaryError);
+            return;
+          }
+          var
+            before = JSON.stringify({
+              orders: orders.map(function (order) { return [order.id,order.status,order.fulfillment_status,order.updated_at]; }),
+              fulfillments: fulfillments.map(function (f) { return [f.id,f.status,f.updated_at,f.delivery_summary?.activation_completed_at]; }),
+            }),
+            after = JSON.stringify({
+              orders: nextOrders.map(function (order) { return [order.id,order.status,order.fulfillment_status,order.updated_at]; }),
+              fulfillments: nextFulfillments.map(function (f) { return [f.id,f.status,f.updated_at,f.delivery_summary?.activation_completed_at]; }),
+            });
+          if (before !== after) {
+            orders = nextOrders;
+            fulfillments = nextFulfillments;
+            renderAll();
+            if (window.accountPortalApply) window.accountPortalApply();
+          }
+        } finally {
+          accountStatePollBusy = false;
+        }
+      }
+      function startAccountStatePolling() {
+        if (accountStatePollTimer) clearInterval(accountStatePollTimer);
+        accountStatePollTimer = setInterval(refreshAccountState, 12000);
+      }
+      function startAccountRealtime() {
+        if (!window.supabaseClient || !user) return;
+        if (accountRealtimeChannel)
+          window.supabaseClient.removeChannel(accountRealtimeChannel);
+        function scheduleRefresh() {
+          if (accountRealtimeTimer) clearTimeout(accountRealtimeTimer);
+          accountRealtimeTimer = setTimeout(async function () {
+            await refreshAccountState();
+            await loadProblems();
+            renderOrders();
+            var details = document.getElementById("details");
+            if (details?.dataset.orderId)
+              await showDetails(details.dataset.orderId, true);
+          }, 180);
+        }
+        accountRealtimeChannel = window.supabaseClient
+          .channel("account-portal-" + user.id)
+          .on("postgres_changes", { event: "*", schema: "public", table: "fulfillments", filter: "user_id=eq." + user.id }, scheduleRefresh)
+          .on("postgres_changes", { event: "*", schema: "public", table: "activation_messages" }, scheduleRefresh)
+          .on("postgres_changes", { event: "*", schema: "public", table: "problem_reports" }, scheduleRefresh)
+          .on("postgres_changes", { event: "*", schema: "public", table: "problem_messages" }, scheduleRefresh)
+          .subscribe();
       }
       document
         .getElementById("profileForm")
@@ -1352,8 +1720,8 @@
             r = await window.supabaseClient.from("profiles").upsert(data);
             showAppNotice(
             r.error
-              ? "تعذر حفظ البيانات: " + r.error.message
-              : "تم حفظ بياناتك بنجاح",
+              ? actionText().profileSaveFailed + " " + r.error.message
+              : actionText().profileSaved,
           );
         });
       async function init() {
@@ -1380,7 +1748,12 @@
         orders = (o.data || []).filter(function (order) {
           return String(order.customer_info?.order_kind || "").toLowerCase() !== "renewal";
         });
-        fulfillments = await loadFulfillmentSummaries(orders.map(function (order) { return order.id; }));
+        try {
+          fulfillments = await loadFulfillmentSummaries(orders.map(function (order) { return order.id; }));
+        } catch (summaryError) {
+          fulfillments = [];
+          showAppNotice(localizedError(summaryError, actionText().summariesFailed), { tone: "error" });
+        }
         let name =
           (
             (profile.first_name || "") +
@@ -1406,6 +1779,8 @@
           );
         await loadProblems();
         renderAll();
+        startAccountStatePolling();
+        startAccountRealtime();
         document.querySelector("[data-view=overview]")?.remove();
         document.getElementById("view-overview")?.remove();
         let initialView = location.hash.slice(1) || "orders";
@@ -1818,7 +2193,11 @@
             if (title) title.textContent = c.renewTitle;
             if (description) description.textContent = c.renewDescription;
             if (duration) duration.textContent = c.renewDuration;
-            if (info) { var infoLabel = info.querySelector("b"); if (infoLabel) infoLabel.textContent = c.renewInfo; }
+            if (info) {
+              var infoLabel = info.querySelector("b"), infoBody = info.querySelector("[data-renew-info-body]");
+              if (infoLabel) infoLabel.textContent = actionText().renewalInfoTitle || c.renewInfo;
+              if (infoBody) infoBody.textContent = actionText().renewalInfoBody;
+            }
             if (submit) submit.textContent = c.renewSubmit;
           }
           var r = document.getElementById("report");
@@ -2071,9 +2450,10 @@
               translateDynamic();
             };
           if (typeof baseReport === "function")
-            window.openReport = function (id, reportId) {
-              baseReport(id, reportId);
-              translateDynamic();
+            window.openReport = function (id, reportId, fulfillmentId) {
+              var result = baseReport(id, reportId, fulfillmentId);
+              Promise.resolve(result).then(translateDynamic);
+              return result;
             };
           setTimeout(function () {
             translateStaticExtras();
@@ -2082,5 +2462,6 @@
         });
       })();
     </script>
+    <script src="notification-center.js"></script>
   </body>
 </html>

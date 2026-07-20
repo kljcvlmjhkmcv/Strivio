@@ -43,5 +43,24 @@ check(operations.includes('openActivationModal'),'Operations activation conversa
 check(operations.includes('activationCredentialsHtml'),'Activation credentials are missing from service records');
 check(allText.includes('ops_send_activation_message'),'Admin activation chat RPC is missing');
 
+const auth=fs.readFileSync(path.join(root,'auth.html'),'utf8');
+const nextStart=auth.indexOf('function nextUrl()');
+const nextEnd=auth.indexOf('\n    function mode',nextStart);
+check(nextStart>=0&&nextEnd>nextStart,'Safe auth return-path resolver is missing');
+if(nextStart>=0&&nextEnd>nextStart){
+  const nextSource=auth.slice(nextStart,nextEnd);
+  const resolveNext=(search)=>{
+    const context={URL,URLSearchParams,location:{search,origin:'https://www.striviodz.store',pathname:'/auth'}};
+    vm.createContext(context);
+    return vm.runInContext(`${nextSource};nextUrl()`,context);
+  };
+  check(resolveNext('?next=javascript%3Aalert(1)')==='my-account','Auth accepts a javascript: return target');
+  check(resolveNext('?next=%2F%2Fevil.example')==='my-account','Auth accepts a protocol-relative external target');
+  check(resolveNext('?next=https%3A%2F%2Fevil.example')==='my-account','Auth accepts an external absolute target');
+  check(resolveNext('?next=%5C%5Cevil.example')==='my-account','Auth accepts a backslash-based external target');
+  check(resolveNext('?next=my-account.html%3Forder%3D123')==='my-account?order=123','Auth rejects a valid clean account return path');
+  check(resolveNext('?next=%2Fcart%3Frenewal%3D1')==='cart?renewal=1','Auth rejects a valid cart return path');
+}
+
 if(failures.length){console.error(failures.map(x=>'FAIL '+x).join('\n'));process.exit(1)}
 console.log(`Smoke checks passed for ${htmlFiles.length} pages.`);

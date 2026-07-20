@@ -4,7 +4,9 @@
   <script src="clean-url.js"></script>
 <meta charset="UTF-8"/>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https: wss:;"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#0D0D0D"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <title>Strivio — لوحة التحكم الذكية والباك اند</title>
 <link rel="stylesheet" href="assets/tailwind.css"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -129,8 +131,9 @@
     font-weight: 800;
   }
 </style>
+<link rel="stylesheet" href="site-shell.css"/>
 </head>
-<body class="p-4 sm:p-8 flex flex-col justify-center">
+<body class="site-safe-page p-4 sm:p-8 flex flex-col justify-center">
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen" class="max-w-md w-full mx-auto glass-card p-8 rounded-3xl relative my-auto">
@@ -175,6 +178,12 @@
     </div>
     <div class="flex flex-wrap items-center gap-3">
       <span id="user-display" class="text-xs text-gray-400 bg-[#141414] px-3.5 py-2 rounded-xl border border-brand-border"></span>
+      <span data-notification-entry>
+        <button type="button" class="site-notification-trigger" data-notification-trigger aria-haspopup="dialog" aria-expanded="false" aria-label="الإشعارات">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          <span data-notification-badge hidden>0</span>
+        </button>
+      </span>
       <a href="./" target="_blank" class="px-4 py-2 rounded-xl border border-brand-border bg-[#141414] hover:border-brand-neon hover:text-brand-neon text-sm font-bold transition-all flex items-center gap-1.5">🌐 المتجر</a>
       <button onclick="handleLogout()" class="px-4 py-2 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 text-sm font-bold transition-all flex items-center gap-1.5">🚪 خروج</button>
     </div>
@@ -1447,5 +1456,6 @@ async function saveSettingsAdmin() {
 
 window.addEventListener('DOMContentLoaded', checkAuth);
 </script>
+<script src="notification-center.js"></script>
 </body>
 </html>
