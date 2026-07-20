@@ -1629,9 +1629,12 @@
         );
         document.getElementById("statOrders").textContent = orders.length;
         document.getElementById("statActive").textContent = paid.length;
-        document.getElementById("expiryAlert").innerHTML = paid.length
-          ? '<div class="panel rounded-2xl p-4 border-[#39ff14]/20"><b class="text-[#39ff14]">' + actionText().subscriptionsTitle + '</b><p class="muted text-sm mt-1">' + actionText().subscriptionsHelp + '</p></div>'
-          : "";
+        const expiryAlert = document.getElementById("expiryAlert");
+        if (expiryAlert) {
+          expiryAlert.innerHTML = paid.length
+            ? '<div class="panel rounded-2xl p-4 border-[#39ff14]/20"><b class="text-[#39ff14]">' + actionText().subscriptionsTitle + '</b><p class="muted text-sm mt-1">' + actionText().subscriptionsHelp + '</p></div>'
+            : "";
+        }
         document.getElementById("generalWhatsApp").href =
           "https://wa.me/213562961410?text=" +
           encodeURIComponent(actionText().whatsappGeneralMessage);
