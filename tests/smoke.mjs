@@ -21,6 +21,15 @@ for(const name of ['privacy.html','terms.html','warranty.html','refund.html','as
   check(fs.existsSync(path.join(root,name)),`Missing ${name}`);
 }
 
+for(const name of ['index.html','cart.html','faq.html']){
+  const source=fs.readFileSync(path.join(root,name),'utf8');
+  check(source.includes('site-nav-inner'),`${name}: public header does not use the shared navigation shell`);
+  check(source.includes('id="CTB2"')&&source.includes('id="CNBM"'),`${name}: mobile cart control is inconsistent`);
+  check(source.includes('header-unified-0720'),`${name}: shared header assets are not cache-busted together`);
+}
+const cartPage=fs.readFileSync(path.join(root,'cart.html'),'utf8');
+check(!cartPage.includes('ANTI-CLONE TRAP'),'cart.html: decorative anti-clone markup can alter the real layout');
+
 const allText=['schema.sql','backend-production-upgrade.sql','supabase-client.js','admin.html']
   .map(name=>fs.readFileSync(path.join(root,name),'utf8')).join('\n');
 check(!/\d{8,12}:[A-Za-z0-9_-]{30,}/.test(allText),'A Telegram bot token is committed in source');
