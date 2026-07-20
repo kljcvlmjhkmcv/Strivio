@@ -192,7 +192,7 @@ begin
   end if;
   insert into public.activation_messages(fulfillment_id,sender_id,sender_role,message)
   values(f.id,auth.uid(),'admin',clean_message);
-  next_status=case when p_request_customer_action then 'awaiting_customer_input' else f.status end;
+  next_status=case when p_request_customer_action then 'awaiting_customer' else f.status end;
   update public.fulfillments set
     status=next_status,
     delivery_summary=coalesce(delivery_summary,'{}'::jsonb)||jsonb_build_object(

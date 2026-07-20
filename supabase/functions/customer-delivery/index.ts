@@ -199,7 +199,7 @@ serve(async req=>{
             ends_at:item.ends_at,
             renewal_count:Number(item.renewal_count||0)
           }))
-        : eligible(summaryEnd)&&['delivered','completed','awaiting_admin','awaiting_customer_input'].includes(String(row.status||'').toLowerCase())
+        : eligible(summaryEnd)&&['delivered','completed','awaiting_admin','awaiting_customer'].includes(String(row.status||'').toLowerCase())
           ? [{id:row.id,kind:'fulfillment',label:serviceRow.n?.ar||serviceRow.n?.fr||serviceRow.n?.en||row.service_id,ends_at:summaryEnd}]
           : [];
       fulfillments.push({
