@@ -47,6 +47,23 @@ const account=fs.readFileSync(path.join(root,'my-account.html'),'utf8');
 check(account.includes('saveActivationInput'),'Customer activation form is missing');
 check(account.includes('sendActivationMessage'),'Customer activation chat UI is missing');
 check(account.includes('screen'+"'"+'+(count===1'), 'Netflix screen count rendering is missing');
+check(account.includes('ORDER_DEEP_LINK_PATTERN'),'Account order links are not validated as UUIDs');
+check(account.includes('new URLSearchParams(location.search).get("order")'),'Account page does not read the order deep link');
+check(account.includes('encodeURIComponent(currentAccountReturnTarget())'),'Account login redirect drops the requested order');
+check(account.includes('await showDetails(linkedOrderId)'),'Account page does not open a linked owned order');
+const deepLinkStart=account.indexOf('const ORDER_DEEP_LINK_PATTERN');
+const deepLinkEnd=account.indexOf('      const renewalDurationLabels',deepLinkStart);
+check(deepLinkStart>=0&&deepLinkEnd>deepLinkStart,'Account deep-link helpers are missing');
+if(deepLinkStart>=0&&deepLinkEnd>deepLinkStart){
+  const deepLinkSource=account.slice(deepLinkStart,deepLinkEnd);
+  const requested=(search)=>{
+    const context={URL,URLSearchParams,location:{search,href:`https://www.striviodz.store/my-account${search}`,hash:''},history:{pushState(){},replaceState(){}}};
+    vm.createContext(context);
+    return vm.runInContext(`${deepLinkSource};requestedOrderId()`,context);
+  };
+  check(requested('?order=566b81ac-79ed-4a3b-bd00-5a130df57161')==='566b81ac-79ed-4a3b-bd00-5a130df57161','A valid owned-order deep link is rejected');
+  check(requested('?order=not-a-uuid')==='','A malformed order deep link is accepted');
+}
 const operations=fs.readFileSync(path.join(root,'operations.html'),'utf8');
 check(operations.includes('openActivationModal'),'Operations activation conversation is missing');
 check(operations.includes('activationCredentialsHtml'),'Activation credentials are missing from service records');
@@ -76,6 +93,50 @@ check(!notifications.includes('subtree: true, childList: true'),'Notification la
 check(notifications.includes('overflow:visible!important'),'Notification badge can be clipped by the trigger');
 const sharedClient=fs.readFileSync(path.join(root,'supabase-client.js'),'utf8');
 check(sharedClient.includes("b.matches('[data-notification-trigger]')"),'Notification trigger is not excluded from the clipping ripple');
+check(sharedClient.includes("from('service_bundle_rules')"),'Active bundle rules are not loaded from the database');
+check(sharedClient.includes('bundle_offers'),'Bundle rules are not attached to storefront services');
+const storefront=fs.readFileSync(path.join(root,'index.html'),'utf8');
+check(storefront.includes('bundleOfferAt(curSvc, i)'),'Duration cards do not render server-defined bundle offers');
+check(storefront.includes('display_only:true'),'Cart gift preview is not explicitly display-only');
+check(cartPage.includes('CI-GIFT')&&cartPage.includes('cartBundlePreview'),'Cart does not show the included promotional gift');
+check(!cartPage.includes('item.bundlePreview && item.bundlePreview.display_only===true'),'Cart can advertise a stale or disabled promotional gift');
+check(operations.includes('promotion_shared'),'Operations cannot create shared promotional inventory');
+check(operations.includes('sharedAllocationsFor'),'Operations cannot display multiple shared profile assignments');
+const sheetSync=fs.readFileSync(path.join(root,'supabase','functions','sync-google-sheet','index.ts'),'utf8');
+check(sheetSync.includes("from('order_benefits')"),'Sheet sync does not load order benefits');
+check(sheetSync.includes("from('shared_profile_allocations')"),'Sheet sync does not load shared gift assignments');
+const appsScriptPath=path.join(root,'integrations','strivio-operations-apps-script.gs');
+check(fs.existsSync(appsScriptPath),'Versioned Strivio Operations Apps Script is missing');
+if(fs.existsSync(appsScriptPath)){
+  const appsScript=fs.readFileSync(appsScriptPath,'utf8');
+  check(appsScript.includes("name: 'Promotional Gifts'"),'Promotional Gifts sheet definition is missing');
+  check(appsScript.includes('writePromotionalGiftRows_'),'Promotional Gifts webhook writer is missing');
+  check(appsScript.includes("if (!expectedSecret) return json_"),'Google Sheets webhook fails open when its sync secret is missing');
+}
+
+const bundleMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607210100_promotional_bundles.sql'),'utf8');
+check(bundleMigration.includes('orders_attach_active_bundle_gifts'),'Server-authoritative bundle trigger is missing');
+check(bundleMigration.includes("'netflix', 2, 'prime'"),'Netflix 3-month Prime gift rule is missing');
+check(bundleMigration.includes("'netflix', 3, 'prime'"),'Netflix 6-month Prime gift rule is missing');
+check(bundleMigration.includes("'gift_duration_months', 'benefit_id', 'renewal'"),'Client-controlled renewal/promotion fields are not stripped');
+check(bundleMigration.includes("account.pool_kind = 'promotion_shared'"),'Shared promotion allocator is not isolated from standard inventory');
+check(bundleMigration.includes("allocation_kind', ''), 'standard') = 'shared'"),'Credential rotation does not validate shared allocations');
+check(bundleMigration.includes("profiles_per_account = 6"),'Prime operations capacity is not configured for six profiles');
+check(bundleMigration.includes("if tg_op = 'DELETE' then\n    return old;"),'Promotion delete events can poison the order-scoped Sheet retry queue');
+const fulfillOrder=fs.readFileSync(path.join(root,'supabase','functions','fulfill-order','index.ts'),'utf8');
+check(fulfillOrder.includes('allocate_shared_promotion_slots_atomic'),'Shared promotion allocator is not used by fulfillment');
+check(fulfillOrder.includes('.eq("pool_kind", "standard")'),'Exclusive fulfillment can consume shared promotion stock');
+check(fulfillOrder.includes('outOfStock && !isPromotionGift'),'A free gift stock miss can block the paid product');
+check(fulfillOrder.includes('isPromotionGift && !promotionSourceReady'),'A promotional gift can be delivered before its paid source item');
+const deliveryApi=fs.readFileSync(path.join(root,'supabase','functions','customer-delivery','index.ts'),'utf8');
+check(deliveryApi.includes("isPromotionGift?[]:rowAllocations.length"),'Free promotional gifts can incorrectly be renewed');
+check(deliveryApi.includes("allocation_kind:'shared_promotion'"),'Customer delivery does not validate shared allocations');
+
+const emailTemplate=fs.readFileSync(path.join(root,'supabase','functions','_shared','strivio-email.ts'),'utf8');
+check(emailTemplate.includes('const CTA ='),'Transactional emails do not have event-specific CTA labels');
+check(emailTemplate.includes('credentialsChanged: "Afficher les nouveaux identifiants"'),'Credential-change emails use the generic CTA');
+check(emailTemplate.includes('problemReply: "Read the reply and continue the report"'),'Problem reply emails use the generic CTA');
+check(emailTemplate.includes('${ctaLabel}: ${ctx.actionUrl}'),'Plain-text emails do not use the event-specific CTA');
 
 if(failures.length){console.error(failures.map(x=>'FAIL '+x).join('\n'));process.exit(1)}
 console.log(`Smoke checks passed for ${htmlFiles.length} pages.`);

@@ -242,9 +242,15 @@ serve(async req=>{
     if(rowsError)throw rowsError;
     const fulfillmentIds=(rows||[]).map((row:any)=>row.id);
     const serviceIds=[...new Set((rows||[]).map((row:any)=>row.service_id).filter(Boolean))];
-    const [allocationsResult,servicesResult,activationMessagesResult]=await Promise.all([
+    const [allocationsResult,sharedAllocationsResult,benefitsResult,servicesResult,activationMessagesResult]=await Promise.all([
       fulfillmentIds.length
         ? db.from('fulfillment_allocations').select('id,fulfillment_id,ends_at,status,renewal_count,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).order('created_at')
+        : Promise.resolve({data:[],error:null}),
+      fulfillmentIds.length
+        ? db.from('shared_profile_allocations').select('id,fulfillment_id,benefit_id,slot_id,ends_at,status,renewal_count,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).order('created_at')
+        : Promise.resolve({data:[],error:null}),
+      fulfillmentIds.length
+        ? db.from('order_benefits').select('id,fulfillment_id,source_item_index,gift_item_index,gift_service_id,duration_months,quantity,allocation_policy,status,metadata').in('fulfillment_id',fulfillmentIds)
         : Promise.resolve({data:[],error:null}),
       serviceIds.length
         ? db.from('services').select('id,n,p,f,type_prices,types,show_types,fulfillment_mode,icon_type,icon_src,bg').in('id',serviceIds)
@@ -254,9 +260,15 @@ serve(async req=>{
         : Promise.resolve({data:[],error:null})
     ]);
     if(allocationsResult.error)throw allocationsResult.error;
+    if(sharedAllocationsResult.error)throw sharedAllocationsResult.error;
+    if(benefitsResult.error)throw benefitsResult.error;
     if(servicesResult.error)throw servicesResult.error;
     if(activationMessagesResult.error)throw activationMessagesResult.error;
-    const allocations=allocationsResult.data;
+    const allocations=[
+      ...(allocationsResult.data||[]).map((item:any)=>({...item,allocation_kind:'standard'})),
+      ...(sharedAllocationsResult.data||[]).map((item:any)=>({...item,allocation_kind:'shared_promotion'}))
+    ];
+    const benefits=benefitsResult.data||[];
     const services=servicesResult.data;
     const activationMessages=activationMessagesResult.data;
     const serviceById=new Map((services||[]).map((item:any)=>[item.id,item]));
@@ -271,6 +283,8 @@ serve(async req=>{
       const delivery=await decrypt(row.encrypted_delivery);
       const serviceRow:any=serviceById.get(row.service_id)||{};
       const sourceItem:any=Array.isArray(order.items)?order.items[Number(row.order_item_index||0)]||{}:{};
+      const isPromotionGift=sourceItem?.is_promotional_gift===true&&sourceItem?.included_free===true;
+      const promotionBenefit=(benefits||[]).find((item:any)=>item.fulfillment_id===row.id)||null;
       const allRowAllocations=(allocations||[]).filter((item:any)=>item.fulfillment_id===row.id);
       const rowAllocations=allRowAllocations.filter((item:any)=>String(item.status||'').toLowerCase()==='active'&&eligible(item.ends_at));
       let visibleDelivery=delivery;
@@ -303,7 +317,7 @@ serve(async req=>{
         }).filter(Boolean)};
       }
       const summaryEnd=row.delivery_summary?.ends_at||delivery?.ends_at||null;
-      const renewalTargets=rowAllocations.length
+      const renewalTargets=isPromotionGift?[]:rowAllocations.length
         ? rowAllocations.map((item:any)=>({
             id:item.id,
             kind:'allocation',
@@ -320,6 +334,16 @@ serve(async req=>{
         encrypted_delivery:undefined,
         delivery:visibleDelivery,
         activation_messages:(activationMessages||[]).filter((message:any)=>message.fulfillment_id===row.id),
+        promotion_benefit:promotionBenefit?{
+          id:promotionBenefit.id,
+          status:promotionBenefit.status,
+          source_item_index:promotionBenefit.source_item_index,
+          duration_months:promotionBenefit.duration_months,
+          quantity:promotionBenefit.quantity,
+          allocation_policy:promotionBenefit.allocation_policy,
+          included_free:true,
+          label_i18n:promotionBenefit.metadata?.label_i18n||sourceItem.bundle_label_i18n||{}
+        }:null,
         renewal_targets:renewalTargets,
         renewal_options:{
           durations:RENEWAL_DURATION_LABELS,

@@ -501,6 +501,26 @@
         accountStatePollBusy = false,
         accountRealtimeChannel = null,
         accountRealtimeTimer = null;
+      const ORDER_DEEP_LINK_PATTERN =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      function requestedOrderId() {
+        var value = new URLSearchParams(location.search).get("order") || "";
+        return ORDER_DEEP_LINK_PATTERN.test(value) ? value.toLowerCase() : "";
+      }
+      function updateOrderUrl(orderId, mode) {
+        var url = new URL(location.href);
+        if (orderId && ORDER_DEEP_LINK_PATTERN.test(orderId))
+          url.searchParams.set("order", orderId.toLowerCase());
+        else url.searchParams.delete("order");
+        history[mode === "push" ? "pushState" : "replaceState"](
+          { order: orderId || null },
+          "",
+          url.pathname + url.search + url.hash,
+        );
+      }
+      function currentAccountReturnTarget() {
+        return "my-account" + location.search + location.hash;
+      }
       const renewalDurationLabels = {
         ar: ["شهر واحد", "شهران", "3 أشهر", "6 أشهر", "سنة كاملة"],
         fr: ["1 mois", "2 mois", "3 mois", "6 mois", "1 an"],
@@ -983,6 +1003,7 @@
         detailsPollSignature = "";
         detailsPollGeneration += 1;
         document.getElementById("details")?.remove();
+        if (requestedOrderId()) updateOrderUrl(null, "replace");
       }
       function startDetailsPolling(id) {
         if (detailsPollTimer) clearInterval(detailsPollTimer);
@@ -1054,6 +1075,10 @@
           if (fromPoll) {
             var latestDetails = document.getElementById("details");
             if (!latestDetails || latestDetails.dataset.orderId !== id) return;
+          }
+          if (!fromPoll) {
+            var currentOrderId = requestedOrderId();
+            updateOrderUrl(id, currentOrderId ? "replace" : "push");
           }
           old?.remove();
           let wrap = document.createElement("div");
@@ -1208,6 +1233,8 @@
                   esc(target.id) +
                   '" data-kind="' +
                   esc(target.kind) +
+                  '" data-ends-at="' +
+                  esc(target.ends_at || "") +
                   '" checked class="accent-[#39ff14] w-5 h-5"></label>'
                 );
               })
@@ -1285,7 +1312,15 @@
               ar: renewalDurationLabels.ar[durationIdx],
               fr: renewalDurationLabels.fr[durationIdx],
               en: renewalDurationLabels.en[durationIdx],
-            };
+            },
+            selectedEndTimes = selected
+              .map(function (input) { return new Date(input.dataset.endsAt || "").getTime(); })
+              .filter(Number.isFinite),
+            nearestSelectedEnd = selectedEndTimes.length ? Math.min.apply(Math, selectedEndTimes) : 0,
+            renewalActionKind = nearestSelectedEnd &&
+                Math.ceil((nearestSelectedEnd - Date.now()) / 86400000) > 7
+              ? "extension"
+              : "renewal";
           if (!unitPrice || unitPrice < 0) throw new Error(actionText().renewalPriceInvalid);
           var renewalItem = {
             id: fulfillment.service_id,
@@ -1313,6 +1348,7 @@
               target_ids: selected.map(function (input) { return input.value; }),
               target_kind: kinds[0],
               target_count: selectedCount,
+              action_kind: renewalActionKind,
             },
             addedAt: Date.now(),
           };
@@ -1756,7 +1792,8 @@
       async function init() {
         let s = (await window.supabaseClient.auth.getSession()).data.session;
         if (!s) {
-          location.href = "auth?next=my-account";
+          location.href =
+            "auth?next=" + encodeURIComponent(currentAccountReturnTarget());
           return;
         }
         user = s.user;
@@ -1819,6 +1856,16 @@
         )
           initialView = "orders";
         showView(initialView);
+        var linkedOrderId = requestedOrderId();
+        if (linkedOrderId) {
+          if (
+            orders.some(function (order) {
+              return String(order.id).toLowerCase() === linkedOrderId;
+            })
+          )
+            await showDetails(linkedOrderId);
+          else updateOrderUrl(null, "replace");
+        }
       }
       window.accountInitPromise = init();
     </script>

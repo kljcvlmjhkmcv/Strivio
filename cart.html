@@ -41,6 +41,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 .CI{background:#181818;border:1px solid #2A2A2A;border-radius:16px;padding:1rem 1.2rem;display:flex;align-items:center;gap:1rem;transition:all .3s;animation:FI .35s ease forwards}
 .CI:hover{border-color:rgba(var(--nr),.22)}
 .CI-ICON-WRAP{width:56px;height:56px;border-radius:14px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin:auto}
+.CI-GIFT{display:flex;align-items:center;gap:.4rem;width:max-content;max-width:100%;margin-top:.55rem;padding:.3rem .65rem;border:1px solid rgba(var(--nr),.28);border-radius:999px;background:rgba(var(--nr),.075);color:#78ff62;font-size:.68rem;font-weight:800;line-height:1.35}
 /* Payment Options */
 .PM{background:#181818;border:1.5px solid #2A2A2A;border-radius:14px;padding:1rem 1.2rem;cursor:pointer;transition:all .22s;display:flex;align-items:center;gap:.85rem}
 .PM:hover:not(.DIS){border-color:rgba(var(--nr),.4);background:rgba(var(--nr),.04)}
@@ -519,6 +520,30 @@ function makeIcon(item, sz){
   return '<div style="width:'+sz+';height:'+sz+'">'+iconValue+'</div>';
 }
 
+function cartBundlePreview(item, service){
+  if(item && item.renewal)return null;
+  var offers=service&&Array.isArray(service.bundle_offers)?service.bundle_offers:[];
+  var offer=offers.find(function(value){return Number(value.source_duration_idx)===Number(item&&item.durIdx);});
+  if(!offer)return null;
+  return {
+    service_id:offer.gift_service_id,
+    nameData:offer.gift_name||{},
+    label_i18n:offer.label_i18n||{},
+    quantity:offer.gift_qty||1,
+    display_only:true
+  };
+}
+
+function cartBundleLabel(preview){
+  var custom=preview&&preview.label_i18n&&preview.label_i18n[L];
+  if(custom)return String(custom);
+  var names=preview&&preview.nameData||{};
+  var name=names[L]||names.fr||names.en||names.ar||'Prime Video';
+  if(L==='ar')return 'هدية مشمولة: بروفايل '+name+' مجاناً لنفس المدة';
+  if(L==='en')return 'Included gift: 1 '+name+' profile for the same period';
+  return 'Cadeau inclus : 1 profil '+name+' pour la même durée';
+}
+
 /* ══════════════════════════════════════════════════════
    RENDER CART ITEMS
 ════════════════════════════════════════════════════════ */
@@ -541,6 +566,7 @@ function renderItems(){
     var q = item.qty || 1;
     var itemTotal = (item.unitPrice || item.price) * q;
     var isRenewal = !!item.renewal;
+    var bundlePreview=cartBundlePreview(item,svc);
     
     return [
       '<div class="CI" id="CI'+idx+'">',
@@ -550,6 +576,7 @@ function renderItems(){
         '<div style="flex:1;min-width:0">',
           '<div class="font-display font-bold text-white text-base leading-tight">'+escapeHtml(itemName)+(isRenewal ? ' <span style="display:inline-flex;margin-inline-start:6px;padding:2px 8px;border-radius:999px;background:rgba(57,255,20,.14);color:#39ff14;font-size:.62rem;vertical-align:middle">'+(L==='ar'?'تجديد':L==='fr'?'RENOUVELLEMENT':'RENEWAL')+'</span>' : '')+'</div>',
           '<div class="text-xs mt-0.5 font-medium" style="color:rgba(224,224,224,.55)">'+escapeHtml(durLabel)+(typeLabel ? ' • <span style="color:#39ff14">'+escapeHtml(typeLabel)+'</span>' : '')+'</div>',
+          bundlePreview?'<div class="CI-GIFT"><span aria-hidden="true">＋</span><span>'+escapeHtml(cartBundleLabel(bundlePreview))+'</span></div>':'',
           '<div class="flex items-center gap-3 mt-2.5">',
             isRenewal ? '<div class="text-xs font-bold px-2 py-1 rounded-lg bg-[#121212] border border-[#2A2A2A]" style="color:#39ff14">'+(item.renewal.target_count||1)+' '+(L==='ar'?'اشتراك':L==='fr'?'abonnement(s)':'subscription(s)')+'</div>' : '<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#121212] border border-[#2A2A2A]">',
             isRenewal ? '' :

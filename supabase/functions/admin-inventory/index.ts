@@ -212,17 +212,17 @@ serve(async (req) => {
       );
     }
     if (action === "list") {
-      const [accountsResult, slotsResult, licensesResult, activationResult] =
+      const [accountsResult, slotsResult, licensesResult, activationResult, sharedAllocationsResult] =
         await Promise.all([
           db
             .from("inventory_accounts")
             .select(
-              "id,service_id,label,capacity,status,expires_at,created_at,updated_at,encrypted_credentials",
+              "id,service_id,label,capacity,status,pool_kind,expires_at,created_at,updated_at,encrypted_credentials",
             )
             .order("created_at", { ascending: false }),
           db
             .from("inventory_slots")
-            .select("id,account_id,label,status,created_at,updated_at"),
+            .select("id,account_id,label,status,max_shared_allocations,created_at,updated_at"),
           db
             .from("inventory_licenses")
             .select("id,service_id,label,status,created_at,updated_at"),
@@ -231,12 +231,20 @@ serve(async (req) => {
             .select("id,customer_input")
             .eq("mode", "manual_activation")
             .not("customer_input", "is", null),
+          db
+            .from("shared_profile_allocations")
+            .select(
+              "id,benefit_id,fulfillment_id,account_id,slot_id,starts_at,ends_at,status,renewal_count,created_at,inventory_slots(label),fulfillments(id,order_id,service_id,delivery_summary,orders(customer_info))",
+            )
+            .eq("status", "active")
+            .order("created_at", { ascending: false }),
         ]);
       for (const [name, result] of [
         ["accounts", accountsResult],
         ["profiles", slotsResult],
         ["licenses", licensesResult],
         ["activation inputs", activationResult],
+        ["shared promotion allocations", sharedAllocationsResult],
       ] as const) {
         if (result.error)
           throw new Error(`Unable to load ${name}: ${result.error.message || String(result.error)}`);
@@ -276,6 +284,7 @@ serve(async (req) => {
           slots: (slots || []).sort(sortSlots),
           licenses: licenses || [],
           activation_inputs: activationInputs,
+          shared_allocations: sharedAllocationsResult.data || [],
         }),
         { headers: cors },
       );
@@ -283,13 +292,23 @@ serve(async (req) => {
     if (action === "add_account") {
       if (!body.service_id || !body.email || !body.password)
         throw new Error("Service, email and password are required");
-      const capacity = Math.max(1, Math.min(100, Number(body.capacity || 1)));
+      const poolKind = body.pool_kind === "promotion_shared"
+        ? "promotion_shared"
+        : "standard";
+      const defaultCapacity = String(body.service_id) === "prime" && poolKind === "promotion_shared"
+        ? 6
+        : 1;
+      const capacity = Math.max(
+        1,
+        Math.min(100, Number(body.capacity || defaultCapacity)),
+      );
       const { data: a, error } = await db
         .from("inventory_accounts")
         .insert({
           service_id: body.service_id,
           label: body.label || body.email,
           capacity,
+          pool_kind: poolKind,
           encrypted_credentials: await encrypt({
             email: body.email,
             password: body.password,
@@ -374,21 +393,41 @@ serve(async (req) => {
         throw new Error("Email and password are required");
       const emailChanged = String(current.email || "") !== email,
         passwordChanged = String(current.password || "") !== password;
-      const { data: allocations, error: allocError } = await db
-        .from("fulfillment_allocations")
-        .select(
-          "id,account_id,slot_id,ends_at,status,sheet_version,inventory_slots(label),fulfillments!inner(id,order_id,service_id,encrypted_delivery)",
-        )
-        .eq("account_id", account.id)
-        .eq("status", "active");
-      if (allocError) throw allocError;
-      const activeAllocations = allocations || [];
+      const [standardAllocationsResult, sharedAllocationsResult] = await Promise.all([
+        db
+          .from("fulfillment_allocations")
+          .select(
+            "id,account_id,slot_id,ends_at,status,sheet_version,inventory_slots(label),fulfillments!inner(id,order_id,service_id,encrypted_delivery)",
+          )
+          .eq("account_id", account.id)
+          .eq("status", "active"),
+        db
+          .from("shared_profile_allocations")
+          .select(
+            "id,account_id,slot_id,ends_at,status,sheet_version,inventory_slots(label),fulfillments!inner(id,order_id,service_id,encrypted_delivery)",
+          )
+          .eq("account_id", account.id)
+          .eq("status", "active"),
+      ]);
+      if (standardAllocationsResult.error) throw standardAllocationsResult.error;
+      if (sharedAllocationsResult.error) throw sharedAllocationsResult.error;
+      const activeAllocations = [
+        ...(standardAllocationsResult.data || []).map((allocation: any) => ({
+          ...allocation,
+          allocation_kind: "standard",
+        })),
+        ...(sharedAllocationsResult.data || []).map((allocation: any) => ({
+          ...allocation,
+          allocation_kind: "shared",
+        })),
+      ];
       const getFulfillment = (allocation: any) =>
         Array.isArray(allocation.fulfillments)
           ? allocation.fulfillments[0]
           : allocation.fulfillments;
       const expectedAllocations = activeAllocations.map((allocation: any) => ({
         id: String(allocation.id),
+        allocation_kind: allocation.allocation_kind || "standard",
         fulfillment_id: String(getFulfillment(allocation)?.id || ""),
         slot_id: allocation.slot_id ? String(allocation.slot_id) : null,
         ends_at: allocation.ends_at || null,

@@ -104,15 +104,17 @@ async function enrichProblems(problems:any[],fulfillments:any[],order:any,messag
 }
 
 async function inventorySnapshot(db:any){
-  const [accountsResult,slotsResult,allocationsResult]=await Promise.all([
-    db.from('inventory_accounts').select('id,service_id,label,encrypted_credentials,capacity,status,expires_at,created_at').order('created_at'),
-    db.from('inventory_slots').select('id,account_id,label,encrypted_secret,status,created_at').order('created_at'),
+  const [accountsResult,slotsResult,allocationsResult,sharedAllocationsResult]=await Promise.all([
+    db.from('inventory_accounts').select('id,service_id,label,encrypted_credentials,capacity,pool_kind,status,expires_at,created_at').order('created_at'),
+    db.from('inventory_slots').select('id,account_id,label,encrypted_secret,status,max_shared_allocations,created_at').order('created_at'),
     db.from('fulfillment_allocations').select('id,account_id,slot_id,starts_at,ends_at,status,admin_notes,sheet_version,renewal_count,fulfillments!inner(order_id,order_item_index,service_id)').order('created_at',{ascending:false}),
+    db.from('shared_profile_allocations').select('id,benefit_id,fulfillment_id,account_id,slot_id,starts_at,ends_at,status,created_at,fulfillments!inner(order_id,order_item_index,service_id)').order('created_at',{ascending:false}),
   ]);
   const accounts=requireRows(accountsResult,'Loading inventory accounts');
   const slots=requireRows(slotsResult,'Loading inventory slots');
   const allocations=requireRows(allocationsResult,'Loading inventory allocations');
-  const orderIds=[...new Set((allocations||[]).map((a:any)=>a.fulfillments?.order_id).filter(Boolean))];
+  const sharedAllocations=requireRows(sharedAllocationsResult,'Loading shared promotional allocations');
+  const orderIds=[...new Set([...(allocations||[]),...(sharedAllocations||[])].map((a:any)=>a.fulfillments?.order_id).filter(Boolean))];
   let orders:any[]=[];
   if(orderIds.length){
     const ordersResult=await db.from('orders').select('id,created_at,customer_info,items,total_payable,status').in('id',orderIds);
@@ -121,6 +123,14 @@ async function inventorySnapshot(db:any){
   const orderMap=new Map((orders||[]).map((o:any)=>[o.id,o]));
   const allocationBySlot=new Map();
   for(const a of allocations||[])if(a.slot_id&&!allocationBySlot.has(a.slot_id)&&a.status==='active')allocationBySlot.set(a.slot_id,a);
+  const sharedBySlot=new Map();
+  for(const allocation of sharedAllocations||[]){
+    if(!allocation.slot_id||['released','revoked','cancelled','expired'].includes(String(allocation.status||'').toLowerCase()))continue;
+    const sharedEnd=allocation.ends_at?new Date(allocation.ends_at).getTime():Infinity;
+    if(Number.isFinite(sharedEnd)&&sharedEnd<=Date.now())continue;
+    if(!sharedBySlot.has(allocation.slot_id))sharedBySlot.set(allocation.slot_id,[]);
+    sharedBySlot.get(allocation.slot_id).push(allocation);
+  }
   const accountMap=new Map();
   for(const a of accounts||[])accountMap.set(a.id,{...a,credentials:await decrypt(a.encrypted_credentials)});
   const rows=[];
@@ -128,13 +138,26 @@ async function inventorySnapshot(db:any){
     const account=accountMap.get(slot.account_id);
     if(!account)throw new Error(`Inventory slot ${slot.id||'unknown'} references a missing account`);
     const secret=await decrypt(slot.encrypted_secret);const allocation=slot.status==='assigned'?allocationBySlot.get(slot.id)||null:null;
+    const sharedAssignments=(sharedBySlot.get(slot.id)||[]).map((shared:any)=>{
+      const nested=shared.fulfillments||{};
+      const sharedOrder=orderMap.get(nested.order_id)||null;
+      const sharedItem=sharedOrder?.items?.[Number(nested.order_item_index||0)]||{};
+      const sharedCustomer=sharedOrder?.customer_info||{};
+      return {
+        allocation_id:shared.id,benefit_id:shared.benefit_id||'',order_id:nested.order_id||'',
+        customer_name:[sharedCustomer.first_name||sharedCustomer.firstname,sharedCustomer.last_name||sharedCustomer.lastname].filter(Boolean).join(' '),
+        customer_email:sharedCustomer.email||'',customer_phone:sharedCustomer.phone||'',duration:label(sharedItem.durLabelData)||sharedItem.durLabel||'',
+        starts_at:sheetDate(shared.starts_at),ends_at:sheetDate(shared.ends_at),status:shared.status||''
+      };
+    });
     const fulfillment=allocation?.fulfillments||{};const order=orderMap.get(fulfillment.order_id)||null;
     if(allocation&&fulfillment.order_id&&!order)throw new Error(`Inventory allocation ${allocation.id||'unknown'} references a missing order`);
     const item=order?.items?.[Number(fulfillment.order_item_index||0)]||{};const customer=order?.customer_info||{};
     rows.push({
-      service_id:account.service_id,account_id:account.id,account_label:account.label,account_status:account.status,
+      service_id:account.service_id,account_id:account.id,account_label:account.label,account_status:account.status,pool_kind:account.pool_kind||'standard',
       account_created_at:sheetDate(account.created_at),slot_created_at:sheetDate(slot.created_at),
       slot_id:slot.id,slot_status:slot.status,profile:slot.label,pin:secret.pin||secret.code||'',
+      max_shared_allocations:slot.max_shared_allocations??'',shared_assignment_count:sharedAssignments.length,shared_assignments:sharedAssignments,
       account_email:account.credentials.email||'',password:account.credentials.password||'',
       allocation_id:allocation?.id||'',order_id:allocation?order?.id||'':'',sheet_version:allocation?.sheet_version||0,renewal_count:Number(allocation?.renewal_count||0),
       order_created_at:allocation?sheetDate(order?.created_at):'',client_name:allocation?[customer.first_name||customer.firstname,customer.last_name||customer.lastname].filter(Boolean).join(' '):'',
@@ -277,20 +300,26 @@ serve(async req=>{
         let fulfillments:any[]=[];
         let problems:any[]=[];
         let problemMessages:any[]=[];
+        let benefits:any[]=[];
+        let sharedBenefitAllocations:any[]=[];
         if(mustLoadOrder){
           const orderResult=await db.from('orders').select('id,created_at,status,total_payable,payment_method,customer_info,items,fulfillment_status').eq('id',orderId).maybeSingle();
           if(orderResult.error)throw queryError(`Loading order ${orderId}`,orderResult.error);
           order=orderResult.data;
           if(!order)throw new Error(`Order ${orderId} was not found for Sheet event ${ev.event_type||'unknown'}`);
 
-          const [allocationResult,fulfillmentResult,problemResult]=await Promise.all([
+          const [allocationResult,fulfillmentResult,problemResult,benefitResult,sharedBenefitResult]=await Promise.all([
             db.from('fulfillment_allocations').select('id,starts_at,ends_at,status,admin_notes,sheet_version,renewal_count,fulfillments!inner(order_id,service_id,user_id)').eq('fulfillments.order_id',orderId),
             db.from('fulfillments').select('id,order_id,order_item_index,service_id,mode,status,quantity,customer_input,delivery_summary,encrypted_delivery,delivered_at,email_status,email_error,updated_at,created_at').eq('order_id',orderId).order('order_item_index'),
             db.from('problem_reports').select('*').eq('order_id',orderId).order('created_at',{ascending:false}),
+            db.from('order_benefits').select('*').eq('order_id',orderId).order('created_at'),
+            db.from('shared_profile_allocations').select('id,benefit_id,fulfillment_id,account_id,slot_id,starts_at,ends_at,status,created_at,inventory_accounts(label,service_id),inventory_slots(label),fulfillments!inner(order_id,order_item_index,service_id)').eq('fulfillments.order_id',orderId).order('created_at'),
           ]);
           allocations=requireRows(allocationResult,`Loading subscriptions for order ${orderId}`);
           fulfillments=requireRows(fulfillmentResult,`Loading fulfillments for order ${orderId}`);
           problems=requireRows(problemResult,`Loading problems for order ${orderId}`);
+          benefits=requireRows(benefitResult,`Loading promotional gifts for order ${orderId}`);
+          sharedBenefitAllocations=requireRows(sharedBenefitResult,`Loading promotional gift assignments for order ${orderId}`);
           const problemIds=problems.map((problem:any)=>problem.id).filter(Boolean);
           if(problemIds.length){
             const messagesResult=await db.from('problem_messages').select('problem_id,sender_role,message,created_at').in('problem_id',problemIds).order('created_at');
@@ -304,7 +333,15 @@ serve(async req=>{
           customer_input:await visibleCustomerInput(f.customer_input)
         })));
         const safeSubscriptions=allocations.map((a:any)=>({...a,...expiryMeta(a.ends_at)}));
-        const payload={secret,event:{id:ev.id,type:ev.event_type,source:ev.payload?.source||requestBody?.source||'',scope:requestBody?.refresh_scope||requestBody?.scope||''},order:order?{...order,customer_info:{first_name:order.customer_info?.first_name,last_name:order.customer_info?.last_name,email:order.customer_info?.email,phone:order.customer_info?.phone,marketing_email_opt_in:!!order.customer_info?.marketing_email_opt_in,marketing_whatsapp_opt_in:!!order.customer_info?.marketing_whatsapp_opt_in}}:null,subscriptions:safeSubscriptions,fulfillments:safeFulfillments,problems:await enrichProblems(problems,fulfillments,order,problemMessages),problem_messages:problemMessages,inventory:idx===0?(sharedInventory||[]):[]};
+        const safeBenefits=benefits.map((benefit:any)=>({
+          ...benefit,
+          shared_allocations:sharedBenefitAllocations.filter((allocation:any)=>allocation.benefit_id===benefit.id).map((allocation:any)=>({
+            id:allocation.id,fulfillment_id:allocation.fulfillment_id,account_id:allocation.account_id,slot_id:allocation.slot_id,
+            account_label:allocation.inventory_accounts?.label||'',profile:allocation.inventory_slots?.label||'',
+            starts_at:sheetDate(allocation.starts_at),ends_at:sheetDate(allocation.ends_at),status:(allocation.ends_at&&new Date(allocation.ends_at).getTime()<=Date.now())?'expired':allocation.status,created_at:allocation.created_at
+          }))
+        }));
+        const payload={secret,event:{id:ev.id,type:ev.event_type,source:ev.payload?.source||requestBody?.source||'',scope:requestBody?.refresh_scope||requestBody?.scope||''},order:order?{...order,customer_info:{first_name:order.customer_info?.first_name,last_name:order.customer_info?.last_name,email:order.customer_info?.email,phone:order.customer_info?.phone,marketing_email_opt_in:!!order.customer_info?.marketing_email_opt_in,marketing_whatsapp_opt_in:!!order.customer_info?.marketing_whatsapp_opt_in}}:null,subscriptions:safeSubscriptions,fulfillments:safeFulfillments,benefits:safeBenefits,problems:await enrichProblems(problems,fulfillments,order,problemMessages),problem_messages:problemMessages,inventory:idx===0?(sharedInventory||[]):[]};
         const response=await fetch(webhook,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
         const responseText=await response.text();
         if(!response.ok)throw new Error(`Google Sheets webhook failed (${response.status}): ${responseText.trim().slice(0,300)||'empty response'}`);

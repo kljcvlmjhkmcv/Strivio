@@ -128,6 +128,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 .DOC.FULL{grid-column:1/-1}
 .DOC .DM{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.35rem;color:#fff;line-height:1}
 .DOC .DL{font-size:.72rem;color:rgba(224,224,224,.5);margin-top:.1rem}
+.DOC .BUNDLE-NOTE{display:flex;align-items:center;gap:.35rem;width:max-content;max-width:100%;margin-top:.35rem;padding:.28rem .55rem;border:1px solid rgba(57,255,20,.35);border-radius:999px;background:rgba(57,255,20,.09);color:#73ff5b;font-size:.66rem;font-weight:800;line-height:1.35}
 .DOC .DP{font-family:'Space Grotesk',sans-serif;font-weight:800;color:#39ff14;font-size:.95rem;margin-top:.4rem}
 .DOC .BVB{position:absolute;top:.45rem;right:.55rem;font-size:.55rem;font-weight:800;background:#39ff14;color:#121212;padding:.1rem .45rem;border-radius:999px;letter-spacing:.04em}
 [dir=rtl] .DOC .BVB{right:auto;left:.55rem}
@@ -834,12 +835,14 @@ function renderModalDurations(){
   prices.forEach(function(pr,i){
     var isOos = !pr || pr <= 0 || (curSvc.out_of_stock && curSvc.out_of_stock.dur && curSvc.out_of_stock.dur[i]);
     var oldPr = origPrices[i] || 0;
-    var noteStr = (durNotes[i] && durNotes[i].trim() !== '') ? durNotes[i] : (L === 'ar' ? 'ضمان كامل للمدة' : (L === 'en' ? 'Full Period Guarantee' : 'Garantie complète'));
+    var noteStr = (durNotes[i] && String(durNotes[i]).trim() !== '') ? durNotes[i] : (L === 'ar' ? 'ضمان كامل للمدة' : (L === 'en' ? 'Full Period Guarantee' : 'Garantie complète'));
+    var bundleOffer = bundleOfferAt(curSvc, i);
     
     var _c='<div class="DOC'+(i===4?' FULL':'')+(i===selDur && !isOos?' SL':'')+(isOos?' DIS':'')+'" data-i="'+i+'" style="'+(isOos?'opacity:.4;cursor:not-allowed;border-color:#222;background:#111':'')+'">';
     if(i===bvIdx && !isOos)_c+='<span class="BVB">'+tx.bv+'</span>';
     _c+='<div class="DM">'+MN[i]+'<span style="font-size:.6rem;font-weight:600;color:rgba(224,224,224,.4);margin-left:3px">'+(L==='ar'?'شهر':'mo')+'</span></div>';
-    _c+='<div class="DL">'+noteStr+'</div>';
+    _c+='<div class="DL">'+escapeHtml(noteStr)+'</div>';
+    if(bundleOffer)_c+='<div class="BUNDLE-NOTE"><span aria-hidden="true">＋</span><span>'+escapeHtml(bundleOfferText(bundleOffer))+'</span></div>';
     if(isOos){
       _c+='<div class="DP" style="color:#ef4444;font-size:.8rem;margin-top:auto;padding-top:0.3rem">' + (tx.oosDur || 'غير متوفر حالياً') + '</div>';
     } else {
@@ -850,6 +853,22 @@ function renderModalDurations(){
   });
   _mdoHtml+='</div>';
   $('MDO').innerHTML=_mdoHtml;
+}
+
+function bundleOfferAt(service, durationIndex){
+  if(!service || !Array.isArray(service.bundle_offers))return null;
+  return service.bundle_offers.find(function(offer){
+    return Number(offer.source_duration_idx)===Number(durationIndex);
+  })||null;
+}
+
+function bundleOfferText(offer){
+  var custom=offer&&offer.label_i18n&&offer.label_i18n[L];
+  if(custom)return String(custom);
+  var giftName=(offer&&offer.gift_name&&(offer.gift_name[L]||offer.gift_name.fr||offer.gift_name.en||offer.gift_name.ar))||'Prime Video';
+  if(L==='ar')return 'هدية: بروفايل '+giftName+' مجاناً لنفس المدة';
+  if(L==='en')return 'Included: 1 '+giftName+' profile free for the same period';
+  return 'Offert : 1 profil '+giftName+' gratuit pour la même durée';
 }
 
 function closeModal(){
@@ -929,6 +948,7 @@ function buildCartItem(){
   var unitPr=(curSvc.showTypes && curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
   var tLabel=curSvc.showTypes && curSvc.types && curSvc.types[L] ? curSvc.types[L][selType] : null;
   var tData=curSvc.showTypes && curSvc.types ? curSvc.types : null;
+  var bundleOffer=bundleOfferAt(curSvc,selDur);
   return {
     id:curSvc.id, name:curSvc.n[L], nameData:curSvc.n,
     iconType:curSvc.iconType, iconSrc:curSvc.iconSrc,
@@ -938,6 +958,16 @@ function buildCartItem(){
     durLabelData:{en:TX.en.dl[selDur],fr:TX.fr.dl[selDur],ar:TX.ar.dl[selDur]},
     typeIdx:selType, typeLabel:tLabel, typeLabelData:tData,
     qty:visibleQty, quantity:visibleQty, unitPrice:unitPr, price:unitPr*visibleQty,
+    /* Display-only preview. The backend derives the real gift from its active
+       rule and never trusts a cart-provided gift. */
+    bundlePreview:bundleOffer?{
+      service_id:bundleOffer.gift_service_id,
+      nameData:bundleOffer.gift_name||{},
+      label_i18n:bundleOffer.label_i18n||{},
+      duration_strategy:bundleOffer.gift_duration_strategy||'same',
+      quantity:bundleOffer.gift_qty||1,
+      display_only:true
+    }:null,
     addedAt:Date.now()
   };
 }

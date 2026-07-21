@@ -188,6 +188,7 @@ async function allocateSlots(
     .from("inventory_accounts")
     .select("id,label,encrypted_credentials,credentials_version,created_at")
     .eq("service_id", serviceId)
+    .eq("pool_kind", "standard")
     .eq("status", "active")
     .order("created_at", { ascending: true });
   if (accountsError) throw accountsError;
@@ -301,6 +302,84 @@ async function allocateSlots(
       );
     }
     throw failure;
+  }
+  return entries;
+}
+
+async function allocateSharedPromotionSlots(
+  db: any,
+  serviceId: string,
+  fulfillmentId: string,
+  benefitId: string,
+  qty: number,
+  endsAt: string,
+  workerId: string,
+  renewLease: () => Promise<void>,
+  credentialRetry = 0,
+) {
+  await renewLease();
+  const { data: rows, error } = await db.rpc("allocate_shared_promotion_slots_atomic", {
+    p_fulfillment_id: fulfillmentId,
+    p_benefit_id: benefitId,
+    p_service_id: serviceId,
+    p_quantity: qty,
+    p_ends_at: endsAt,
+    p_worker_id: workerId,
+  });
+  if (error) throw error;
+  if ((rows || []).length !== qty) throw new Error("OUT_OF_STOCK");
+
+  // Credential rotation may start immediately after the allocation transaction
+  // commits. Recheck the exact encrypted value/version before publishing it to
+  // the customer; an idempotent retry returns the same shared allocation with
+  // the newest credentials.
+  const accountIds = [...new Set((rows || []).map((row: any) => String(row.account_id || "")).filter(Boolean))];
+  if (accountIds.length) {
+    const { data: latestAccounts, error: latestError } = await db
+      .from("inventory_accounts")
+      .select("id,encrypted_credentials,credentials_version")
+      .in("id", accountIds);
+    if (latestError) throw latestError;
+    const latestById = new Map((latestAccounts || []).map((row: any) => [String(row.id), row]));
+    const changed = (rows || []).some((row: any) => {
+      const latest: any = latestById.get(String(row.account_id));
+      return !latest ||
+        String(latest.encrypted_credentials || "") !== String(row.encrypted_credentials || "") ||
+        Number(latest.credentials_version || 0) !== Number(row.credentials_version || 0);
+    });
+    if (changed) {
+      if (credentialRetry >= 1) throw new Error("INVENTORY_CREDENTIALS_CHANGED");
+      return allocateSharedPromotionSlots(
+        db,
+        serviceId,
+        fulfillmentId,
+        benefitId,
+        qty,
+        endsAt,
+        workerId,
+        renewLease,
+        credentialRetry + 1,
+      );
+    }
+  }
+
+  const entries = [];
+  for (const row of rows || []) {
+    const credentials = await decrypt(row.encrypted_credentials);
+    const secret = await decrypt(row.encrypted_secret);
+    entries.push({
+      email: credentials.email,
+      password: credentials.password,
+      profile: row.slot_label || "Prime profile",
+      pin: secret?.pin || secret?.code || "",
+      ends_at: row.ends_at || endsAt,
+      account_id: row.account_id,
+      slot_id: row.slot_id,
+      allocation_id: row.allocation_id,
+      shared_allocation_id: row.allocation_id,
+      allocation_kind: "shared_promotion",
+      included_free: true,
+    });
   }
   return entries;
 }
@@ -477,17 +556,33 @@ async function persistFulfillmentSideEffects(db: any, order: any, shouldNotify: 
   );
   const outcomes: Array<{ status: string; error: string | null }> = [];
 
-  for (const fulfillment of deliveredRows) {
+  // A fully delivered bundle is one customer experience. Queue one order-level
+  // event so the email renderer receives both Netflix and the free Prime
+  // delivery entries instead of sending one email per fulfillment.
+  if (finalStatus === "delivered" && deliveredRows.length) {
     const outcome = await enqueueCustomerNotification(
       db,
-      fulfillmentNotification(order.id, "delivered", fulfillment),
+      fulfillmentNotification(order.id, "delivered"),
     );
     outcomes.push(outcome);
     const updateResult = await db.from("fulfillments").update({
       email_status: outcome.status,
       email_error: outcome.error,
-    }).eq("id", fulfillment.id);
+    }).in("id", deliveredRows.map((row: any) => row.id));
     if (updateResult.error) throw updateResult.error;
+  } else {
+    for (const fulfillment of deliveredRows) {
+      const outcome = await enqueueCustomerNotification(
+        db,
+        fulfillmentNotification(order.id, "delivered", fulfillment),
+      );
+      outcomes.push(outcome);
+      const updateResult = await db.from("fulfillments").update({
+        email_status: outcome.status,
+        email_error: outcome.error,
+      }).eq("id", fulfillment.id);
+      if (updateResult.error) throw updateResult.error;
+    }
   }
 
   if (finalStatus !== "delivered" && pendingRows.length && shouldNotify) {
@@ -577,13 +672,18 @@ serve(async (req) => {
       if (renewalError) throw renewalError;
       const sourceOrderId = renewalRequest.metadata?.source_order_id || order.id;
       const effectiveEnd = renewalResult?.new_ends_at || renewalResult?.updates?.[0]?.ends_at || null;
+      const renewalActionKind = String(order.customer_info?.renewal_action_kind || "").toLowerCase() === "extension"
+        ? "extension"
+        : "renewal";
       const renewalNotification = await enqueueCustomerNotification(db, {
-        eventType: "subscription.renewed",
-        templateKey: "subscription_renewed",
+        eventType: renewalActionKind === "extension" ? "subscription.extended" : "subscription.renewed",
+        templateKey: renewalActionKind === "extension" ? "subscription_extended" : "subscription_renewed",
         orderId: order.id,
         serviceId: renewalRequest.service_id,
         actionUrl: `/my-account?order=${encodeURIComponent(sourceOrderId)}`,
-        title: { ar: "تم تجديد اشتراكك", fr: "Votre abonnement a été renouvelé", en: "Your subscription has been renewed" },
+        title: renewalActionKind === "extension"
+          ? { ar: "تم تمديد اشتراكك", fr: "Votre abonnement a été prolongé", en: "Your subscription has been extended" }
+          : { ar: "تم تجديد اشتراكك", fr: "Votre abonnement a été renouvelé", en: "Your subscription has been renewed" },
         body: {
           ar: "تم تأكيد الدفع وتمديد نفس الاشتراك بنجاح. يمكنك الاطلاع على تاريخ الانتهاء المحدّث من حسابك.",
           fr: "Le paiement est confirmé et le même abonnement a été prolongé. Consultez la nouvelle date d’expiration dans votre compte.",
@@ -593,6 +693,7 @@ serve(async (req) => {
           months: renewalRequest.months || renewalResult?.months || null,
           ends_at: effectiveEnd,
           source_order_id: sourceOrderId,
+          action_kind: renewalActionKind,
         },
         dedupeKey: `subscription-renewed:${order.id}`,
       });
@@ -632,10 +733,44 @@ serve(async (req) => {
         throw serviceError || new Error(`Service not found for order item ${i}`);
       }
 
-      const mode = svc.fulfillment_mode || "manual_delivery";
+      const isPromotionGift = item?.is_promotional_gift === true && item?.included_free === true;
+      const mode = isPromotionGift && item?.fulfillment_mode_override === "automatic_shared_slot"
+        ? "automatic_shared_slot"
+        : svc.fulfillment_mode || "manual_delivery";
       const qty = mode === "automatic_slot" || mode === "automatic_account" ? screenCountFor(item) : quantityFor(item);
-      const endsAt = endDate(monthsFor(item));
+      let endsAt = endDate(monthsFor(item));
       const productName = firstLabel(svc.n) || item.name || svc.id;
+      let benefit: any = null;
+      let promotionSourceReady = true;
+      if (isPromotionGift) {
+        const { data: benefitRow, error: benefitError } = await db.from("order_benefits")
+          .select("id,status,quantity,duration_months,allocation_policy,metadata")
+          .eq("order_id", order.id)
+          .eq("gift_item_index", i)
+          .eq("gift_service_id", svc.id)
+          .maybeSingle();
+        if (benefitError) throw benefitError;
+        if (!benefitRow) throw new Error(`Promotion benefit not found for order item ${i}`);
+        benefit = benefitRow;
+        const sourceItemIndex = Number(item.bundle_source_item_index);
+        if (Number.isInteger(sourceItemIndex) && sourceItemIndex >= 0 && sourceItemIndex < i) {
+          const { data: sourceFulfillment, error: sourceFulfillmentError } = await db.from("fulfillments")
+            .select("status,delivery_summary")
+            .eq("order_id", order.id)
+            .eq("order_item_index", sourceItemIndex)
+            .maybeSingle();
+          if (sourceFulfillmentError) throw sourceFulfillmentError;
+          promotionSourceReady = ["delivered", "completed"].includes(
+            String(sourceFulfillment?.status || "").toLowerCase(),
+          );
+          const sourceEnd = String(sourceFulfillment?.delivery_summary?.ends_at || "");
+          if (sourceEnd && Number.isFinite(new Date(sourceEnd).getTime())) endsAt = sourceEnd;
+        } else {
+          // A server-created benefit must always point at an earlier paid item.
+          // Failing closed prevents an orphaned gift from being delivered.
+          promotionSourceReady = false;
+        }
+      }
       const { data: existing, error: existingError } = await db.from("fulfillments")
         .select("*")
         .eq("order_id", order.id)
@@ -644,7 +779,7 @@ serve(async (req) => {
       if (existingError) throw existingError;
       const existingStatus = String(existing?.status || "").toLowerCase();
       const isTerminal = existingStatus === "delivered" || existingStatus === "completed";
-      const isManual = !["automatic_slot", "automatic_account", "automatic_license"].includes(mode);
+      const isManual = !["automatic_slot", "automatic_account", "automatic_license", "automatic_shared_slot"].includes(mode);
 
       // A completed manual activation/delivery is authoritative. Re-running this
       // function must never reopen it as awaiting_customer/awaiting_admin.
@@ -655,6 +790,14 @@ serve(async (req) => {
       if (existing && isTerminal && existing.encrypted_delivery) {
         const current = await decrypt(existing.encrypted_delivery);
         if ((current.entries || []).length >= qty) {
+          if (benefit && benefit.status !== "delivered") {
+            const { error: benefitRepairError } = await db.from("order_benefits").update({
+              status: "delivered",
+              fulfillment_id: existing.id,
+              updated_at: new Date().toISOString(),
+            }).eq("id", benefit.id);
+            if (benefitRepairError) throw benefitRepairError;
+          }
           if (!["sent", "delivered", "suppressed", "dead", "cancelled", "skipped"].includes(String(existing.email_status || "").toLowerCase())) shouldNotify = true;
           continue;
         }
@@ -676,11 +819,22 @@ serve(async (req) => {
         ? await db.from("fulfillments").update(base).eq("id", existing.id).select().single()
         : await db.from("fulfillments").insert(base).select().single();
       if (fulfillmentError || !fulfillment) throw fulfillmentError || new Error("Could not create fulfillment");
+      if (benefit) {
+        const { error: benefitProcessingError } = await db.from("order_benefits").update({
+          status: "processing",
+          fulfillment_id: fulfillment.id,
+          updated_at: new Date().toISOString(),
+        }).eq("id", benefit.id);
+        if (benefitProcessingError) throw benefitProcessingError;
+      }
       await renewLease();
       await releaseFulfillmentInventory(db, fulfillment.id, workerId, "reallocated before fulfillment retry");
 
       try {
         const delivery: any = { service_id: svc.id, mode, product_name: productName, entries: [], ends_at: endsAt };
+        if (isPromotionGift && !promotionSourceReady) {
+          throw new Error("OUT_OF_STOCK: paid bundle item is not delivered yet");
+        }
         if (mode === "automatic_slot" || mode === "automatic_account") {
           delivery.entries = await allocateSlots(
             db,
@@ -689,6 +843,23 @@ serve(async (req) => {
             qty,
             endsAt,
             mode === "automatic_slot",
+            workerId,
+            renewLease,
+          );
+        } else if (mode === "automatic_shared_slot") {
+          delivery.included_free = true;
+          delivery.promotion = {
+            benefit_id: benefit.id,
+            source_item_index: Number(item.bundle_source_item_index || 0),
+            label_i18n: item.bundle_label_i18n || {},
+          };
+          delivery.entries = await allocateSharedPromotionSlots(
+            db,
+            svc.id,
+            fulfillment.id,
+            benefit.id,
+            qty,
+            endsAt,
             workerId,
             renewLease,
           );
@@ -720,6 +891,24 @@ serve(async (req) => {
           email_status: "pending",
         }).eq("id", fulfillment.id);
         if (deliveryUpdateError) throw deliveryUpdateError;
+        if (benefit) {
+          const { data: latestBenefit, error: latestBenefitError } = await db.from("order_benefits")
+            .select("metadata")
+            .eq("id", benefit.id)
+            .single();
+          if (latestBenefitError) throw latestBenefitError;
+          const { error: benefitDeliveryError } = await db.from("order_benefits").update({
+            status: "delivered",
+            fulfillment_id: fulfillment.id,
+            updated_at: new Date().toISOString(),
+            metadata: {
+              ...(latestBenefit?.metadata || benefit.metadata || {}),
+              delivered_at: new Date().toISOString(),
+              allocated_count: delivery.entries.length,
+            },
+          }).eq("id", benefit.id);
+          if (benefitDeliveryError) throw benefitDeliveryError;
+        }
       } catch (error: any) {
         let cleanupError = String(error?.allocationCleanupError || "");
         if (["automatic_slot", "automatic_account", "automatic_license"].includes(mode)) {
@@ -739,7 +928,10 @@ serve(async (req) => {
         const message = cleanupError ? `${originalMessage}; ${cleanupError}` : originalMessage;
         const outOfStock = message.includes("OUT_OF_STOCK");
         const manualSplit = message.includes("NEEDS_MANUAL_SPLIT");
-        hasStockFailure ||= outOfStock;
+        // A free bonus can wait for stock without downgrading the paid Netflix
+        // delivery to needs_stock. The order becomes partially delivered and
+        // the benefit remains retryable.
+        hasStockFailure ||= outOfStock && !isPromotionGift;
         hasPending = true;
         await renewLease();
         const { error: failureUpdateError } = await db.from("fulfillments").update({
@@ -753,6 +945,24 @@ serve(async (req) => {
           email_error: message.slice(0, 500),
         }).eq("id", fulfillment.id);
         if (failureUpdateError) throw failureUpdateError;
+        if (benefit) {
+          const { data: latestFailureBenefit, error: latestFailureBenefitError } = await db.from("order_benefits")
+            .select("metadata")
+            .eq("id", benefit.id)
+            .single();
+          if (latestFailureBenefitError) throw latestFailureBenefitError;
+          const { error: benefitFailureError } = await db.from("order_benefits").update({
+            status: outOfStock ? "awaiting_stock" : "failed",
+            fulfillment_id: fulfillment.id,
+            updated_at: new Date().toISOString(),
+            metadata: {
+              ...(latestFailureBenefit?.metadata || benefit.metadata || {}),
+              last_error: message.slice(0, 500),
+              last_attempt_at: new Date().toISOString(),
+            },
+          }).eq("id", benefit.id);
+          if (benefitFailureError) throw benefitFailureError;
+        }
       }
     }
 

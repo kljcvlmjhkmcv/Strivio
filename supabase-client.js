@@ -53,10 +53,23 @@ async function loadServicesFromDB() {
   if (!supabaseClient) return null;
 
   try {
-    const { data, error } = await supabaseClient
-      .from('services')
-      .select('*')
-      .order('sort_order', { ascending: true });
+    const results = await Promise.all([
+      supabaseClient
+        .from('services')
+        .select('*')
+        .order('sort_order', { ascending: true }),
+      /* Promotional rules are display-only here. The server re-evaluates the
+         active rule while creating the order, so a stale browser can never
+         grant itself a free product. */
+      supabaseClient
+        .from('service_bundle_rules')
+        .select('*')
+        .eq('active', true)
+        .order('priority', { ascending: false })
+    ]);
+    const data = results[0].data;
+    const error = results[0].error;
+    const bundleRules = results[1].error ? [] : (results[1].data || []);
 
     if (error) {
       return null;
@@ -72,7 +85,7 @@ async function loadServicesFromDB() {
       return v;
     };
 
-    return data.map(function(s) {
+    var services = data.map(function(s) {
       return {
         id: s.id,
         cat: s.cat,
@@ -92,9 +105,33 @@ async function loadServicesFromDB() {
         out_of_stock: parseJ(s.out_of_stock, null),
         best_value: s.best_value !== undefined && s.best_value !== null ? Number(s.best_value) : 2,
         fulfillment_mode: s.fulfillment_mode || 'manual_delivery',
-        fulfillment_config: parseJ(s.fulfillment_config, {})
+        fulfillment_config: parseJ(s.fulfillment_config, {}),
+        bundle_offers: []
       };
     });
+    var serviceById = {};
+    services.forEach(function(service) { serviceById[service.id] = service; });
+    bundleRules.forEach(function(rule) {
+      var source = serviceById[rule.source_service_id];
+      var gift = serviceById[rule.gift_service_id];
+      if (!source || !gift) return;
+      source.bundle_offers.push({
+        id: rule.id,
+        source_duration_idx: Number(rule.source_duration_idx),
+        gift_service_id: rule.gift_service_id,
+        gift_duration_strategy: rule.gift_duration_strategy || 'same',
+        gift_qty: Math.max(1, Number(rule.gift_quantity || rule.gift_qty || 1)),
+        qty_mode: rule.quantity_mode || rule.qty_mode || 'fixed',
+        allocation_policy: rule.allocation_policy || 'shared_reusable',
+        include_renewals: !!rule.include_renewals,
+        label_i18n: parseJ(rule.label_i18n, {}),
+        gift_name: gift.n,
+        gift_icon_type: gift.iconType,
+        gift_icon_src: gift.iconSrc,
+        gift_bg: gift.bg
+      });
+    });
+    return services;
   } catch (e) {
     return null;
   }
@@ -167,7 +204,8 @@ async function saveOrderToDB(orderData) {
       const customerInfo = Object.assign({}, orderData.customer_info || {}, {
         order_kind: 'renewal',
         renewal_coupon_code: orderData.coupon_code || null,
-        renewal_source_order_id: renewalItem.renewal.source_order_id || null
+        renewal_source_order_id: renewalItem.renewal.source_order_id || null,
+        renewal_action_kind: renewalItem.renewal.action_kind === 'extension' ? 'extension' : 'renewal'
       });
       const renewalResult = await supabaseClient.rpc('create_renewal_order', {
         p_target_ids: renewalItem.renewal.target_ids,

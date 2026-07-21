@@ -13,6 +13,7 @@ export type DeliveryEntry = {
   pin?: string;
   code?: string;
   ends_at?: string;
+  service_name?: string;
 };
 
 export type StrivioEmailContext = {
@@ -34,6 +35,7 @@ export type StrivioEmailContext = {
   isNetflix?: boolean;
   titleI18n?: LocalizedText;
   bodyI18n?: LocalizedText;
+  renewalAction?: "renewal" | "extension";
 };
 
 export type RenderedStrivioEmail = {
@@ -158,6 +160,57 @@ const COPY = {
   },
 };
 
+const CTA = {
+  ar: {
+    paymentConfirmed: "عرض حالة الطلب",
+    paymentFailed: "فتح الطلب وإعادة المحاولة",
+    actionRequired: "إدخال معلومات التفعيل",
+    activationMessage: "قراءة رسالة فريق التفعيل",
+    activationCompleted: "عرض الخدمة المفعّلة",
+    delivered: "إظهار تفاصيل الطلب والحساب",
+    problemReceived: "متابعة البلاغ",
+    problemReply: "قراءة الرد ومتابعة البلاغ",
+    problemResolved: "عرض نتيجة حل البلاغ",
+    credentialsChanged: "إظهار معلومات الحساب الجديدة",
+    renewed: "عرض الاشتراك بعد التجديد",
+    extended: "عرض الاشتراك بعد التمديد",
+    expiring: "تجديد أو تمديد الاشتراك",
+    generic: "فتح الطلب في حسابي",
+  },
+  fr: {
+    paymentConfirmed: "Voir l’état de la commande",
+    paymentFailed: "Ouvrir la commande et réessayer",
+    actionRequired: "Saisir les informations d’activation",
+    activationMessage: "Lire le message de l’équipe d’activation",
+    activationCompleted: "Voir le service activé",
+    delivered: "Afficher la commande et les identifiants",
+    problemReceived: "Suivre le signalement",
+    problemReply: "Lire la réponse et poursuivre le suivi",
+    problemResolved: "Voir la résolution du signalement",
+    credentialsChanged: "Afficher les nouveaux identifiants",
+    renewed: "Voir l’abonnement renouvelé",
+    extended: "Voir l’abonnement prolongé",
+    expiring: "Renouveler ou prolonger l’abonnement",
+    generic: "Ouvrir la commande dans mon compte",
+  },
+  en: {
+    paymentConfirmed: "View order status",
+    paymentFailed: "Open the order and try again",
+    actionRequired: "Enter activation details",
+    activationMessage: "Read the activation team’s message",
+    activationCompleted: "View the activated service",
+    delivered: "Show order and account details",
+    problemReceived: "Track the report",
+    problemReply: "Read the reply and continue the report",
+    problemResolved: "View the report resolution",
+    credentialsChanged: "Show the updated account details",
+    renewed: "View the renewed subscription",
+    extended: "View the extended subscription",
+    expiring: "Renew or extend the subscription",
+    generic: "Open the order in my account",
+  },
+};
+
 function locale(value?: string): StrivioLocale {
   return value === "fr" || value === "en" ? value : "ar";
 }
@@ -229,7 +282,8 @@ function entryCards(entries: DeliveryEntry[], lang: StrivioLocale): string {
   if (!entries.length) return "";
   const c = COMMON[lang];
   return entries.map((entry, index) => {
-    const title = entry.profile || entry.label || (entry.code ? `${c.code} ${index + 1}` : `${c.profile} ${index + 1}`);
+    const entryTitle = entry.profile || entry.label || (entry.code ? `${c.code} ${index + 1}` : `${c.profile} ${index + 1}`);
+    const title = entry.service_name ? `${entry.service_name} · ${entryTitle}` : entryTitle;
     const values: Array<[string, string]> = [];
     if (entry.email) values.push([c.email, entry.email]);
     if (entry.password) values.push([c.password, entry.password]);
@@ -249,7 +303,8 @@ function plainEntries(entries: DeliveryEntry[], lang: StrivioLocale): string {
   const c = COMMON[lang];
   return entries.map((entry, index) => {
     const explicitName = entry.profile || entry.label || "";
-    const lines = [explicitName || `${c.profile} ${index + 1}`];
+    const entryTitle = explicitName || `${c.profile} ${index + 1}`;
+    const lines = [entry.service_name ? `${entry.service_name} · ${entryTitle}` : entryTitle];
     if (entry.email) lines.push(`${c.email}: ${entry.email}`);
     if (entry.password) lines.push(`${c.password}: ${entry.password}`);
     if (entry.profile || entry.label) lines.push(`${c.profile}: ${entry.profile || entry.label}`);
@@ -265,6 +320,10 @@ export function renderStrivioEmail(ctx: StrivioEmailContext): RenderedStrivioEma
   const rtl = lang === "ar";
   const c = COMMON[lang];
   const key = copyKey(ctx.eventType, ctx.templateKey);
+  const isExtension = ctx.renewalAction === "extension" ||
+    /subscription[._-]extended|subscription[._-]extension/i.test(`${ctx.eventType} ${ctx.templateKey || ""}`);
+  const ctaKey = key === "renewed" && isExtension ? "extended" : key;
+  const ctaLabel = CTA[lang][ctaKey as keyof typeof CTA.ar] || CTA[lang].generic;
   const fallback = COPY[lang][key] as [string, string];
   const title = pick(ctx.titleI18n, lang) || fallback[0];
   const body = pick(ctx.bodyI18n, lang) || ctx.message || fallback[1];
@@ -287,7 +346,7 @@ export function renderStrivioEmail(ctx: StrivioEmailContext): RenderedStrivioEma
     ? `<div style="margin-top:22px"><div style="color:${BRAND.text};font-size:16px;font-weight:900">${esc(lang === "ar" ? "معلومات التسليم" : lang === "fr" ? "Informations de livraison" : "Delivery details")}</div>${entryCards(entries, lang)}</div>`
     : "";
 
-  const html = `<!doctype html><html lang="${lang}" dir="${rtl ? "rtl" : "ltr"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head><body style="margin:0;padding:0;background:${BRAND.black};color:${BRAND.text};font-family:Arial,Tahoma,sans-serif;-webkit-text-size-adjust:100%"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.black};border-collapse:collapse"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;border-collapse:separate;border-spacing:0;background:${BRAND.panel};border:1px solid ${BRAND.border};border-radius:24px;overflow:hidden"><tr><td style="padding:26px 28px;background:linear-gradient(135deg,#080808,#10200d);border-bottom:1px solid ${BRAND.border}"><a href="https://www.striviodz.store" style="text-decoration:none;color:${BRAND.neon};font-size:30px;font-weight:900;letter-spacing:.5px">STRIVIO</a><div style="margin-top:5px;color:${BRAND.muted};font-size:12px">${esc(c.brandLine)}</div></td></tr><tr><td style="padding:30px 28px;text-align:${rtl ? "right" : "left"}"><div dir="auto" style="color:${BRAND.muted};font-size:14px;margin-bottom:10px">${esc(greeting)}</div><h1 dir="auto" style="margin:0;color:${BRAND.text};font-size:26px;line-height:1.35">${esc(title)}</h1><p dir="auto" style="margin:13px 0 0;color:#d0d0d0;font-size:15px;line-height:1.85">${esc(body)}</p>${detailsRows(ctx, lang)}${messageBlock}${credentialBlock}${showNetflixTerms ? netflixTerms() : ""}${supportBlock}<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:24px"><tr><td bgcolor="${BRAND.neon}" style="border-radius:13px"><a href="${esc(ctx.actionUrl)}" style="display:inline-block;padding:14px 21px;color:#050505;text-decoration:none;font-size:14px;font-weight:900;border-radius:13px">${esc(c.open)}</a></td></tr></table>${entries.length ? `<p style="margin:20px 0 0;color:${BRAND.warning};font-size:12px;line-height:1.7">${esc(c.safety)}</p>` : ""}</td></tr><tr><td style="padding:20px 28px;border-top:1px solid ${BRAND.border};color:#777;font-size:11px;line-height:1.7;text-align:${rtl ? "right" : "left"}">${esc(c.automated)}<br>© ${new Date().getUTCFullYear()} Strivio · striviodz.store</td></tr></table></td></tr></table></body></html>`;
+  const html = `<!doctype html><html lang="${lang}" dir="${rtl ? "rtl" : "ltr"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head><body style="margin:0;padding:0;background:${BRAND.black};color:${BRAND.text};font-family:Arial,Tahoma,sans-serif;-webkit-text-size-adjust:100%"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.black};border-collapse:collapse"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;border-collapse:separate;border-spacing:0;background:${BRAND.panel};border:1px solid ${BRAND.border};border-radius:24px;overflow:hidden"><tr><td style="padding:26px 28px;background:linear-gradient(135deg,#080808,#10200d);border-bottom:1px solid ${BRAND.border}"><a href="https://www.striviodz.store" style="text-decoration:none;color:${BRAND.neon};font-size:30px;font-weight:900;letter-spacing:.5px">STRIVIO</a><div style="margin-top:5px;color:${BRAND.muted};font-size:12px">${esc(c.brandLine)}</div></td></tr><tr><td style="padding:30px 28px;text-align:${rtl ? "right" : "left"}"><div dir="auto" style="color:${BRAND.muted};font-size:14px;margin-bottom:10px">${esc(greeting)}</div><h1 dir="auto" style="margin:0;color:${BRAND.text};font-size:26px;line-height:1.35">${esc(title)}</h1><p dir="auto" style="margin:13px 0 0;color:#d0d0d0;font-size:15px;line-height:1.85">${esc(body)}</p>${detailsRows(ctx, lang)}${messageBlock}${credentialBlock}${showNetflixTerms ? netflixTerms() : ""}${supportBlock}<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:24px"><tr><td bgcolor="${BRAND.neon}" style="border-radius:13px"><a href="${esc(ctx.actionUrl)}" style="display:inline-block;padding:14px 21px;color:#050505;text-decoration:none;font-size:14px;font-weight:900;border-radius:13px">${esc(ctaLabel)}</a></td></tr></table>${entries.length ? `<p style="margin:20px 0 0;color:${BRAND.warning};font-size:12px;line-height:1.7">${esc(c.safety)}</p>` : ""}</td></tr><tr><td style="padding:20px 28px;border-top:1px solid ${BRAND.border};color:#777;font-size:11px;line-height:1.7;text-align:${rtl ? "right" : "left"}">${esc(c.automated)}<br>© ${new Date().getUTCFullYear()} Strivio · striviodz.store</td></tr></table></td></tr></table></body></html>`;
 
   const textParts = [
     "STRIVIO",
@@ -303,7 +362,7 @@ export function renderStrivioEmail(ctx: StrivioEmailContext): RenderedStrivioEma
     showNetflixTerms ? "شروط Netflix: الحساب والبروفايل لصاحب الطلب فقط. يمنع مشاركة البروفايل بين أكثر من شخص أو المشاهدة من جهازين في الوقت نفسه. يمنع تغيير بريد الحساب أو كلمة سره أو إعداداته العامة، ويسمح فقط بتعديل اسم البروفايل ورمز PIN. قد تؤدي المخالفة إلى سحب الاشتراك دون استرداد." : "",
     isDelivery ? c.support : "",
     ctx.isNetflix ? c.renewal : "",
-    `${c.open}: ${ctx.actionUrl}`,
+    `${ctaLabel}: ${ctx.actionUrl}`,
     c.automated,
   ].filter(Boolean);
 

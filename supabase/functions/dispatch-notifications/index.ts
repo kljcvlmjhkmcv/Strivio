@@ -87,6 +87,7 @@ function entriesFromDelivery(value: any): DeliveryEntry[] {
       pin: String(entry?.pin || ""),
       code: String(entry?.code || ""),
       ends_at: entry?.ends_at ? String(entry.ends_at) : undefined,
+      service_name: String(entry?.service_name || ""),
     }));
   }
   if (value.email || value.password || value.code) {
@@ -97,6 +98,7 @@ function entriesFromDelivery(value: any): DeliveryEntry[] {
       pin: String(value.pin || ""),
       code: String(value.code || ""),
       ends_at: value.ends_at ? String(value.ends_at) : undefined,
+      service_name: String(value.service_name || ""),
     }];
   }
   return [];
@@ -138,23 +140,41 @@ async function buildContext(db: any, delivery: any, event: any) {
   const services = serviceResult.data;
   const serviceMap = new Map((services || []).map((service: any) => [service.id, service]));
 
+  const locale = delivery.locale === "fr" || delivery.locale === "en" ? delivery.locale : "ar";
   const entries: DeliveryEntry[] = [];
   const mayIncludeCredentials = ["order.delivered", "fulfillment.delivered", "account.changed", "credentials.changed"]
     .includes(String(event.event_type || "").toLowerCase());
   for (const fulfillment of mayIncludeCredentials ? rows : []) {
     const decrypted = await decrypt(fulfillment.encrypted_delivery);
     let nextEntries = entriesFromDelivery(decrypted);
+    const fulfillmentServiceName = label(serviceMap.get(fulfillment.service_id)?.n, locale) ||
+      String(fulfillment.service_id || "");
+    nextEntries = nextEntries.map((entry) => ({
+      ...entry,
+      service_name: entry.service_name || fulfillmentServiceName,
+    }));
     if (String(event.event_type || "").toLowerCase() === "account.changed" && data.account_id) {
-      const allocationResult = await db.from("fulfillment_allocations")
-        .select("id,account_id,slot_id,inventory_slots(label)")
-        .eq("fulfillment_id", fulfillment.id)
-        .eq("account_id", String(data.account_id))
-        .eq("status", "active")
-        .or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`);
-      if (allocationResult.error) throw allocationResult.error;
-      const allocationIds = new Set((allocationResult.data || []).map((row: any) => String(row.id || "")).filter(Boolean));
-      const slotIds = new Set((allocationResult.data || []).map((row: any) => String(row.slot_id || "")).filter(Boolean));
-      const labels = new Set((allocationResult.data || []).map((row: any) =>
+      const now = new Date().toISOString();
+      const [exclusiveResult, sharedResult] = await Promise.all([
+        db.from("fulfillment_allocations")
+          .select("id,account_id,slot_id,inventory_slots(label)")
+          .eq("fulfillment_id", fulfillment.id)
+          .eq("account_id", String(data.account_id))
+          .eq("status", "active")
+          .or(`ends_at.is.null,ends_at.gt.${now}`),
+        db.from("shared_profile_allocations")
+          .select("id,account_id,slot_id,inventory_slots(label)")
+          .eq("fulfillment_id", fulfillment.id)
+          .eq("account_id", String(data.account_id))
+          .eq("status", "active")
+          .or(`ends_at.is.null,ends_at.gt.${now}`),
+      ]);
+      if (exclusiveResult.error) throw exclusiveResult.error;
+      if (sharedResult.error) throw sharedResult.error;
+      const activeRows = [...(exclusiveResult.data || []), ...(sharedResult.data || [])];
+      const allocationIds = new Set(activeRows.map((row: any) => String(row.id || "")).filter(Boolean));
+      const slotIds = new Set(activeRows.map((row: any) => String(row.slot_id || "")).filter(Boolean));
+      const labels = new Set(activeRows.map((row: any) =>
         String(row.inventory_slots?.label || "").trim().toLowerCase()
       ).filter(Boolean));
       const labelCounts = new Map<string, number>();
@@ -165,7 +185,6 @@ async function buildContext(db: any, delivery: any, event: any) {
       nextEntries = nextEntries.filter((entry) => {
         if (entry.allocation_id && allocationIds.has(String(entry.allocation_id))) return true;
         if (entry.slot_id && slotIds.has(String(entry.slot_id))) return true;
-        if (entry.account_id && String(entry.account_id) === String(data.account_id)) return true;
         // Legacy deliveries did not store stable identifiers. Only accept a
         // label fallback when it is unique inside this fulfillment.
         const entryLabel = String(entry.profile || entry.label || "").trim().toLowerCase();
@@ -180,7 +199,6 @@ async function buildContext(db: any, delivery: any, event: any) {
   // found. The fulfillment/allocation join above is the authorization boundary
   // that prevents an expired or moved customer from receiving current secrets.
 
-  const locale = delivery.locale === "fr" || delivery.locale === "en" ? delivery.locale : "ar";
   const firstService: any = serviceMap.get(event.service_id) || serviceMap.get(rows[0]?.service_id) || null;
   const itemNames = Array.isArray(order?.items)
     ? order.items.map((item: any) => label(item?.nameData, locale) || item?.name || item?.title || item?.id).filter(Boolean)
@@ -201,6 +219,14 @@ async function buildContext(db: any, delivery: any, event: any) {
   const customer = order?.customer_info || {};
   const customerName = [customer.first_name || customer.firstname, customer.last_name || customer.lastname].filter(Boolean).join(" ");
   const actionPath = inbox?.action_url || data.action_url || (event.order_id ? `/my-account?order=${event.order_id}` : "/my-account");
+  const renewalActionRaw = String(
+    data.action_kind || data.renewal_action_kind || data.renewal_action || data.renewal_kind || "",
+  ).toLowerCase();
+  const renewalAction = /extend|extension|prolong|تمديد/.test(renewalActionRaw)
+    ? "extension"
+    : /renew|renewal|renouv|تجديد/.test(renewalActionRaw)
+    ? "renewal"
+    : undefined;
 
   return {
     eventType: event.event_type,
@@ -221,6 +247,7 @@ async function buildContext(db: any, delivery: any, event: any) {
     isNetflix: /netflix|نتفلكس|نتفليكس/i.test(identity),
     titleI18n: inbox?.title_i18n || null,
     bodyI18n: inbox?.body_i18n || null,
+    renewalAction,
   };
 }
 
