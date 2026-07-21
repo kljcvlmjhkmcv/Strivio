@@ -33,6 +33,6 @@ serve(async(req)=>{
     const fulfillmentResponse=await fetch(`${url}/functions/v1/fulfill-order`,{method:"POST",headers:{Authorization:`Bearer ${service}`,"Content-Type":"application/json"},body:JSON.stringify({order_id:order.id})});
     const fulfillment=await fulfillmentResponse.json().catch(()=>null);
     if(!fulfillmentResponse.ok||!fulfillment?.success)throw new Error(fulfillment?.error||"Payment was marked paid but fulfillment failed");
-    return new Response(JSON.stringify({success:true,order_id:order.id,fulfillment_status:fulfillment.fulfillment_status||"processing"}),{headers:cors});
+    return new Response(JSON.stringify({success:true,order_id:order.id,fulfillment_status:fulfillment.status||fulfillment.fulfillment_status||"processing"}),{headers:cors});
   }catch(error:any){return new Response(JSON.stringify({success:false,error:error?.message||String(error)}),{status:500,headers:cors});}
 });
