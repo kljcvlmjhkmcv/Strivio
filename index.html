@@ -128,7 +128,7 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
 .DOC.FULL{grid-column:1/-1}
 .DOC .DM{font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.35rem;color:#fff;line-height:1}
 .DOC .DL{font-size:.72rem;color:rgba(224,224,224,.5);margin-top:.1rem}
-.DOC .BUNDLE-NOTE{display:flex;align-items:center;gap:.35rem;width:max-content;max-width:100%;margin-top:.35rem;padding:.28rem .55rem;border:1px solid rgba(57,255,20,.35);border-radius:999px;background:rgba(57,255,20,.09);color:#73ff5b;font-size:.66rem;font-weight:800;line-height:1.35}
+.DOC .DL.BUNDLE-COMPACT{color:#56a8ff;font-size:.68rem;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .DOC .DP{font-family:'Space Grotesk',sans-serif;font-weight:800;color:#39ff14;font-size:.95rem;margin-top:.4rem}
 .DOC .BVB{position:absolute;top:.45rem;right:.55rem;font-size:.55rem;font-weight:800;background:#39ff14;color:#121212;padding:.1rem .45rem;border-radius:999px;letter-spacing:.04em}
 [dir=rtl] .DOC .BVB{right:auto;left:.55rem}
@@ -841,8 +841,8 @@ function renderModalDurations(){
     var _c='<div class="DOC'+(i===4?' FULL':'')+(i===selDur && !isOos?' SL':'')+(isOos?' DIS':'')+'" data-i="'+i+'" style="'+(isOos?'opacity:.4;cursor:not-allowed;border-color:#222;background:#111':'')+'">';
     if(i===bvIdx && !isOos)_c+='<span class="BVB">'+tx.bv+'</span>';
     _c+='<div class="DM">'+MN[i]+'<span style="font-size:.6rem;font-weight:600;color:rgba(224,224,224,.4);margin-left:3px">'+(L==='ar'?'شهر':'mo')+'</span></div>';
-    _c+='<div class="DL">'+escapeHtml(noteStr)+'</div>';
-    if(bundleOffer)_c+='<div class="BUNDLE-NOTE"><span aria-hidden="true">＋</span><span>'+escapeHtml(bundleOfferText(bundleOffer))+'</span></div>';
+    var displayNote=bundleOffer?bundleOfferCompactText(bundleOffer,i):noteStr;
+    _c+='<div class="DL'+(bundleOffer?' BUNDLE-COMPACT':'')+'">'+escapeHtml(displayNote)+'</div>';
     if(isOos){
       _c+='<div class="DP" style="color:#ef4444;font-size:.8rem;margin-top:auto;padding-top:0.3rem">' + (tx.oosDur || 'غير متوفر حالياً') + '</div>';
     } else {
@@ -862,13 +862,12 @@ function bundleOfferAt(service, durationIndex){
   })||null;
 }
 
-function bundleOfferText(offer){
-  var custom=offer&&offer.label_i18n&&offer.label_i18n[L];
-  if(custom)return String(custom);
+function bundleOfferCompactText(offer,durationIndex){
+  var months=[1,2,3,6,12][Number(durationIndex)]||1;
   var giftName=(offer&&offer.gift_name&&(offer.gift_name[L]||offer.gift_name.fr||offer.gift_name.en||offer.gift_name.ar))||'Prime Video';
-  if(L==='ar')return 'هدية: بروفايل '+giftName+' مجاناً لنفس المدة';
-  if(L==='en')return 'Included: 1 '+giftName+' profile free for the same period';
-  return 'Offert : 1 profil '+giftName+' gratuit pour la même durée';
+  if(L==='ar')return '+ '+giftName+' مجاناً · '+(months===1?'شهر':months===2?'شهران':months+' أشهر');
+  if(L==='en')return '+ Free '+giftName+' · '+months+' '+(months===1?'month':'months');
+  return '+ '+giftName+' gratuit · '+months+' mois';
 }
 
 function closeModal(){

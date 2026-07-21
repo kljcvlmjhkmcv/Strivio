@@ -97,6 +97,8 @@ check(sharedClient.includes("from('service_bundle_rules')"),'Active bundle rules
 check(sharedClient.includes('bundle_offers'),'Bundle rules are not attached to storefront services');
 const storefront=fs.readFileSync(path.join(root,'index.html'),'utf8');
 check(storefront.includes('bundleOfferAt(curSvc, i)'),'Duration cards do not render server-defined bundle offers');
+check(storefront.includes('BUNDLE-COMPACT'),'Promotional gift copy is not rendered in the compact duration-note slot');
+check(!storefront.includes('class="BUNDLE-NOTE"'),'Promotional gift still adds a separate oversized duration-card row');
 check(storefront.includes('display_only:true'),'Cart gift preview is not explicitly display-only');
 check(cartPage.includes('CI-GIFT')&&cartPage.includes('cartBundlePreview'),'Cart does not show the included promotional gift');
 check(!cartPage.includes('item.bundlePreview && item.bundlePreview.display_only===true'),'Cart can advertise a stale or disabled promotional gift');
