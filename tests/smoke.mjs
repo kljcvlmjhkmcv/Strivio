@@ -175,6 +175,8 @@ const fulfillOrder=fs.readFileSync(path.join(root,'supabase','functions','fulfil
 check(fulfillOrder.includes('allocate_shared_promotion_slots_atomic'),'Shared promotion allocator is not used by fulfillment');
 check(fulfillOrder.includes('.eq("pool_kind", "standard")'),'Exclusive fulfillment can consume shared promotion stock');
 check(fulfillOrder.includes('outOfStock && !isPromotionGift'),'A free gift stock miss can block the paid product');
+const myAccountSource=fs.readFileSync(path.join(root,'my-account.html'),'utf8');
+check(myAccountSource.includes('giftsBySource')&&myAccountSource.includes('termsAfter[termsTarget.id] = source'),'Promotional gift details can render below Netflix usage terms');
 check(fulfillOrder.includes('isPromotionGift && !promotionSourceReady'),'A promotional gift can be delivered before its paid source item');
 check(fulfillOrder.includes('renewalGiftContext'),'Renewal promotions are not fulfilled after extending the original subscription');
 const deliveryApi=fs.readFileSync(path.join(root,'supabase','functions','customer-delivery','index.ts'),'utf8');

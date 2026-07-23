@@ -1110,7 +1110,49 @@
         var copy=portalText();
         if (!fs.length)
           return '<div class="secret muted">'+copy.preparing+'</div>';
-        return fs
+        // Keep every promotional gift directly under the paid item that
+        // granted it. Netflix terms are rendered after the complete group, so
+        // Prime credentials never appear below the terms.
+        var giftsBySource = {},
+          regularRows = [],
+          looseGifts = [];
+        fs.forEach(function (fulfillment) {
+          var sourceIndex = Number(
+            fulfillment?.promotion_benefit?.source_item_index,
+          );
+          if (
+            fulfillment?.promotion_benefit?.included_free === true &&
+            Number.isInteger(sourceIndex) &&
+            sourceIndex >= 0
+          ) {
+            (giftsBySource[sourceIndex] ||= []).push(fulfillment);
+          } else if (fulfillment?.promotion_benefit?.included_free === true) {
+            looseGifts.push(fulfillment);
+          } else {
+            regularRows.push(fulfillment);
+          }
+        });
+        var orderedRows = [],
+          termsAfter = {};
+        regularRows.forEach(function (source) {
+          orderedRows.push(source);
+          var gifts = giftsBySource[Number(source.order_item_index)] || [];
+          gifts.forEach(function (gift) {
+            orderedRows.push(gift);
+          });
+          var termsTarget = gifts.length ? gifts[gifts.length - 1] : source;
+          termsAfter[termsTarget.id] = source;
+          delete giftsBySource[Number(source.order_item_index)];
+        });
+        Object.keys(giftsBySource).forEach(function (sourceIndex) {
+          giftsBySource[sourceIndex].forEach(function (gift) {
+            orderedRows.push(gift);
+          });
+        });
+        looseGifts.forEach(function (gift) {
+          orderedRows.push(gift);
+        });
+        return orderedRows
           .map((f) => {
             let entries = f.delivery?.entries || [],
               end = f.delivery_summary?.ends_at || f.delivery?.ends_at,
@@ -1167,7 +1209,7 @@
                   "</p>"
                 : "") +
               body +
-              usageTermsHtml(f) +
+              (termsAfter[f.id] ? usageTermsHtml(termsAfter[f.id]) : "") +
               (note
                 ? '<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]" data-admin-label>'+copy.admin+'</b><br>' +
                   esc(note) +
