@@ -107,6 +107,7 @@ declare
   v_duration_months integer;
   v_gift_quantity integer;
   v_duration_labels jsonb;
+  v_fixed_rule_ids uuid[] := array[]::uuid[];
   v_is_renewal boolean :=
     lower(coalesce(new.customer_info->>'order_kind', '')) = 'renewal';
 begin
@@ -168,6 +169,16 @@ begin
        where id = v_rule.gift_service_id;
       if not found then
         continue;
+      end if;
+      -- "fixed" means once for the whole order, even when the customer added
+      -- the same paid product as multiple cart rows. Per-unit rules continue
+      -- to follow every purchased unit.
+      if v_rule.quantity_mode = 'fixed'
+         and v_rule.id = any(v_fixed_rule_ids) then
+        continue;
+      end if;
+      if v_rule.quantity_mode = 'fixed' then
+        v_fixed_rule_ids := array_append(v_fixed_rule_ids, v_rule.id);
       end if;
 
       v_gift_duration_idx := case

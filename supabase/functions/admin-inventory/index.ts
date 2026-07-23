@@ -584,6 +584,33 @@ serve(async (req) => {
           .single();
         if (currentError || !current)
           throw currentError || new Error("Promotion rule was not found");
+        const { count: usageCount, error: usageError } = await db
+          .from("order_benefits")
+          .select("id", { count: "exact", head: true })
+          .eq("rule_id", ruleId);
+        if (usageError) throw usageError;
+        if (Number(usageCount || 0) > 0) {
+          const immutableFields = [
+            "source_service_id",
+            "source_duration_idx",
+            "source_type_idx",
+            "gift_service_id",
+            "gift_duration_strategy",
+            "gift_duration_idx",
+            "gift_quantity",
+            "quantity_mode",
+            "allocation_policy",
+            "inventory_pool",
+          ];
+          const changed = immutableFields.some((field) =>
+            JSON.stringify(current[field] ?? null) !==
+              JSON.stringify(payload[field] ?? null)
+          );
+          if (changed)
+            throw new Error(
+              "This promotion already has customer delivery history. Archive it and create a new offer to change products, durations, quantity or allocation",
+            );
+        }
         const expected = body.expected_updated_at
           ? new Date(String(body.expected_updated_at)).getTime()
           : null;
@@ -609,9 +636,14 @@ serve(async (req) => {
           .from("service_bundle_rules")
           .update({ ...payload, metadata })
           .eq("id", ruleId)
+          .eq("updated_at", current.updated_at)
           .select()
-          .single();
+          .maybeSingle();
         if (error) throw error;
+        if (!data)
+          throw new Error(
+            "This promotion changed in another session. Refresh before saving again",
+          );
         saved = data;
       } else {
         const { data, error } = await db

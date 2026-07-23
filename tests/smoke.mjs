@@ -161,6 +161,7 @@ check(bundleControlMigration.includes('distinct on (r.gift_service_id)'),'A wild
 check(bundleControlMigration.includes("'bundlePreview', 'bundlePreviews', 'renewal'"),'Client bundle previews are not stripped by the server');
 check(bundleControlMigration.includes('least(20'),'Gift quantity can exceed allocator limits');
 check(bundleControlMigration.includes("quantity_mode in ('per_screen', 'per_unit') then 1"),'Per-unit promotions can silently exceed allocator capacity');
+check(bundleControlMigration.includes('v_fixed_rule_ids'),'A fixed promotion can be granted repeatedly across duplicate cart rows');
 check(bundleControlMigration.includes('touch_service_bundle_rule'),'Bundle rule updated_at is not maintained');
 check(bundleControlMigration.includes('revoke insert, update, delete'),'Browser roles can mutate bundle rules directly');
 const inventoryAdmin=fs.readFileSync(path.join(root,'supabase','functions','admin-inventory','index.ts'),'utf8');
@@ -168,6 +169,7 @@ check(inventoryAdmin.includes('validateBundleRule'),'Admin bundle mutations are 
 check(inventoryAdmin.includes('auditBundleRule'),'Admin bundle changes are not audited');
 check(inventoryAdmin.includes('bundle_rules: bundleRulesResult.data'),'Operations cannot load disabled or archived bundle rules through the admin backend');
 check(inventoryAdmin.includes('This promotion has customer delivery history'),'Used bundle rules can be hard-deleted');
+check(inventoryAdmin.includes('Archive it and create a new offer'),'Used bundle rule semantics can be rewritten retroactively');
 check(inventoryAdmin.includes('action === "complete_activation"')&&inventoryAdmin.includes('/functions/v1/fulfill-order'),'Manual source completion does not retry dependent promotional gifts');
 const fulfillOrder=fs.readFileSync(path.join(root,'supabase','functions','fulfill-order','index.ts'),'utf8');
 check(fulfillOrder.includes('allocate_shared_promotion_slots_atomic'),'Shared promotion allocator is not used by fulfillment');
