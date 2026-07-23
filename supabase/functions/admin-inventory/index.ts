@@ -130,6 +130,219 @@ function sortSlots(a: any, b: any) {
     String(a.id || "").localeCompare(String(b.id || ""))
   );
 }
+function plainObject(value: any) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : {};
+}
+function jsonArray(value: any) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+function jsonObject(value: any) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+function cleanDate(value: any, field: string) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) throw new Error(`${field} is invalid`);
+  return parsed.toISOString();
+}
+async function validateBundleRule(db: any, rawValue: any) {
+  const raw = plainObject(rawValue);
+  const sourceServiceId = String(raw.source_service_id || "").trim();
+  const giftServiceId = String(raw.gift_service_id || "").trim();
+  const sourceDurationIdx = Number(raw.source_duration_idx);
+  const sourceTypeIdx = raw.source_type_idx === null ||
+      raw.source_type_idx === undefined || raw.source_type_idx === ""
+    ? null
+    : Number(raw.source_type_idx);
+  const giftDurationStrategy = raw.gift_duration_strategy === "fixed"
+    ? "fixed"
+    : "same";
+  const giftDurationIdx = giftDurationStrategy === "fixed"
+    ? Number(raw.gift_duration_idx)
+    : null;
+  const giftQuantity = Number(raw.gift_quantity);
+  const quantityMode = ["fixed", "per_unit"].includes(
+      String(raw.quantity_mode),
+    )
+    ? String(raw.quantity_mode)
+    : "";
+  const allocationPolicy = ["shared_reusable", "exclusive"].includes(
+      String(raw.allocation_policy),
+    )
+    ? String(raw.allocation_policy)
+    : "";
+  const priority = Number(raw.priority);
+  const startsAt = cleanDate(raw.starts_at, "Promotion start date");
+  const endsAt = cleanDate(raw.ends_at, "Promotion end date");
+  const labels = plainObject(raw.label_i18n);
+
+  if (!sourceServiceId || !giftServiceId)
+    throw new Error("Source service and free service are required");
+  if (sourceServiceId === giftServiceId)
+    throw new Error("The paid service and free service must be different");
+  if (
+    !Number.isInteger(sourceDurationIdx) ||
+    sourceDurationIdx < 0 ||
+    sourceDurationIdx > 4
+  )
+    throw new Error("Source duration must be one of 1, 2, 3, 6 or 12 months");
+  if (
+    sourceTypeIdx !== null &&
+    (!Number.isInteger(sourceTypeIdx) || sourceTypeIdx < 0 || sourceTypeIdx > 19)
+  )
+    throw new Error("Source package is invalid");
+  if (
+    giftDurationStrategy === "fixed" &&
+    (!Number.isInteger(giftDurationIdx) ||
+      Number(giftDurationIdx) < 0 ||
+      Number(giftDurationIdx) > 4)
+  )
+    throw new Error("Gift duration must be one of 1, 2, 3, 6 or 12 months");
+  if (!Number.isInteger(giftQuantity) || giftQuantity < 1 || giftQuantity > 20)
+    throw new Error("Gift quantity must be between 1 and 20");
+  if (!quantityMode) throw new Error("Gift quantity mode is invalid");
+  if (quantityMode === "per_unit" && giftQuantity !== 1)
+    throw new Error(
+      "Per-unit offers must use a base quantity of one so delivery cannot exceed twenty gifts",
+    );
+  if (!allocationPolicy) throw new Error("Gift allocation policy is invalid");
+  if (!Number.isInteger(priority) || priority < 1 || priority > 10000)
+    throw new Error("Priority must be between 1 and 10000");
+  if (startsAt && endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime())
+    throw new Error("Promotion end date must be after its start date");
+
+  const cleanLabels: Record<string, string> = {};
+  for (const language of ["ar", "fr", "en"]) {
+    const value = String(labels[language] || "").trim();
+    if (!value) throw new Error(`Promotion label (${language}) is required`);
+    if (value.length > 180)
+      throw new Error(`Promotion label (${language}) is too long`);
+    cleanLabels[language] = value;
+  }
+
+  const { data: services, error: servicesError } = await db
+    .from("services")
+    .select("id,show_types,types,p,type_prices,fulfillment_mode")
+    .in("id", [sourceServiceId, giftServiceId]);
+  if (servicesError) throw servicesError;
+  const sourceService = (services || []).find((item: any) =>
+    String(item.id) === sourceServiceId
+  );
+  const giftService = (services || []).find((item: any) =>
+    String(item.id) === giftServiceId
+  );
+  if (!sourceService || !giftService)
+    throw new Error("One of the selected services no longer exists");
+
+  const sourcePrices = jsonArray(sourceService.p);
+  const typePrices = jsonArray(sourceService.type_prices);
+  if (sourceTypeIdx === null) {
+    const hasPrice = Number(sourcePrices[sourceDurationIdx] || 0) > 0 ||
+      typePrices.some((row: any) =>
+        Number(jsonArray(row)[sourceDurationIdx] || 0) > 0
+      );
+    if (!hasPrice)
+      throw new Error("The selected source duration is not sold by this service");
+  } else {
+    if (!sourceService.show_types || !jsonArray(typePrices[sourceTypeIdx]).length)
+      throw new Error("The selected source package does not exist");
+    if (Number(jsonArray(typePrices[sourceTypeIdx])[sourceDurationIdx] || 0) <= 0)
+      throw new Error("The selected source package and duration are unavailable");
+  }
+  if (raw.include_renewals === true)
+    throw new Error(
+      "Renewal gifts are temporarily disabled until the existing gift can be extended safely",
+    );
+
+  if (allocationPolicy === "shared_reusable") {
+    const { data: config, error: configError } = await db
+      .from("service_operations_config")
+      .select("inventory_model,settings")
+      .eq("service_id", giftServiceId)
+      .maybeSingle();
+    if (configError) throw configError;
+    const settings = jsonObject(config?.settings);
+    if (
+      !config ||
+      (
+        String(config.inventory_model || "") !== "profiles" &&
+        settings.promotion_shared_supported !== true
+      )
+    )
+      throw new Error(
+        "The free service is not configured for reusable shared-profile inventory",
+      );
+  }
+
+  const metadata = plainObject(raw.metadata);
+  const campaign = String(metadata.campaign || "").trim();
+  if (campaign.length > 100) throw new Error("Campaign name is too long");
+  return {
+    source_service_id: sourceServiceId,
+    source_duration_idx: sourceDurationIdx,
+    source_type_idx: sourceTypeIdx,
+    gift_service_id: giftServiceId,
+    gift_duration_strategy: giftDurationStrategy,
+    gift_duration_idx: giftDurationIdx,
+    gift_quantity: giftQuantity,
+    quantity_mode: quantityMode,
+    allocation_policy: allocationPolicy,
+    inventory_pool: allocationPolicy === "shared_reusable"
+      ? "promotion_shared"
+      : "standard",
+    include_renewals: false,
+    label_i18n: cleanLabels,
+    active: raw.active === true,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    priority,
+    metadata: campaign ? { campaign } : {},
+    updated_at: new Date().toISOString(),
+  };
+}
+async function auditBundleRule(
+  db: any,
+  actorId: string,
+  action: string,
+  ruleId: string,
+  serviceId: string | null,
+  beforeData: any,
+  afterData: any,
+) {
+  const { error } = await db.from("operations_audit_log").insert({
+    actor_id: actorId,
+    action,
+    entity_type: "service_bundle_rule",
+    entity_id: ruleId,
+    service_id: serviceId,
+    before_data: beforeData || {},
+    after_data: afterData || {},
+    metadata: { source: "operations_center" },
+  });
+  if (error) throw error;
+}
 serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(JSON.stringify({ ok: true }), {
@@ -211,8 +424,70 @@ serve(async (req) => {
         { headers: cors },
       );
     }
+    if (action === "complete_activation") {
+      if (!body.fulfillment_id)
+        throw new Error("Activation request is required");
+      // Execute the admin RPC with the caller's JWT so auth.uid() and the
+      // audit actor remain the real operator rather than the service role.
+      const userDb = createClient(url, service, {
+        global: { headers: { Authorization: auth } },
+      });
+      const { data: completion, error: completionError } = await userDb.rpc(
+        "ops_complete_activation",
+        {
+          p_fulfillment_id: String(body.fulfillment_id),
+          p_admin_message: String(body.admin_message || ""),
+        },
+      );
+      if (completionError) throw completionError;
+
+      // A paid manual source may have a free automatic gift waiting behind it.
+      // Retry the same order after the source is authoritative. Completion is
+      // already committed, so a retry outage is returned as a warning and must
+      // never make the operator repeat the activation.
+      let giftRetry: any = null;
+      let giftRetryError = "";
+      const orderId = String(completion?.order_id || "");
+      if (orderId) {
+        try {
+          const retryResponse = await fetch(
+            `${url}/functions/v1/fulfill-order`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${service}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ order_id: orderId }),
+            },
+          );
+          const retryText = await retryResponse.text();
+          try {
+            giftRetry = retryText ? JSON.parse(retryText) : {};
+          } catch {
+            giftRetry = { raw: retryText };
+          }
+          if (!retryResponse.ok || giftRetry?.success === false)
+            giftRetryError = String(
+              giftRetry?.error ||
+                `Gift retry returned HTTP ${retryResponse.status}`,
+            );
+        } catch (retryError: any) {
+          giftRetryError = String(retryError?.message || retryError);
+        }
+      }
+      return new Response(
+        JSON.stringify({
+          success: true,
+          completion,
+          gift_retry: giftRetry,
+          gift_retry_error: giftRetryError || null,
+        }),
+        { headers: cors },
+      );
+    }
     if (action === "list") {
-      const [accountsResult, slotsResult, licensesResult, activationResult, sharedAllocationsResult] =
+      const [accountsResult, slotsResult, licensesResult, activationResult, sharedAllocationsResult, bundleRulesResult] =
         await Promise.all([
           db
             .from("inventory_accounts")
@@ -238,6 +513,11 @@ serve(async (req) => {
             )
             .eq("status", "active")
             .order("created_at", { ascending: false }),
+          db
+            .from("service_bundle_rules")
+            .select("*")
+            .order("priority", { ascending: true })
+            .order("created_at", { ascending: true }),
         ]);
       for (const [name, result] of [
         ["accounts", accountsResult],
@@ -245,6 +525,7 @@ serve(async (req) => {
         ["licenses", licensesResult],
         ["activation inputs", activationResult],
         ["shared promotion allocations", sharedAllocationsResult],
+        ["bundle rules", bundleRulesResult],
       ] as const) {
         if (result.error)
           throw new Error(`Unable to load ${name}: ${result.error.message || String(result.error)}`);
@@ -285,9 +566,237 @@ serve(async (req) => {
           licenses: licenses || [],
           activation_inputs: activationInputs,
           shared_allocations: sharedAllocationsResult.data || [],
+          bundle_rules: bundleRulesResult.data || [],
         }),
         { headers: cors },
       );
+    }
+    if (action === "save_bundle_rule") {
+      const payload = await validateBundleRule(db, body.rule);
+      const ruleId = body.rule_id ? String(body.rule_id) : null;
+      let saved: any = null;
+      let beforeData: any = {};
+      if (ruleId) {
+        const { data: current, error: currentError } = await db
+          .from("service_bundle_rules")
+          .select("*")
+          .eq("id", ruleId)
+          .single();
+        if (currentError || !current)
+          throw currentError || new Error("Promotion rule was not found");
+        const expected = body.expected_updated_at
+          ? new Date(String(body.expected_updated_at)).getTime()
+          : null;
+        const actual = current.updated_at
+          ? new Date(String(current.updated_at)).getTime()
+          : null;
+        if (
+          Number.isFinite(expected) &&
+          Number.isFinite(actual) &&
+          expected !== actual
+        )
+          throw new Error(
+            "This promotion changed in another session. Refresh before saving again",
+          );
+        beforeData = current;
+        const metadata = {
+          ...plainObject(current.metadata),
+          ...plainObject(payload.metadata),
+        };
+        delete metadata.archived;
+        delete metadata.archived_at;
+        const { data, error } = await db
+          .from("service_bundle_rules")
+          .update({ ...payload, metadata })
+          .eq("id", ruleId)
+          .select()
+          .single();
+        if (error) throw error;
+        saved = data;
+      } else {
+        const { data, error } = await db
+          .from("service_bundle_rules")
+          .insert(payload)
+          .select()
+          .single();
+        if (error) {
+          if (String(error.code || "") === "23505")
+            throw new Error(
+              "An offer for the same product, duration, package and gift already exists. Edit the existing offer instead",
+            );
+          throw error;
+        }
+        saved = data;
+      }
+      await auditBundleRule(
+        db,
+        user.id,
+        ruleId ? "update_bundle_rule" : "create_bundle_rule",
+        saved.id,
+        saved.source_service_id,
+        beforeData,
+        saved,
+      );
+      await syncInventory(
+        db,
+        url,
+        service,
+        saved.id,
+        saved.source_service_id,
+      );
+      return new Response(
+        JSON.stringify({ success: true, rule: saved }),
+        { headers: cors },
+      );
+    }
+    if (action === "set_bundle_rule_active") {
+      if (!body.rule_id) throw new Error("Promotion rule is required");
+      const { data: current, error: currentError } = await db
+        .from("service_bundle_rules")
+        .select("*")
+        .eq("id", body.rule_id)
+        .single();
+      if (currentError || !current)
+        throw currentError || new Error("Promotion rule was not found");
+      if (plainObject(current.metadata).archived_at)
+        throw new Error("Restore the archived promotion before changing its status");
+      const { data: saved, error } = await db
+        .from("service_bundle_rules")
+        .update({
+          active: body.active === true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", current.id)
+        .select()
+        .single();
+      if (error) throw error;
+      await auditBundleRule(
+        db,
+        user.id,
+        body.active === true ? "activate_bundle_rule" : "deactivate_bundle_rule",
+        current.id,
+        current.source_service_id,
+        current,
+        saved,
+      );
+      await syncInventory(db, url, service, current.id, current.source_service_id);
+      return new Response(
+        JSON.stringify({ success: true, rule: saved }),
+        { headers: cors },
+      );
+    }
+    if (action === "archive_bundle_rule") {
+      if (!body.rule_id) throw new Error("Promotion rule is required");
+      const { data: current, error: currentError } = await db
+        .from("service_bundle_rules")
+        .select("*")
+        .eq("id", body.rule_id)
+        .single();
+      if (currentError || !current)
+        throw currentError || new Error("Promotion rule was not found");
+      const metadata = {
+        ...plainObject(current.metadata),
+        archived: true,
+        archived_at: new Date().toISOString(),
+      };
+      const { data: saved, error } = await db
+        .from("service_bundle_rules")
+        .update({
+          active: false,
+          metadata,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", current.id)
+        .select()
+        .single();
+      if (error) throw error;
+      await auditBundleRule(
+        db,
+        user.id,
+        "archive_bundle_rule",
+        current.id,
+        current.source_service_id,
+        current,
+        saved,
+      );
+      await syncInventory(db, url, service, current.id, current.source_service_id);
+      return new Response(
+        JSON.stringify({ success: true, rule: saved }),
+        { headers: cors },
+      );
+    }
+    if (action === "restore_bundle_rule") {
+      if (!body.rule_id) throw new Error("Promotion rule is required");
+      const { data: current, error: currentError } = await db
+        .from("service_bundle_rules")
+        .select("*")
+        .eq("id", body.rule_id)
+        .single();
+      if (currentError || !current)
+        throw currentError || new Error("Promotion rule was not found");
+      const metadata = { ...plainObject(current.metadata) };
+      delete metadata.archived;
+      delete metadata.archived_at;
+      const { data: saved, error } = await db
+        .from("service_bundle_rules")
+        .update({
+          active: false,
+          metadata,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", current.id)
+        .select()
+        .single();
+      if (error) throw error;
+      await auditBundleRule(
+        db,
+        user.id,
+        "restore_bundle_rule",
+        current.id,
+        current.source_service_id,
+        current,
+        saved,
+      );
+      await syncInventory(db, url, service, current.id, current.source_service_id);
+      return new Response(
+        JSON.stringify({ success: true, rule: saved }),
+        { headers: cors },
+      );
+    }
+    if (action === "delete_bundle_rule") {
+      if (!body.rule_id) throw new Error("Promotion rule is required");
+      const { data: current, error: currentError } = await db
+        .from("service_bundle_rules")
+        .select("*")
+        .eq("id", body.rule_id)
+        .single();
+      if (currentError || !current)
+        throw currentError || new Error("Promotion rule was not found");
+      const { count, error: usageError } = await db
+        .from("order_benefits")
+        .select("id", { count: "exact", head: true })
+        .eq("rule_id", current.id);
+      if (usageError) throw usageError;
+      if (Number(count || 0) > 0)
+        throw new Error(
+          "This promotion has customer delivery history. Archive it instead of deleting it",
+        );
+      const { error } = await db
+        .from("service_bundle_rules")
+        .delete()
+        .eq("id", current.id);
+      if (error) throw error;
+      await auditBundleRule(
+        db,
+        user.id,
+        "delete_bundle_rule",
+        current.id,
+        current.source_service_id,
+        current,
+        {},
+      );
+      await syncInventory(db, url, service, current.id, current.source_service_id);
+      return new Response(JSON.stringify({ success: true }), { headers: cors });
     }
     if (action === "add_account") {
       if (!body.service_id || !body.email || !body.password)

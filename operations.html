@@ -78,6 +78,28 @@
         border-color: var(--neon);
         color: var(--neon);
       }
+      .btn:disabled {
+        opacity: 0.58;
+        cursor: wait;
+        transform: none;
+      }
+      .btn[data-busy="1"]::after {
+        content: "";
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-inline-start: 7px;
+        vertical-align: -2px;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: operation-spin 0.7s linear infinite;
+      }
+      @keyframes operation-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
       .btn.neon {
         background: var(--neon);
         color: #071007;
@@ -240,6 +262,7 @@
       <section class="panel rounded-[20px] p-3 mb-5 flex flex-wrap gap-2">
         <button class="tab active" data-tab="overview">نظرة عامة</button
         ><button class="tab" data-tab="services">سجلات الخدمات</button
+        ><button class="tab" data-tab="promotions">العروض والهدايا</button
         ><button class="tab" data-tab="activations">طلبات التفعيل</button
         ><button class="tab" data-tab="problems">المشاكل</button
         ><button class="tab" data-tab="orders">كل الطلبات</button
@@ -279,6 +302,41 @@
             ← كل سجلات الخدمات
           </button>
           <div id="service-workspace"></div>
+        </div>
+      </section>
+
+      <section id="view-promotions" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <div class="flex flex-col lg:flex-row gap-4 justify-between lg:items-center">
+            <div>
+              <div class="text-[#56a8ff] text-[10px] font-black tracking-[.16em]">
+                BUNDLE &amp; GIFT CONTROL
+              </div>
+              <h2 class="font-black text-lg mt-1">العروض والهدايا المجانية</h2>
+              <p class="muted text-xs mt-1 max-w-3xl">
+                أنشئ عرضاً لأي منتج ومدة وباقة. قاعدة البيانات هي التي تضيف الهدية وتتحقق منها؛ لا يستطيع المتصفح إنشاء هدية غير مصرح بها.
+              </p>
+            </div>
+            <button class="btn neon" type="button" onclick="openPromotionEditor()">
+              + إنشاء عرض جديد
+            </button>
+          </div>
+          <div id="promotion-stats" class="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5"></div>
+          <div class="grid md:grid-cols-3 gap-3 mt-5">
+            <select id="promotion-source-filter" class="select" onchange="renderPromotions()">
+              <option value="">كل المنتجات الأساسية</option>
+            </select>
+            <select id="promotion-status-filter" class="select" onchange="renderPromotions()">
+              <option value="">كل الحالات</option>
+              <option value="active">فعّال الآن</option>
+              <option value="scheduled">مجدول</option>
+              <option value="disabled">متوقف</option>
+              <option value="expired">منتهي</option>
+              <option value="archived">مؤرشف</option>
+            </select>
+            <input id="promotion-search" class="input" placeholder="ابحث باسم المنتج أو الهدية…" oninput="renderPromotions()" />
+          </div>
+          <div id="promotion-list" class="mt-5"></div>
         </div>
       </section>
 
@@ -578,7 +636,148 @@
         <div class="flex justify-end gap-2 mt-5"><button type="button" class="btn" onclick="closeInventoryCreator()">إلغاء</button><button class="btn neon" type="submit">حفظ وإرسال أحدث نسخة للشيت</button></div>
       </form>
     </div>
-    <script src="supabase-client.js?v=header-unified-0720"></script>
+    <div
+      id="promotion-modal"
+      class="hidden fixed inset-0 z-[70] p-4 bg-black/85 backdrop-blur-sm flex items-center justify-center"
+    >
+      <form id="promotion-form" class="panel rounded-[24px] w-full max-w-4xl max-h-[94vh] overflow-auto p-6">
+        <div class="flex justify-between gap-4 items-start">
+          <div>
+            <div class="text-[#56a8ff] text-[10px] font-black tracking-[.16em]">
+              SERVER-AUTHORIZED PROMOTION
+            </div>
+            <h2 id="promotion-modal-title" class="display text-xl font-black mt-1">
+              إنشاء عرض وهدية
+            </h2>
+            <p class="muted text-xs mt-2 max-w-2xl">
+              كل القيم تُراجع في السيرفر. إذا طابقت عدة هدايا مختلفة نفس المنتج والمدة فسيحصل العميل عليها جميعاً.
+            </p>
+          </div>
+          <button type="button" class="btn" onclick="closePromotionEditor()">إغلاق</button>
+        </div>
+        <input id="promotion-id" type="hidden" />
+        <input id="promotion-updated-at" type="hidden" />
+        <div class="grid md:grid-cols-2 gap-4 mt-6">
+          <label class="text-xs font-bold text-white">
+            المنتج الأساسي
+            <select id="promotion-source-service" class="select mt-2" required onchange="syncPromotionForm()"></select>
+          </label>
+          <label class="text-xs font-bold text-white">
+            المدة المؤهلة
+            <select id="promotion-source-duration" class="select mt-2" required></select>
+          </label>
+          <label id="promotion-source-type-wrap" class="text-xs font-bold text-white">
+            الباقة أو النوع
+            <select id="promotion-source-type" class="select mt-2"></select>
+            <span class="muted block mt-1 font-normal">اختر «كل الباقات» لتطبيق العرض على جميع أنواع المنتج.</span>
+          </label>
+          <label class="text-xs font-bold text-white">
+            الخدمة المجانية
+            <select id="promotion-gift-service" class="select mt-2" required onchange="syncPromotionForm()"></select>
+          </label>
+          <label class="text-xs font-bold text-white">
+            مدة الهدية
+            <select id="promotion-duration-strategy" class="select mt-2" onchange="syncPromotionForm()">
+              <option value="same">نفس مدة المنتج الأساسي</option>
+              <option value="fixed">مدة ثابتة أحددها</option>
+            </select>
+          </label>
+          <label id="promotion-gift-duration-wrap" class="hidden text-xs font-bold text-white">
+            المدة الثابتة للهدية
+            <select id="promotion-gift-duration" class="select mt-2"></select>
+          </label>
+          <label class="text-xs font-bold text-white">
+            عدد الهدايا الأساسي
+            <input id="promotion-quantity" class="input mt-2" type="number" min="1" max="20" value="1" required />
+          </label>
+          <label class="text-xs font-bold text-white">
+            طريقة احتساب الكمية
+            <select id="promotion-quantity-mode" class="select mt-2" onchange="syncPromotionForm()">
+              <option value="fixed">عدد ثابت لكل طلب</option>
+              <option value="per_unit">لكل وحدة يشتريها العميل</option>
+            </select>
+          </label>
+          <label class="text-xs font-bold text-white">
+            طريقة تخصيص المخزون
+            <select id="promotion-allocation-policy" class="select mt-2" onchange="syncPromotionForm()">
+              <option value="shared_reusable">مشترك قابل لإعادة الاستخدام</option>
+              <option value="exclusive">حصري للعميل</option>
+            </select>
+          </label>
+          <label class="text-xs font-bold text-white">
+            الأولوية
+            <input id="promotion-priority" class="input mt-2" type="number" min="1" max="10000" value="100" required />
+            <span class="muted block mt-1 font-normal">الرقم الأصغر يُرتب أولاً. الهدايا المختلفة المتطابقة تُطبق معاً.</span>
+          </label>
+        </div>
+        <div id="promotion-inventory-warning" class="mt-4 rounded-2xl border border-[#5a3d14] bg-[#2a1908] p-4 text-xs text-[#ffbf69]"></div>
+        <div class="grid md:grid-cols-2 gap-4 mt-5">
+          <label class="text-xs font-bold text-white">
+            بداية العرض (اختياري)
+            <input id="promotion-starts-at" class="input mt-2" type="datetime-local" />
+          </label>
+          <label class="text-xs font-bold text-white">
+            نهاية العرض (اختياري)
+            <input id="promotion-ends-at" class="input mt-2" type="datetime-local" />
+          </label>
+        </div>
+        <div class="grid md:grid-cols-3 gap-4 mt-5">
+          <label class="text-xs font-bold text-white">
+            النص المختصر بالعربية
+            <input id="promotion-label-ar" class="input mt-2" maxlength="180" placeholder="برايم فيديو مجاناً لنفس المدة" />
+          </label>
+          <label class="text-xs font-bold text-white" dir="ltr">
+            Texte français
+            <input id="promotion-label-fr" class="input mt-2" maxlength="180" placeholder="Prime Video gratuit pour la même durée" />
+          </label>
+          <label class="text-xs font-bold text-white" dir="ltr">
+            English text
+            <input id="promotion-label-en" class="input mt-2" maxlength="180" placeholder="Free Prime Video for the same duration" />
+          </label>
+        </div>
+        <div class="grid md:grid-cols-2 gap-3 mt-5">
+          <label class="flex gap-3 items-start rounded-2xl border border-[#303030] bg-black/25 p-4 text-sm">
+            <input id="promotion-include-renewals" type="checkbox" class="accent-[#39ff14] mt-1" disabled />
+            <span><b class="block text-white">الشراء الجديد فقط</b><span class="muted text-xs">هدايا التجديدات متوقفة إلى أن تُربط بتمديد نفس الهدية الحالية دون إنشاء اشتراك إضافي.</span></span>
+          </label>
+          <label class="flex gap-3 items-start rounded-2xl border border-[#303030] bg-black/25 p-4 text-sm">
+            <input id="promotion-active" type="checkbox" class="accent-[#39ff14] mt-1" checked />
+            <span><b class="block text-white">العرض مفعّل</b><span class="muted text-xs">يمكن حفظه متوقفاً وتجهيزه قبل نشره للعملاء.</span></span>
+          </label>
+        </div>
+        <label class="text-xs font-bold text-white block mt-5">
+          اسم داخلي للحملة (اختياري)
+          <input id="promotion-campaign" class="input mt-2" maxlength="100" placeholder="summer_streaming_bundle" dir="ltr" />
+        </label>
+        <div class="flex flex-wrap justify-between gap-3 mt-6">
+          <p class="muted text-[11px] max-w-xl">
+            التعطيل يوقف العرض للطلبات الجديدة فقط ولا يمس الهدايا التي سُلّمت سابقاً.
+          </p>
+          <div class="flex gap-2">
+            <button type="button" class="btn" onclick="closePromotionEditor()">إلغاء</button>
+            <button id="promotion-save" class="btn neon" type="submit">حفظ العرض</button>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div
+      id="promotion-delete-modal"
+      class="hidden fixed inset-0 z-[72] p-4 bg-black/85 backdrop-blur-sm flex items-center justify-center"
+    >
+      <div class="panel rounded-[24px] w-full max-w-md p-6">
+        <div class="text-[#ff7777] text-[10px] font-black tracking-[.16em]">PERMANENT DELETE</div>
+        <h2 class="display text-xl font-black mt-1">حذف العرض نهائياً؟</h2>
+        <p id="promotion-delete-caption" class="muted text-sm mt-3">
+          لا يمكن التراجع عن هذا الإجراء. إذا استُخدم العرض في طلب سابق سيمنع السيرفر الحذف ويطلب منك أرشفته بدلاً من ذلك.
+        </p>
+        <div class="flex justify-end gap-2 mt-6">
+          <button type="button" class="btn" onclick="closePromotionDelete()">إلغاء</button>
+          <button id="promotion-delete-confirm" type="button" class="btn danger" onclick="confirmPromotionDelete(this)">حذف نهائي</button>
+        </div>
+      </div>
+    </div>
+    <script src="bundle-rules.js?v=bundle-ops-0723"></script>
+    <script src="supabase-client.js?v=bundle-ops-0723"></script>
     <script>
       var state = {
           services: [],
@@ -599,7 +798,9 @@
         },
         editingAccount = null,
         editingProblem = null,
-        editingActivation = null;
+        editingActivation = null,
+        editingPromotion = null,
+        deletingPromotion = null;
       var $ = function (id) {
         return document.getElementById(id);
       };
@@ -616,6 +817,18 @@
       }
       function text(v) {
         return esc(v || "—");
+      }
+      function jsonValue(value, fallback) {
+        if (value === null || value === undefined || value === "")
+          return fallback;
+        if (typeof value === "string") {
+          try {
+            return JSON.parse(value);
+          } catch (_) {
+            return fallback;
+          }
+        }
+        return value;
       }
       function statusBadge(v) {
         var s = String(v || "pending").toLowerCase(),
@@ -742,6 +955,7 @@
             "orders-list",
             "expiring-list",
             "renewal-list",
+            "promotion-list",
           ].forEach(function (id) {
             if ($(id))
               $(id).innerHTML =
@@ -750,7 +964,7 @@
           var results = await Promise.allSettled([
             window.supabaseClient
               .from("services")
-              .select("id,n,fulfillment_mode,fulfillment_config")
+              .select("id,n,show_types,types,p,type_prices,fulfillment_mode,fulfillment_config")
               .order("sort_order"),
             window.supabaseClient.from("service_operations_config").select("*"),
             window.supabaseClient
@@ -797,11 +1011,6 @@
               .select("*")
               .order("created_at", { ascending: false })
               .limit(1000),
-            window.supabaseClient
-              .from("service_bundle_rules")
-              .select("*")
-              .eq("active", true)
-              .order("priority", { ascending: false }),
           ]);
           var failedSources=results.map(function(result,index){return result.status==='rejected'||result.value?.error?index:null}).filter(function(index){return index!==null});
           if(failedSources.length)toast('تم تحميل البيانات المتاحة، وتعذر تحميل '+failedSources.length+' مصدر. اضغط تحديث البيانات للمحاولة مجدداً.',true);
@@ -831,6 +1040,7 @@
           state.accounts = inv.accounts || [];
           state.slots = inv.slots || [];
           state.licenses = inv.licenses || [];
+          state.bundleRules = inv.bundle_rules || [];
           state.sharedAllocations = inv.shared_allocations || [];
           var activationInputById = new Map(
             (inv.activation_inputs || []).map(function (item) {
@@ -846,7 +1056,6 @@
               : fulfillment;
           });
           state.renewals = value(10, []);
-          state.bundleRules = value(11, []);
           if (
             results[3].status === "rejected" ||
             results[4].status === "rejected"
@@ -866,20 +1075,28 @@
       function fillServices() {
         var select = $("inventory-service"),
           current = select.value;
-        select.innerHTML =
-          '<option value="">كل المنتجات</option>' +
+        var serviceOptions =
           state.services
             .map(function (s) {
               return (
                 '<option value="' +
                 esc(s.id) +
                 '">' +
-                esc((s.n && s.n.ar) || s.id) +
+                esc((s.n && (s.n.ar || s.n.fr || s.n.en)) || s.id) +
                 "</option>"
               );
             })
             .join("");
+        select.innerHTML =
+          '<option value="">كل المنتجات</option>' +
+          serviceOptions;
         select.value = current;
+        if ($("promotion-source-filter")) {
+          var promotionCurrent = $("promotion-source-filter").value;
+          $("promotion-source-filter").innerHTML =
+            '<option value="">كل المنتجات الأساسية</option>' + serviceOptions;
+          $("promotion-source-filter").value = promotionCurrent;
+        }
       }
       function serviceName(id) {
         var s = state.services.find(function (x) {
@@ -896,7 +1113,9 @@
       }
       function isSharedPromotionService(id) {
         return state.bundleRules.some(function (rule) {
-          return rule.gift_service_id === id && String(rule.allocation_policy || "shared_reusable") === "shared_reusable";
+          return rule.gift_service_id === id
+            && String(rule.allocation_policy || "shared_reusable") === "shared_reusable"
+            && (!window.StrivioBundles || ["active", "scheduled"].includes(window.StrivioBundles.effectiveStatus(rule)));
         });
       }
       function renderAll() {
@@ -909,6 +1128,7 @@
         renderOrders();
         renderRenewals();
         renderExpiring();
+        renderPromotions();
         var sid = new URLSearchParams(location.search).get("service");
         if (sid) openServiceRegister(sid, true);
       }
@@ -925,6 +1145,589 @@
           }[mode] || "تسليم يدوي"
         );
       }
+      var PROMOTION_DURATIONS = [
+        "شهر واحد",
+        "شهران",
+        "3 أشهر",
+        "6 أشهر",
+        "سنة كاملة",
+      ];
+      function promotionEffectiveStatus(rule) {
+        return window.StrivioBundles
+          ? window.StrivioBundles.effectiveStatus(rule)
+          : rule.active
+            ? "active"
+            : "disabled";
+      }
+      function promotionStatusMeta(status) {
+        return (
+          {
+            active: { label: "فعّال الآن", cls: "b-green" },
+            scheduled: { label: "مجدول", cls: "b-yellow" },
+            disabled: { label: "متوقف", cls: "b-gray" },
+            expired: { label: "منتهي", cls: "b-orange" },
+            archived: { label: "مؤرشف", cls: "b-red" },
+          }[status] || { label: status, cls: "b-gray" }
+        );
+      }
+      function promotionStatusBadge(rule) {
+        var meta = promotionStatusMeta(promotionEffectiveStatus(rule));
+        return '<span class="badge ' + meta.cls + '">' + esc(meta.label) + "</span>";
+      }
+      function promotionDurationLabel(index) {
+        return PROMOTION_DURATIONS[Number(index)] || "مدة غير صالحة";
+      }
+      function promotionServiceTypes(service) {
+        var types = jsonValue(service && service.types, {});
+        return (
+          (Array.isArray(types.ar) && types.ar) ||
+          (Array.isArray(types.fr) && types.fr) ||
+          (Array.isArray(types.en) && types.en) ||
+          []
+        );
+      }
+      function promotionSourceTypeLabel(rule) {
+        if (rule.source_type_idx === null || rule.source_type_idx === undefined)
+          return "كل الباقات";
+        var service = state.services.find(function (item) {
+            return item.id === rule.source_service_id;
+          }),
+          types = promotionServiceTypes(service);
+        return types[Number(rule.source_type_idx)] || "الباقة #" + (Number(rule.source_type_idx) + 1);
+      }
+      function promotionQuantityLabel(rule) {
+        var quantity = Math.max(1, Number(rule.gift_quantity || 1)),
+          mode =
+            {
+              fixed: "ثابت لكل طلب",
+              per_unit: "لكل وحدة",
+              per_screen: "لكل شاشة",
+            }[rule.quantity_mode] || "ثابت لكل طلب";
+        return quantity + " · " + mode;
+      }
+      function promotionAllocationLabel(rule) {
+        return rule.allocation_policy === "shared_reusable"
+          ? "مشترك قابل لإعادة الاستخدام"
+          : "حصري للعميل";
+      }
+      function renderPromotionStats(rules) {
+        var target = $("promotion-stats");
+        if (!target) return;
+        var statuses = ["active", "scheduled", "disabled", "expired", "archived"],
+          counts = {};
+        statuses.forEach(function (status) {
+          counts[status] = rules.filter(function (rule) {
+            return promotionEffectiveStatus(rule) === status;
+          }).length;
+        });
+        target.innerHTML = statuses
+          .map(function (status) {
+            var meta = promotionStatusMeta(status);
+            return (
+              '<div class="rounded-2xl border border-[#292929] bg-black/25 p-4"><div class="text-2xl font-black">' +
+              counts[status] +
+              '</div><div class="mt-1"><span class="badge ' +
+              meta.cls +
+              '">' +
+              esc(meta.label) +
+              "</span></div></div>"
+            );
+          })
+          .join("");
+      }
+      function renderPromotions() {
+        var target = $("promotion-list");
+        if (!target) return;
+        var sourceFilter = $("promotion-source-filter")?.value || "",
+          statusFilter = $("promotion-status-filter")?.value || "",
+          search = String($("promotion-search")?.value || "").trim().toLowerCase(),
+          rules = (state.bundleRules || []).slice();
+        renderPromotionStats(rules);
+        rules = rules
+          .filter(function (rule) {
+            return !sourceFilter || rule.source_service_id === sourceFilter;
+          })
+          .filter(function (rule) {
+            return !statusFilter || promotionEffectiveStatus(rule) === statusFilter;
+          })
+          .filter(function (rule) {
+            if (!search) return true;
+            return (
+              [
+                serviceName(rule.source_service_id),
+                serviceName(rule.gift_service_id),
+                rule.metadata && rule.metadata.campaign,
+                rule.label_i18n && rule.label_i18n.ar,
+                rule.label_i18n && rule.label_i18n.fr,
+                rule.label_i18n && rule.label_i18n.en,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase()
+                .indexOf(search) !== -1
+            );
+          })
+          .sort(function (left, right) {
+            var rank = { active: 0, scheduled: 1, disabled: 2, expired: 3, archived: 4 };
+            return (
+              rank[promotionEffectiveStatus(left)] -
+                rank[promotionEffectiveStatus(right)] ||
+              Number(left.priority || 100) - Number(right.priority || 100) ||
+              String(left.created_at || "").localeCompare(String(right.created_at || ""))
+            );
+          });
+        if (!rules.length) {
+          target.innerHTML =
+            '<div class="rounded-2xl border border-dashed border-[#333] p-10 text-center"><div class="text-3xl mb-3">＋</div><b>لا توجد عروض مطابقة</b><p class="muted text-xs mt-2">أنشئ عرضاً جديداً أو غيّر عوامل التصفية.</p></div>';
+          return;
+        }
+        target.innerHTML =
+          '<div class="table-wrap"><table class="table min-w-[1280px]"><thead><tr><th>المنتج المؤهل</th><th>الهدية المجانية</th><th>الكمية والتخصيص</th><th>الجدولة</th><th>التجديد</th><th>الأولوية والحالة</th><th>الإدارة</th></tr></thead><tbody>' +
+          rules
+            .map(function (rule) {
+              var status = promotionEffectiveStatus(rule),
+                giftDuration =
+                  rule.gift_duration_strategy === "fixed"
+                    ? promotionDurationLabel(rule.gift_duration_idx)
+                    : "نفس مدة الشراء",
+                archived = status === "archived",
+                activeAction = rule.active ? "false" : "true",
+                activeLabel = rule.active ? "إيقاف" : "تفعيل",
+                schedule = [
+                  rule.starts_at ? "من " + date(rule.starts_at) : "يبدأ فوراً",
+                  rule.ends_at ? "حتى " + date(rule.ends_at) : "بلا نهاية",
+                ].join(" · ");
+              return (
+                "<tr><td><b>" +
+                esc(serviceName(rule.source_service_id)) +
+                '</b><div class="muted mt-1">' +
+                esc(promotionDurationLabel(rule.source_duration_idx)) +
+                " · " +
+                esc(promotionSourceTypeLabel(rule)) +
+                '</div></td><td><b class="text-[#56a8ff]">+ ' +
+                esc(serviceName(rule.gift_service_id)) +
+                '</b><div class="muted mt-1">' +
+                esc(giftDuration) +
+                '</div><div class="muted mt-1 max-w-[260px] truncate">' +
+                esc((rule.label_i18n && rule.label_i18n.ar) || "—") +
+                '</div></td><td><b>' +
+                esc(promotionQuantityLabel(rule)) +
+                '</b><div class="muted mt-1">' +
+                esc(promotionAllocationLabel(rule)) +
+                '</div></td><td><div class="max-w-[230px]">' +
+                esc(schedule) +
+                '</div></td><td>' +
+                (rule.include_renewals
+                  ? '<span class="badge b-green">يشملها</span>'
+                  : '<span class="badge b-gray">شراء جديد فقط</span>') +
+                '</td><td><div class="font-black">#' +
+                esc(rule.priority || 100) +
+                '</div><div class="mt-2">' +
+                promotionStatusBadge(rule) +
+                '</div></td><td><div class="flex flex-wrap gap-2">' +
+                '<button class="btn" type="button" onclick="openPromotionEditor(\'' +
+                esc(rule.id) +
+                "')\">تعديل</button>" +
+                '<button class="btn" type="button" onclick="duplicatePromotion(\'' +
+                esc(rule.id) +
+                "')\">نسخ</button>" +
+                (archived
+                  ? '<button class="btn" type="button" onclick="restorePromotion(\'' +
+                    esc(rule.id) +
+                    "',this)\">استعادة</button>"
+                  : '<button class="btn" type="button" onclick="togglePromotion(\'' +
+                    esc(rule.id) +
+                    "'," +
+                    activeAction +
+                    ",this)\">" +
+                    activeLabel +
+                    "</button>" +
+                    '<button class="btn danger" type="button" onclick="archivePromotion(\'' +
+                    esc(rule.id) +
+                    "',this)\">أرشفة</button>") +
+                '<button class="btn danger" type="button" onclick="openPromotionDelete(\'' +
+                esc(rule.id) +
+                "')\">حذف</button>" +
+                "</div></td></tr>"
+              );
+            })
+            .join("") +
+          "</tbody></table></div>";
+      }
+      function promotionDateTimeLocal(value) {
+        if (!value) return "";
+        var parsed = new Date(value);
+        if (!Number.isFinite(parsed.getTime())) return "";
+        var local = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
+        return local.toISOString().slice(0, 16);
+      }
+      function promotionDurationOptions(selected) {
+        return PROMOTION_DURATIONS.map(function (label, index) {
+          return (
+            '<option value="' +
+            index +
+            '"' +
+            (Number(selected) === index ? " selected" : "") +
+            ">" +
+            esc(label) +
+            "</option>"
+          );
+        }).join("");
+      }
+      function promotionServiceOptions(selected) {
+        return state.services
+          .map(function (service) {
+            return (
+              '<option value="' +
+              esc(service.id) +
+              '"' +
+              (service.id === selected ? " selected" : "") +
+              ">" +
+              esc(serviceName(service.id)) +
+              "</option>"
+            );
+          })
+          .join("");
+      }
+      function setPromotionAutoLabel(id, value, force) {
+        var input = $(id);
+        if (!input) return;
+        if (force || !input.value || input.dataset.auto === "1") {
+          input.value = value;
+          input.dataset.auto = "1";
+        }
+      }
+      function suggestPromotionLabels(force) {
+        var gift = state.services.find(function (service) {
+            return service.id === $("promotion-gift-service").value;
+          }),
+          names = (gift && gift.n) || {},
+          same = $("promotion-duration-strategy").value === "same",
+          durationIndex = Number($("promotion-gift-duration").value || 0),
+          months = [1, 2, 3, 6, 12][durationIndex] || 1,
+          arDuration =
+            months === 1 ? "شهر" : months === 2 ? "شهرين" : months + " أشهر",
+          frDuration = months + " mois",
+          enDuration = months + " " + (months === 1 ? "month" : "months");
+        setPromotionAutoLabel(
+          "promotion-label-ar",
+          (names.ar || names.fr || names.en || gift?.id || "الهدية") +
+            (same ? " مجاناً لنفس المدة" : " مجاناً لمدة " + arDuration),
+          force,
+        );
+        setPromotionAutoLabel(
+          "promotion-label-fr",
+          (names.fr || names.en || names.ar || gift?.id || "Cadeau") +
+            (same ? " gratuit pour la même durée" : " gratuit pendant " + frDuration),
+          force,
+        );
+        setPromotionAutoLabel(
+          "promotion-label-en",
+          "Free " +
+            (names.en || names.fr || names.ar || gift?.id || "gift") +
+            (same ? " for the same duration" : " for " + enDuration),
+          force,
+        );
+      }
+      function syncPromotionForm() {
+        var source = state.services.find(function (service) {
+            return service.id === $("promotion-source-service").value;
+          }),
+          sourceTypes = promotionServiceTypes(source),
+          sourceType = $("promotion-source-type"),
+          sourceTypeValue = sourceType.value,
+          hasTypes = Boolean(source && source.show_types && sourceTypes.length),
+          strategy = $("promotion-duration-strategy").value,
+          giftId = $("promotion-gift-service").value,
+          config = serviceConfig(giftId),
+          shared = $("promotion-allocation-policy").value === "shared_reusable",
+          warning = $("promotion-inventory-warning");
+        $("promotion-source-type-wrap").classList.toggle("hidden", !hasTypes);
+        sourceType.innerHTML =
+          '<option value="">كل الباقات</option>' +
+          sourceTypes
+            .map(function (label, index) {
+              return '<option value="' + index + '">' + esc(label) + "</option>";
+            })
+            .join("");
+        sourceType.value = hasTypes ? sourceTypeValue : "";
+        $("promotion-gift-duration-wrap").classList.toggle(
+          "hidden",
+          strategy !== "fixed",
+        );
+        var perUnit = $("promotion-quantity-mode").value === "per_unit",
+          quantityInput = $("promotion-quantity");
+        if (perUnit) quantityInput.value = "1";
+        quantityInput.disabled = perUnit;
+        if (shared) {
+          var supported =
+            config.inventory_model === "profiles" ||
+            config.inventory_model === "automatic_slot";
+          warning.classList.remove("hidden");
+          warning.style.borderColor = supported ? "#24551d" : "#7f1d1d";
+          warning.style.background = supported ? "#10230d" : "#2a0c0c";
+          warning.style.color = supported ? "#8cff78" : "#ff8b8b";
+          warning.textContent = supported
+            ? "التسليم المشترك جاهز لهذه الخدمة. يجب إضافة مخزون من نوع «عرض مشترك» في سجل الخدمة المجانية."
+            : "هذه الخدمة ليست مهيأة حالياً كبروفايلات مشتركة. اختر تخصيصاً حصرياً أو جهّز نموذج المخزون أولاً.";
+        } else {
+          warning.classList.remove("hidden");
+          warning.style.borderColor = "#303030";
+          warning.style.background = "#0b0b0b";
+          warning.style.color = "#aaa";
+          warning.textContent =
+            "التخصيص الحصري يستخدم طريقة التسليم والمخزون العاديين للخدمة المجانية، ويستهلك عنصراً مستقلاً لكل عميل.";
+        }
+        suggestPromotionLabels(false);
+      }
+      function populatePromotionForm(rule, duplicate) {
+        var selectedSource = rule?.source_service_id || state.services[0]?.id || "",
+          selectedGift =
+            rule?.gift_service_id ||
+            state.services.find(function (service) {
+              return service.id !== selectedSource;
+            })?.id ||
+            selectedSource;
+        $("promotion-source-service").innerHTML = promotionServiceOptions(selectedSource);
+        $("promotion-gift-service").innerHTML = promotionServiceOptions(selectedGift);
+        $("promotion-source-duration").innerHTML = promotionDurationOptions(
+          rule?.source_duration_idx ?? 0,
+        );
+        $("promotion-gift-duration").innerHTML = promotionDurationOptions(
+          rule?.gift_duration_idx ?? rule?.source_duration_idx ?? 0,
+        );
+        $("promotion-id").value = duplicate ? "" : rule?.id || "";
+        $("promotion-updated-at").value = duplicate ? "" : rule?.updated_at || "";
+        $("promotion-source-service").value = selectedSource;
+        $("promotion-source-duration").value = String(rule?.source_duration_idx ?? 0);
+        $("promotion-gift-service").value = selectedGift;
+        $("promotion-duration-strategy").value =
+          rule?.gift_duration_strategy || "same";
+        $("promotion-gift-duration").value = String(
+          rule?.gift_duration_idx ?? rule?.source_duration_idx ?? 0,
+        );
+        $("promotion-quantity").value = String(rule?.gift_quantity || 1);
+        $("promotion-quantity-mode").value = rule?.quantity_mode || "fixed";
+        $("promotion-allocation-policy").value =
+          rule?.allocation_policy || "shared_reusable";
+        $("promotion-priority").value = String(rule?.priority || 100);
+        $("promotion-starts-at").value = promotionDateTimeLocal(rule?.starts_at);
+        $("promotion-ends-at").value = promotionDateTimeLocal(rule?.ends_at);
+        ["ar", "fr", "en"].forEach(function (language) {
+          var input = $("promotion-label-" + language);
+          input.value = rule?.label_i18n?.[language] || "";
+          input.dataset.auto = rule ? "0" : "1";
+        });
+        $("promotion-include-renewals").checked = false;
+        $("promotion-active").checked = duplicate ? false : rule ? rule.active === true : true;
+        $("promotion-campaign").value =
+          (rule?.metadata?.campaign || "") + (duplicate ? "_copy" : "");
+        syncPromotionForm();
+        var sourceTypes = promotionServiceTypes(
+          state.services.find(function (service) {
+            return service.id === selectedSource;
+          }),
+        );
+        $("promotion-source-type").value =
+          rule?.source_type_idx === null || rule?.source_type_idx === undefined
+            ? ""
+            : sourceTypes[Number(rule.source_type_idx)]
+              ? String(rule.source_type_idx)
+              : "";
+        if (!rule) suggestPromotionLabels(true);
+      }
+      function openPromotionEditor(id, duplicate) {
+        var rule = id
+          ? state.bundleRules.find(function (item) {
+              return item.id === id;
+            })
+          : null;
+        if (id && !rule) {
+          toast("تعذر العثور على العرض. حدّث البيانات وحاول مجدداً.", true);
+          return;
+        }
+        editingPromotion = duplicate ? null : rule;
+        populatePromotionForm(rule, Boolean(duplicate));
+        $("promotion-modal-title").textContent = duplicate
+          ? "نسخ العرض كمسودة جديدة"
+          : rule
+            ? "تعديل العرض"
+            : "إنشاء عرض وهدية";
+        $("promotion-modal").classList.remove("hidden");
+      }
+      function duplicatePromotion(id) {
+        openPromotionEditor(id, true);
+      }
+      function closePromotionEditor() {
+        editingPromotion = null;
+        $("promotion-modal").classList.add("hidden");
+      }
+      function promotionPayload() {
+        function iso(id) {
+          var value = $(id).value;
+          return value ? new Date(value).toISOString() : null;
+        }
+        return {
+          source_service_id: $("promotion-source-service").value,
+          source_duration_idx: Number($("promotion-source-duration").value),
+          source_type_idx:
+            $("promotion-source-type-wrap").classList.contains("hidden") ||
+            $("promotion-source-type").value === ""
+              ? null
+              : Number($("promotion-source-type").value),
+          gift_service_id: $("promotion-gift-service").value,
+          gift_duration_strategy: $("promotion-duration-strategy").value,
+          gift_duration_idx:
+            $("promotion-duration-strategy").value === "fixed"
+              ? Number($("promotion-gift-duration").value)
+              : null,
+          gift_quantity: Number($("promotion-quantity").value),
+          quantity_mode: $("promotion-quantity-mode").value,
+          allocation_policy: $("promotion-allocation-policy").value,
+          include_renewals: false,
+          label_i18n: {
+            ar: $("promotion-label-ar").value.trim(),
+            fr: $("promotion-label-fr").value.trim(),
+            en: $("promotion-label-en").value.trim(),
+          },
+          active: $("promotion-active").checked,
+          starts_at: iso("promotion-starts-at"),
+          ends_at: iso("promotion-ends-at"),
+          priority: Number($("promotion-priority").value),
+          metadata: {
+            campaign: $("promotion-campaign").value.trim(),
+          },
+        };
+      }
+      $("promotion-form").addEventListener("submit", async function (event) {
+        event.preventDefault();
+        var button = $("promotion-save"),
+          payload = promotionPayload(),
+          errors = window.StrivioBundles
+            ? window.StrivioBundles.validateDraft(payload)
+            : [];
+        if (payload.source_service_id === payload.gift_service_id)
+          errors.push("same_service");
+        if (!payload.label_i18n.ar || !payload.label_i18n.fr || !payload.label_i18n.en)
+          errors.push("labels");
+        if (errors.length) {
+          toast(
+            "راجع الحقول المطلوبة: " +
+              Array.from(new Set(errors)).join("، "),
+            true,
+          );
+          return;
+        }
+        button.disabled = true;
+        button.dataset.busy = "1";
+        try {
+          var wasEditing = Boolean($("promotion-id").value);
+          await inventoryCall({
+            action: "save_bundle_rule",
+            rule_id: $("promotion-id").value || null,
+            expected_updated_at: $("promotion-updated-at").value || null,
+            rule: payload,
+          });
+          closePromotionEditor();
+          toast(wasEditing ? "تم تحديث العرض." : "تم حفظ العرض.");
+          await loadAll();
+        } catch (error) {
+          toast("تعذر حفظ العرض: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.dataset.busy = "0";
+        }
+      });
+      async function togglePromotion(id, active, button) {
+        button.disabled = true;
+        button.dataset.busy = "1";
+        try {
+          await inventoryCall({
+            action: "set_bundle_rule_active",
+            rule_id: id,
+            active: active === true,
+          });
+          toast(active ? "تم تفعيل العرض." : "تم إيقاف العرض.");
+          await loadAll();
+        } catch (error) {
+          toast("تعذر تغيير حالة العرض: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.dataset.busy = "0";
+        }
+      }
+      async function archivePromotion(id, button) {
+        button.disabled = true;
+        button.dataset.busy = "1";
+        try {
+          await inventoryCall({ action: "archive_bundle_rule", rule_id: id });
+          toast("تمت أرشفة العرض مع الاحتفاظ بسجله.");
+          await loadAll();
+        } catch (error) {
+          toast("تعذر أرشفة العرض: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.dataset.busy = "0";
+        }
+      }
+      async function restorePromotion(id, button) {
+        button.disabled = true;
+        button.dataset.busy = "1";
+        try {
+          await inventoryCall({ action: "restore_bundle_rule", rule_id: id });
+          toast("تمت استعادة العرض كمسودة متوقفة.");
+          await loadAll();
+        } catch (error) {
+          toast("تعذر استعادة العرض: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.dataset.busy = "0";
+        }
+      }
+      function openPromotionDelete(id) {
+        var rule = state.bundleRules.find(function (item) {
+          return item.id === id;
+        });
+        if (!rule) return;
+        deletingPromotion = rule;
+        $("promotion-delete-caption").textContent =
+          serviceName(rule.source_service_id) +
+          " ← " +
+          serviceName(rule.gift_service_id) +
+          ". إذا كان له سجل تسليم سابق سيُرفض الحذف تلقائياً.";
+        $("promotion-delete-modal").classList.remove("hidden");
+      }
+      function closePromotionDelete() {
+        deletingPromotion = null;
+        $("promotion-delete-modal").classList.add("hidden");
+      }
+      async function confirmPromotionDelete(button) {
+        if (!deletingPromotion) return;
+        button.disabled = true;
+        button.dataset.busy = "1";
+        try {
+          await inventoryCall({
+            action: "delete_bundle_rule",
+            rule_id: deletingPromotion.id,
+          });
+          closePromotionDelete();
+          toast("تم حذف العرض غير المستخدم نهائياً.");
+          await loadAll();
+        } catch (error) {
+          toast("تعذر الحذف: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.dataset.busy = "0";
+        }
+      }
+      ["ar", "fr", "en"].forEach(function (language) {
+        $("promotion-label-" + language).addEventListener("input", function () {
+          this.dataset.auto = "0";
+        });
+      });
+      $("promotion-gift-duration").addEventListener("change", function () {
+        suggestPromotionLabels(false);
+      });
       function renderServiceRegisters() {
         var el = $("service-registers");
         if (!el) return;
@@ -1861,13 +2664,18 @@
           button.textContent = "جاري اعتماد التفعيل…";
         }
         try {
-          var r = await window.supabaseClient.rpc("ops_complete_activation", {
-            p_fulfillment_id: f.id,
-            p_admin_message: message,
+          var r = await inventoryCall({
+            action: "complete_activation",
+            fulfillment_id: f.id,
+            admin_message: message,
           });
-          if (r.error) throw r.error;
           closeActivationModal();
-          toast("تم اعتماد التفعيل وإغلاق الطلب بنجاح.");
+          toast(
+            r.gift_retry_error
+              ? "تم اعتماد التفعيل. الهدية المجانية ما زالت بانتظار إعادة المحاولة التلقائية."
+              : "تم اعتماد التفعيل وإغلاق الطلب وتسليم أي هدية مرتبطة بنجاح.",
+            Boolean(r.gift_retry_error),
+          );
           await loadAll();
           // The database update above is authoritative. Email and the
           // presentation-only Google Sheet continue in the background so the

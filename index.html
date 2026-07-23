@@ -379,7 +379,8 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   </div>
 </footer>
 
-<script src="supabase-client.js?v=header-unified-0720"></script>
+<script src="bundle-rules.js?v=bundle-ops-0723"></script>
+<script src="supabase-client.js?v=bundle-ops-0723"></script>
 <script>
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  ⚙️  CONFIGURATION — Loaded dynamically from Supabase           ║
@@ -836,13 +837,13 @@ function renderModalDurations(){
     var isOos = !pr || pr <= 0 || (curSvc.out_of_stock && curSvc.out_of_stock.dur && curSvc.out_of_stock.dur[i]);
     var oldPr = origPrices[i] || 0;
     var noteStr = (durNotes[i] && String(durNotes[i]).trim() !== '') ? durNotes[i] : (L === 'ar' ? 'ضمان كامل للمدة' : (L === 'en' ? 'Full Period Guarantee' : 'Garantie complète'));
-    var bundleOffer = bundleOfferAt(curSvc, i);
+    var bundleOffers = bundleOffersAt(curSvc, i, selType);
     
     var _c='<div class="DOC'+(i===4?' FULL':'')+(i===selDur && !isOos?' SL':'')+(isOos?' DIS':'')+'" data-i="'+i+'" style="'+(isOos?'opacity:.4;cursor:not-allowed;border-color:#222;background:#111':'')+'">';
     if(i===bvIdx && !isOos)_c+='<span class="BVB">'+tx.bv+'</span>';
     _c+='<div class="DM">'+MN[i]+'<span style="font-size:.6rem;font-weight:600;color:rgba(224,224,224,.4);margin-left:3px">'+(L==='ar'?'شهر':'mo')+'</span></div>';
-    var displayNote=bundleOffer?bundleOfferCompactText(bundleOffer,i):noteStr;
-    _c+='<div class="DL'+(bundleOffer?' BUNDLE-COMPACT':'')+'">'+escapeHtml(displayNote)+'</div>';
+    var displayNote=bundleOffers.length?bundleOffersCompactText(bundleOffers,i):noteStr;
+    _c+='<div class="DL'+(bundleOffers.length?' BUNDLE-COMPACT':'')+'">'+escapeHtml(displayNote)+'</div>';
     if(isOos){
       _c+='<div class="DP" style="color:#ef4444;font-size:.8rem;margin-top:auto;padding-top:0.3rem">' + (tx.oosDur || 'غير متوفر حالياً') + '</div>';
     } else {
@@ -855,15 +856,32 @@ function renderModalDurations(){
   $('MDO').innerHTML=_mdoHtml;
 }
 
-function bundleOfferAt(service, durationIndex){
-  if(!service || !Array.isArray(service.bundle_offers))return null;
-  return service.bundle_offers.find(function(offer){
-    return Number(offer.source_duration_idx)===Number(durationIndex);
-  })||null;
+function bundleOffersAt(service, durationIndex, typeIndex){
+  if(window.StrivioBundles)return window.StrivioBundles.matchingRules(service,durationIndex,typeIndex);
+  if(!service || !Array.isArray(service.bundle_offers))return [];
+  return service.bundle_offers.filter(function(offer){
+    var offerType=offer.source_type_idx;
+    return Number(offer.source_duration_idx)===Number(durationIndex)
+      && (offerType===null||offerType===undefined||Number(offerType)===Number(typeIndex||0));
+  });
+}
+
+function bundleOfferAt(service, durationIndex, typeIndex){
+  return bundleOffersAt(service,durationIndex,typeIndex)[0]||null;
+}
+
+function bundleOffersCompactText(offers,durationIndex){
+  if(offers.length===1)return bundleOfferCompactText(offers[0],durationIndex);
+  if(L==='ar')return '+ '+offers.length+' هدايا مجانية';
+  if(L==='en')return '+ '+offers.length+' free gifts';
+  return '+ '+offers.length+' cadeaux offerts';
 }
 
 function bundleOfferCompactText(offer,durationIndex){
-  var months=[1,2,3,6,12][Number(durationIndex)]||1;
+  var giftDurationIndex=window.StrivioBundles
+    ?window.StrivioBundles.giftDurationIndex(offer,durationIndex)
+    :(offer&&offer.gift_duration_strategy==='fixed'?offer.gift_duration_idx:durationIndex);
+  var months=[1,2,3,6,12][Number(giftDurationIndex)]||1;
   var giftName=(offer&&offer.gift_name&&(offer.gift_name[L]||offer.gift_name.fr||offer.gift_name.en||offer.gift_name.ar))||'Prime Video';
   if(L==='ar')return '+ '+giftName+' مجاناً · '+(months===1?'شهر':months===2?'شهران':months+' أشهر');
   if(L==='en')return '+ Free '+giftName+' · '+months+' '+(months===1?'month':'months');
@@ -947,7 +965,8 @@ function buildCartItem(){
   var unitPr=(curSvc.showTypes && curSvc.typePrices && curSvc.typePrices[selType]) ? curSvc.typePrices[selType][selDur] : curSvc.p[selDur];
   var tLabel=curSvc.showTypes && curSvc.types && curSvc.types[L] ? curSvc.types[L][selType] : null;
   var tData=curSvc.showTypes && curSvc.types ? curSvc.types : null;
-  var bundleOffer=bundleOfferAt(curSvc,selDur);
+  var bundleOffers=bundleOffersAt(curSvc,selDur,selType);
+  var bundleOffer=bundleOffers[0]||null;
   return {
     id:curSvc.id, name:curSvc.n[L], nameData:curSvc.n,
     iconType:curSvc.iconType, iconSrc:curSvc.iconSrc,
@@ -964,9 +983,24 @@ function buildCartItem(){
       nameData:bundleOffer.gift_name||{},
       label_i18n:bundleOffer.label_i18n||{},
       duration_strategy:bundleOffer.gift_duration_strategy||'same',
-      quantity:bundleOffer.gift_qty||1,
+      quantity:(bundleOffer.qty_mode==='per_unit'
+        ?Math.min(20,Math.max(1,Number(bundleOffer.gift_qty||1))*visibleQty)
+        :bundleOffer.gift_qty||1),
       display_only:true
     }:null,
+    bundlePreviews:bundleOffers.map(function(offer){
+      return {
+        service_id:offer.gift_service_id,
+        nameData:offer.gift_name||{},
+        label_i18n:offer.label_i18n||{},
+        duration_strategy:offer.gift_duration_strategy||'same',
+        gift_duration_idx:offer.gift_duration_idx,
+        quantity:(offer.qty_mode==='per_unit'
+          ?Math.min(20,Math.max(1,Number(offer.gift_qty||1))*visibleQty)
+          :offer.gift_qty||1),
+        display_only:true
+      };
+    }),
     addedAt:Date.now()
   };
 }

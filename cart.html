@@ -308,7 +308,8 @@ body{background:#121212;overflow-x:hidden !important;width:100%;max-width:100%;p
   </div>
 </div>
 
-<script src="supabase-client.js?v=header-unified-0720"></script>
+<script src="bundle-rules.js?v=bundle-ops-0723"></script>
+<script src="supabase-client.js?v=bundle-ops-0723"></script>
 <script>
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -520,28 +521,46 @@ function makeIcon(item, sz){
   return '<div style="width:'+sz+';height:'+sz+'">'+iconValue+'</div>';
 }
 
-function cartBundlePreview(item, service){
+function cartBundlePreviews(item, service){
   if(item && item.renewal)return null;
-  var offers=service&&Array.isArray(service.bundle_offers)?service.bundle_offers:[];
-  var offer=offers.find(function(value){return Number(value.source_duration_idx)===Number(item&&item.durIdx);});
-  if(!offer)return null;
-  return {
-    service_id:offer.gift_service_id,
-    nameData:offer.gift_name||{},
-    label_i18n:offer.label_i18n||{},
-    quantity:offer.gift_qty||1,
-    display_only:true
-  };
+  var offers=window.StrivioBundles
+    ?window.StrivioBundles.matchingRules(service,item&&item.durIdx,item&&item.typeIdx)
+    :(service&&Array.isArray(service.bundle_offers)?service.bundle_offers:[]);
+  return offers.map(function(offer){
+    var baseQuantity=Math.max(1,Number(offer.gift_qty||1));
+    var giftQuantity=offer.qty_mode==='per_unit'
+      ?baseQuantity*Math.max(1,Number(item&&item.qty||item&&item.quantity||1))
+      :baseQuantity;
+    return {
+      service_id:offer.gift_service_id,
+      nameData:offer.gift_name||{},
+      label_i18n:offer.label_i18n||{},
+      quantity:Math.min(20,giftQuantity),
+      duration_strategy:offer.gift_duration_strategy||'same',
+      gift_duration_idx:offer.gift_duration_idx,
+      source_duration_idx:item&&item.durIdx,
+      display_only:true
+    };
+  });
+}
+
+function cartBundlePreview(item, service){
+  return (cartBundlePreviews(item,service)||[])[0]||null;
 }
 
 function cartBundleLabel(preview){
+  var quantity=Math.max(1,Number(preview&&preview.quantity||1));
   var custom=preview&&preview.label_i18n&&preview.label_i18n[L];
-  if(custom)return String(custom);
+  if(custom)return String(custom)+(quantity>1?' × '+quantity:'');
   var names=preview&&preview.nameData||{};
   var name=names[L]||names.fr||names.en||names.ar||'Prime Video';
-  if(L==='ar')return 'هدية مشمولة: بروفايل '+name+' مجاناً لنفس المدة';
-  if(L==='en')return 'Included gift: 1 '+name+' profile for the same period';
-  return 'Cadeau inclus : 1 profil '+name+' pour la même durée';
+  var durationIndex=preview.duration_strategy==='fixed'
+    ?preview.gift_duration_idx
+    :preview.source_duration_idx;
+  var months=[1,2,3,6,12][Number(durationIndex)]||1;
+  if(L==='ar')return 'هدية مشمولة: '+quantity+' × '+name+' مجاناً لمدة '+(months===1?'شهر':months===2?'شهرين':months+' أشهر');
+  if(L==='en')return 'Included gift: '+quantity+' × '+name+' for '+months+' '+(months===1?'month':'months');
+  return 'Cadeau inclus : '+quantity+' × '+name+' pendant '+months+' mois';
 }
 
 /* ══════════════════════════════════════════════════════
@@ -566,7 +585,7 @@ function renderItems(){
     var q = item.qty || 1;
     var itemTotal = (item.unitPrice || item.price) * q;
     var isRenewal = !!item.renewal;
-    var bundlePreview=cartBundlePreview(item,svc);
+    var bundlePreviews=cartBundlePreviews(item,svc)||[];
     
     return [
       '<div class="CI" id="CI'+idx+'">',
@@ -576,7 +595,7 @@ function renderItems(){
         '<div style="flex:1;min-width:0">',
           '<div class="font-display font-bold text-white text-base leading-tight">'+escapeHtml(itemName)+(isRenewal ? ' <span style="display:inline-flex;margin-inline-start:6px;padding:2px 8px;border-radius:999px;background:rgba(57,255,20,.14);color:#39ff14;font-size:.62rem;vertical-align:middle">'+(L==='ar'?'تجديد':L==='fr'?'RENOUVELLEMENT':'RENEWAL')+'</span>' : '')+'</div>',
           '<div class="text-xs mt-0.5 font-medium" style="color:rgba(224,224,224,.55)">'+escapeHtml(durLabel)+(typeLabel ? ' • <span style="color:#39ff14">'+escapeHtml(typeLabel)+'</span>' : '')+'</div>',
-          bundlePreview?'<div class="CI-GIFT"><span aria-hidden="true">＋</span><span>'+escapeHtml(cartBundleLabel(bundlePreview))+'</span></div>':'',
+          bundlePreviews.map(function(bundlePreview){return '<div class="CI-GIFT"><span aria-hidden="true">＋</span><span>'+escapeHtml(cartBundleLabel(bundlePreview))+'</span></div>';}).join(''),
           '<div class="flex items-center gap-3 mt-2.5">',
             isRenewal ? '<div class="text-xs font-bold px-2 py-1 rounded-lg bg-[#121212] border border-[#2A2A2A]" style="color:#39ff14">'+(item.renewal.target_count||1)+' '+(L==='ar'?'اشتراك':L==='fr'?'abonnement(s)':'subscription(s)')+'</div>' : '<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#121212] border border-[#2A2A2A]">',
             isRenewal ? '' :

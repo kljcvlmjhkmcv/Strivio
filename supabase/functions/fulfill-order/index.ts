@@ -663,6 +663,7 @@ serve(async (req) => {
     }
     claimedOrderId = order.id;
     const renewLease = () => renewFulfillmentClaim(db, order.id, workerId);
+    let renewalGiftContext: { endsAt: string | null } | null = null;
 
     const { data: renewalRequest, error: renewalRequestError } = await db.from("renewal_requests").select("id,status,metadata,months,service_id").eq("order_id", order.id).maybeSingle();
     if (renewalRequestError) throw renewalRequestError;
@@ -672,6 +673,11 @@ serve(async (req) => {
       if (renewalError) throw renewalError;
       const sourceOrderId = renewalRequest.metadata?.source_order_id || order.id;
       const effectiveEnd = renewalResult?.new_ends_at || renewalResult?.updates?.[0]?.ends_at || null;
+      const renewalGiftItems = (order.items || []).filter((item: any) =>
+        item?.is_promotional_gift === true &&
+        item?.included_free === true &&
+        item?.bundle_renewal_gift === true
+      );
       const renewalActionKind = String(order.customer_info?.renewal_action_kind || "").toLowerCase() === "extension"
         ? "extension"
         : "renewal";
@@ -685,15 +691,22 @@ serve(async (req) => {
           ? { ar: "تم تمديد اشتراكك", fr: "Votre abonnement a été prolongé", en: "Your subscription has been extended" }
           : { ar: "تم تجديد اشتراكك", fr: "Votre abonnement a été renouvelé", en: "Your subscription has been renewed" },
         body: {
-          ar: "تم تأكيد الدفع وتمديد نفس الاشتراك بنجاح. يمكنك الاطلاع على تاريخ الانتهاء المحدّث من حسابك.",
-          fr: "Le paiement est confirmé et le même abonnement a été prolongé. Consultez la nouvelle date d’expiration dans votre compte.",
-          en: "Payment is confirmed and the same subscription has been extended. View the updated expiry date in your account.",
+          ar: renewalGiftItems.length
+            ? "تم تأكيد الدفع وتمديد نفس الاشتراك بنجاح. يشمل طلبك هدية مجانية ويمكنك متابعة تسليمها من حسابك."
+            : "تم تأكيد الدفع وتمديد نفس الاشتراك بنجاح. يمكنك الاطلاع على تاريخ الانتهاء المحدّث من حسابك.",
+          fr: renewalGiftItems.length
+            ? "Le paiement est confirmé et le même abonnement a été prolongé. Votre renouvellement inclut un cadeau gratuit dont vous pouvez suivre la livraison."
+            : "Le paiement est confirmé et le même abonnement a été prolongé. Consultez la nouvelle date d’expiration dans votre compte.",
+          en: renewalGiftItems.length
+            ? "Payment is confirmed and the same subscription has been extended. Your renewal includes a free gift whose delivery you can follow."
+            : "Payment is confirmed and the same subscription has been extended. View the updated expiry date in your account.",
         },
         data: {
           months: renewalRequest.months || renewalResult?.months || null,
           ends_at: effectiveEnd,
           source_order_id: sourceOrderId,
           action_kind: renewalActionKind,
+          included_gifts: renewalGiftItems.length,
         },
         dedupeKey: `subscription-renewed:${order.id}`,
       });
@@ -702,13 +715,16 @@ serve(async (req) => {
         refresh_scope: "inventory",
         include_inventory: true,
       }));
-      return new Response(JSON.stringify({
-        success: true,
-        status: "delivered",
-        renewal: true,
-        renewal_result: renewalResult,
-        email_status: renewalNotification.status,
-      }), { headers: cors });
+      if (!renewalGiftItems.length) {
+        return new Response(JSON.stringify({
+          success: true,
+          status: "delivered",
+          renewal: true,
+          renewal_result: renewalResult,
+          email_status: renewalNotification.status,
+        }), { headers: cors });
+      }
+      renewalGiftContext = { endsAt: effectiveEnd };
     }
 
     const { data: processingOrder, error: processingOrderError } = await db.from("orders")
@@ -727,13 +743,14 @@ serve(async (req) => {
     for (let i = 0; i < (order.items || []).length; i++) {
       await renewLease();
       const item = order.items[i] || {};
+      const isPromotionGift = item?.is_promotional_gift === true && item?.included_free === true;
+      if (renewalRequest && !isPromotionGift) continue;
       const serviceId = item.id || item.service_id;
       const { data: svc, error: serviceError } = await db.from("services").select("id,n,fulfillment_mode,fulfillment_config").eq("id", serviceId).single();
       if (serviceError || !svc) {
         throw serviceError || new Error(`Service not found for order item ${i}`);
       }
 
-      const isPromotionGift = item?.is_promotional_gift === true && item?.included_free === true;
       const mode = isPromotionGift && item?.fulfillment_mode_override === "automatic_shared_slot"
         ? "automatic_shared_slot"
         : svc.fulfillment_mode || "manual_delivery";
@@ -752,8 +769,17 @@ serve(async (req) => {
         if (benefitError) throw benefitError;
         if (!benefitRow) throw new Error(`Promotion benefit not found for order item ${i}`);
         benefit = benefitRow;
+        const isRenewalGift =
+          item?.bundle_renewal_gift === true && renewalGiftContext !== null;
         const sourceItemIndex = Number(item.bundle_source_item_index);
-        if (Number.isInteger(sourceItemIndex) && sourceItemIndex >= 0 && sourceItemIndex < i) {
+        if (isRenewalGift) {
+          promotionSourceReady = true;
+          if (
+            renewalGiftContext?.endsAt &&
+            Number.isFinite(new Date(renewalGiftContext.endsAt).getTime())
+          )
+            endsAt = renewalGiftContext.endsAt;
+        } else if (Number.isInteger(sourceItemIndex) && sourceItemIndex >= 0 && sourceItemIndex < i) {
           const { data: sourceFulfillment, error: sourceFulfillmentError } = await db.from("fulfillments")
             .select("status,delivery_summary")
             .eq("order_id", order.id)

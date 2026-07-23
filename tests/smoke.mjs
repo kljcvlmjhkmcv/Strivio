@@ -95,15 +95,43 @@ const sharedClient=fs.readFileSync(path.join(root,'supabase-client.js'),'utf8');
 check(sharedClient.includes("b.matches('[data-notification-trigger]')"),'Notification trigger is not excluded from the clipping ripple');
 check(sharedClient.includes("from('service_bundle_rules')"),'Active bundle rules are not loaded from the database');
 check(sharedClient.includes('bundle_offers'),'Bundle rules are not attached to storefront services');
+check(sharedClient.includes('source_type_idx'),'Bundle rules do not preserve package-specific eligibility');
+check(sharedClient.includes('gift_duration_idx'),'Bundle rules do not preserve a fixed gift duration');
+const bundleHelperPath=path.join(root,'bundle-rules.js');
+check(fs.existsSync(bundleHelperPath),'Shared bundle-rule helper is missing');
+if(fs.existsSync(bundleHelperPath)){
+  const bundleContext={window:{}};
+  vm.createContext(bundleContext);
+  vm.runInContext(fs.readFileSync(bundleHelperPath,'utf8'),bundleContext);
+  const bundles=bundleContext.window.StrivioBundles;
+  const service={bundle_offers:[
+    {id:'wildcard',source_duration_idx:2,source_type_idx:null,gift_service_id:'prime',priority:100},
+    {id:'specific',source_duration_idx:2,source_type_idx:1,gift_service_id:'prime',priority:200},
+    {id:'other-gift',source_duration_idx:2,source_type_idx:null,gift_service_id:'canva',priority:50},
+    {id:'wrong-duration',source_duration_idx:3,source_type_idx:1,gift_service_id:'spotify',priority:1},
+  ]};
+  const matched=Array.from(bundles.matchingRules(service,2,1),value=>value.id);
+  check(JSON.stringify(matched)===JSON.stringify(['other-gift','specific']),'Package-specific bundle matching or multi-gift ordering is wrong');
+  check(bundles.giftDurationIndex({gift_duration_strategy:'fixed',gift_duration_idx:1},3)===1,'Fixed gift duration is ignored');
+  check(bundles.giftDurationIndex({gift_duration_strategy:'same'},3)===3,'Same-duration gift mapping is wrong');
+  check(bundles.effectiveStatus({active:true,starts_at:'2099-01-01T00:00:00Z'},'2026-01-01T00:00:00Z')==='scheduled','Scheduled bundle status is wrong');
+  check(bundles.effectiveStatus({active:true,ends_at:'2020-01-01T00:00:00Z'},'2026-01-01T00:00:00Z')==='expired','Expired bundle status is wrong');
+  check(bundles.effectiveStatus({active:false,metadata:{archived_at:'2026-01-01T00:00:00Z'}},'2026-01-02T00:00:00Z')==='archived','Archived bundle status is wrong');
+  check(bundles.validateDraft({source_service_id:'netflix',source_duration_idx:2,source_type_idx:null,gift_service_id:'prime',gift_duration_strategy:'fixed',gift_duration_idx:null,gift_quantity:1,quantity_mode:'fixed',allocation_policy:'shared_reusable',priority:100}).includes('gift_duration_idx'),'A fixed promotion can be saved without a gift duration');
+}
 const storefront=fs.readFileSync(path.join(root,'index.html'),'utf8');
-check(storefront.includes('bundleOfferAt(curSvc, i)'),'Duration cards do not render server-defined bundle offers');
+check(storefront.includes('bundleOffersAt(curSvc, i, selType)'),'Duration cards do not match server-defined offers by package');
 check(storefront.includes('BUNDLE-COMPACT'),'Promotional gift copy is not rendered in the compact duration-note slot');
 check(!storefront.includes('class="BUNDLE-NOTE"'),'Promotional gift still adds a separate oversized duration-card row');
 check(storefront.includes('display_only:true'),'Cart gift preview is not explicitly display-only');
-check(cartPage.includes('CI-GIFT')&&cartPage.includes('cartBundlePreview'),'Cart does not show the included promotional gift');
+check(cartPage.includes('CI-GIFT')&&cartPage.includes('cartBundlePreviews'),'Cart does not show every included promotional gift');
 check(!cartPage.includes('item.bundlePreview && item.bundlePreview.display_only===true'),'Cart can advertise a stale or disabled promotional gift');
 check(operations.includes('promotion_shared'),'Operations cannot create shared promotional inventory');
 check(operations.includes('sharedAllocationsFor'),'Operations cannot display multiple shared profile assignments');
+for(const token of ['data-tab="promotions"','id="promotion-form"','save_bundle_rule','set_bundle_rule_active','archive_bundle_rule','delete_bundle_rule','promotion-source-type','promotion-gift-duration','promotion-include-renewals','promotion-starts-at','promotion-label-ar']){
+  check(operations.includes(token),`Operations bundle control is missing ${token}`);
+}
+check(!operations.includes('.from("service_bundle_rules")\n              .select("*")\n              .eq("active", true)'),'Operations still loads active promotions only');
 const sheetSync=fs.readFileSync(path.join(root,'supabase','functions','sync-google-sheet','index.ts'),'utf8');
 check(sheetSync.includes("from('order_benefits')"),'Sheet sync does not load order benefits');
 check(sheetSync.includes("from('shared_profile_allocations')"),'Sheet sync does not load shared gift assignments');
@@ -125,11 +153,28 @@ check(bundleMigration.includes("account.pool_kind = 'promotion_shared'"),'Shared
 check(bundleMigration.includes("allocation_kind', ''), 'standard') = 'shared'"),'Credential rotation does not validate shared allocations');
 check(bundleMigration.includes("profiles_per_account = 6"),'Prime operations capacity is not configured for six profiles');
 check(bundleMigration.includes("if tg_op = 'DELETE' then\n    return old;"),'Promotion delete events can poison the order-scoped Sheet retry queue');
+const bundleControlMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607230100_bundle_operations_control.sql'),'utf8');
+check(bundleControlMigration.includes('and not v_is_renewal'),'Unsafe renewal gifts are not blocked by the server');
+check(bundleControlMigration.includes('service_bundle_rules_current_offer_idx'),'Archived campaigns still block replacement offers');
+check(bundleControlMigration.includes('sync_order_benefit_from_fulfillment'),'Manual promotional gifts are not synchronized after delivery');
+check(bundleControlMigration.includes('distinct on (r.gift_service_id)'),'A wildcard and package-specific rule can grant the same gift twice');
+check(bundleControlMigration.includes("'bundlePreview', 'bundlePreviews', 'renewal'"),'Client bundle previews are not stripped by the server');
+check(bundleControlMigration.includes('least(20'),'Gift quantity can exceed allocator limits');
+check(bundleControlMigration.includes("quantity_mode in ('per_screen', 'per_unit') then 1"),'Per-unit promotions can silently exceed allocator capacity');
+check(bundleControlMigration.includes('touch_service_bundle_rule'),'Bundle rule updated_at is not maintained');
+check(bundleControlMigration.includes('revoke insert, update, delete'),'Browser roles can mutate bundle rules directly');
+const inventoryAdmin=fs.readFileSync(path.join(root,'supabase','functions','admin-inventory','index.ts'),'utf8');
+check(inventoryAdmin.includes('validateBundleRule'),'Admin bundle mutations are not server-validated');
+check(inventoryAdmin.includes('auditBundleRule'),'Admin bundle changes are not audited');
+check(inventoryAdmin.includes('bundle_rules: bundleRulesResult.data'),'Operations cannot load disabled or archived bundle rules through the admin backend');
+check(inventoryAdmin.includes('This promotion has customer delivery history'),'Used bundle rules can be hard-deleted');
+check(inventoryAdmin.includes('action === "complete_activation"')&&inventoryAdmin.includes('/functions/v1/fulfill-order'),'Manual source completion does not retry dependent promotional gifts');
 const fulfillOrder=fs.readFileSync(path.join(root,'supabase','functions','fulfill-order','index.ts'),'utf8');
 check(fulfillOrder.includes('allocate_shared_promotion_slots_atomic'),'Shared promotion allocator is not used by fulfillment');
 check(fulfillOrder.includes('.eq("pool_kind", "standard")'),'Exclusive fulfillment can consume shared promotion stock');
 check(fulfillOrder.includes('outOfStock && !isPromotionGift'),'A free gift stock miss can block the paid product');
 check(fulfillOrder.includes('isPromotionGift && !promotionSourceReady'),'A promotional gift can be delivered before its paid source item');
+check(fulfillOrder.includes('renewalGiftContext'),'Renewal promotions are not fulfilled after extending the original subscription');
 const deliveryApi=fs.readFileSync(path.join(root,'supabase','functions','customer-delivery','index.ts'),'utf8');
 check(deliveryApi.includes("isPromotionGift?[]:rowAllocations.length"),'Free promotional gifts can incorrectly be renewed');
 check(deliveryApi.includes("allocation_kind:'shared_promotion'"),'Customer delivery does not validate shared allocations');

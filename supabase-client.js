@@ -63,9 +63,9 @@ async function loadServicesFromDB() {
          grant itself a free product. */
       supabaseClient
         .from('service_bundle_rules')
-        .select('*')
+        .select('id,source_service_id,source_duration_idx,source_type_idx,gift_service_id,gift_duration_strategy,gift_duration_idx,gift_quantity,quantity_mode,allocation_policy,include_renewals,label_i18n,priority')
         .eq('active', true)
-        .order('priority', { ascending: false })
+        .order('priority', { ascending: true })
     ]);
     const data = results[0].data;
     const error = results[0].error;
@@ -118,12 +118,19 @@ async function loadServicesFromDB() {
       source.bundle_offers.push({
         id: rule.id,
         source_duration_idx: Number(rule.source_duration_idx),
+        source_type_idx: rule.source_type_idx === null || rule.source_type_idx === undefined
+          ? null
+          : Number(rule.source_type_idx),
         gift_service_id: rule.gift_service_id,
         gift_duration_strategy: rule.gift_duration_strategy || 'same',
+        gift_duration_idx: rule.gift_duration_idx === null || rule.gift_duration_idx === undefined
+          ? null
+          : Number(rule.gift_duration_idx),
         gift_qty: Math.max(1, Number(rule.gift_quantity || rule.gift_qty || 1)),
         qty_mode: rule.quantity_mode || rule.qty_mode || 'fixed',
         allocation_policy: rule.allocation_policy || 'shared_reusable',
         include_renewals: !!rule.include_renewals,
+        priority: Number(rule.priority || 100),
         label_i18n: parseJ(rule.label_i18n, {}),
         gift_name: gift.n,
         gift_icon_type: gift.iconType,
