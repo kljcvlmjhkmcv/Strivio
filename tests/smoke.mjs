@@ -84,6 +84,10 @@ if(activationLinkStart>=0&&activationLinkEnd>activationLinkStart){
 }
 
 const auth=fs.readFileSync(path.join(root,'auth.html'),'utf8');
+check(auth.includes('resetPasswordForEmail'),'Forgot-password request is missing');
+check(auth.includes("event==='PASSWORD_RECOVERY'"),'Password recovery session is not handled');
+check(auth.includes('auth.updateUser({password})'),'New password cannot be saved');
+check(auth.includes("current!=='recovery'"),'Recovery links can be redirected away before the password is changed');
 const nextStart=auth.indexOf('function nextUrl()');
 const nextEnd=auth.indexOf('\n    function mode',nextStart);
 check(nextStart>=0&&nextEnd>nextStart,'Safe auth return-path resolver is missing');
@@ -206,6 +210,18 @@ check(inventoryAdmin.includes('Archive it and create a new offer'),'Used bundle 
 check(inventoryAdmin.includes('action === "complete_activation"')&&inventoryAdmin.includes('/functions/v1/fulfill-order'),'Manual source completion does not retry dependent promotional gifts');
 check(inventoryAdmin.includes('submittedAccounts.length !== expectedQuantity'),'Manual account delivery can under-deliver a multi-unit order');
 check(inventoryAdmin.includes('entries,')&&inventoryAdmin.includes('requested: expectedQuantity'),'Manual delivery does not persist every required account entry');
+check(inventoryAdmin.includes('action === "release_allocation"'),'Admin inventory cannot safely release an active customer profile');
+check(inventoryAdmin.includes('ops_update_subscription_end'),'Admin inventory cannot select per-profile or whole-item expiry updates');
+check(operations.includes('end-date-scope'),'Operations expiry editor has no per-profile/all-profiles scope');
+check(operations.includes('openReleaseSubscription'),'Operations cannot release a profile without the unsafe status toggle');
+const lifecycleMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607250200_subscription_lifecycle.sql'),'utf8');
+check(lifecycleMigration.includes('ops_update_subscription_end'),'Scoped subscription expiry RPC is missing');
+check(lifecycleMigration.includes("v_scope not in ('allocation','fulfillment')"),'Subscription expiry scope is not server-validated');
+check(lifecycleMigration.includes('ops_release_subscription_allocation'),'Safe manual subscription release RPC is missing');
+check(lifecycleMigration.includes('expire_due_subscriptions'),'Automatic subscription expiry worker is missing');
+check(lifecycleMigration.includes("'strivio-subscription-expiry'"),'Automatic subscription expiry is not scheduled');
+check(lifecycleMigration.includes("set status='available'"),'Expired inventory capacity is not released');
+check(lifecycleMigration.includes("'subscription.expired'"),'Customers are not notified when a subscription expires');
 const manualDeliveryHandler=inventoryAdmin.slice(inventoryAdmin.indexOf('action === "deliver_manual_credentials"'),inventoryAdmin.indexOf('action === "complete_activation"'));
 check(!manualDeliveryHandler.includes('p_event_type: "fulfillment.delivered"'),'Manual delivery can enqueue a duplicate credential email outside fulfill-order');
 const fulfillOrder=fs.readFileSync(path.join(root,'supabase','functions','fulfill-order','index.ts'),'utf8');

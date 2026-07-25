@@ -530,13 +530,33 @@
     >
       <form id="end-date-form" class="panel rounded-[24px] w-full max-w-md p-6">
         <div class="flex justify-between gap-4 items-start">
-          <div><div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">SUBSCRIPTION CONTROL</div><h2 class="display text-xl font-black mt-1">تعديل تاريخ الانتهاء</h2><p class="muted text-xs mt-2">سيتم تحديث البروفايل والطلب والشيت مع تسجيل التغيير في سجل العمليات.</p></div>
+          <div><div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">SUBSCRIPTION CONTROL</div><h2 class="display text-xl font-black mt-1">تعديل تاريخ الانتهاء</h2><p id="end-date-caption" class="muted text-xs mt-2">اختر تعديل هذا البروفايل فقط أو جميع بروفيلات المنتج في الطلب.</p></div>
           <button type="button" class="btn" onclick="closeEndDateEditor()">إغلاق</button>
         </div>
         <input id="end-date-allocation" type="hidden" />
         <label class="muted text-xs block mt-5 mb-2">تاريخ الانتهاء الجديد</label>
         <input id="end-date-value" type="date" class="input" required />
+        <label class="muted text-xs block mt-4 mb-2">نطاق التعديل</label>
+        <select id="end-date-scope" class="select w-full">
+          <option value="allocation">هذا البروفايل فقط</option>
+          <option value="fulfillment">جميع بروفيلات هذا المنتج في الطلب</option>
+        </select>
+        <label class="flex items-center gap-2 text-xs mt-4"><input id="end-date-notify" type="checkbox" /> إرسال إشعار للعميل بالتاريخ الجديد</label>
         <div class="flex justify-end gap-2 mt-6"><button type="button" class="btn" onclick="closeEndDateEditor()">إلغاء</button><button class="btn neon" type="submit">حفظ التاريخ</button></div>
+      </form>
+    </div>
+    <div id="release-subscription-modal" class="hidden fixed inset-0 z-[67] p-4 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+      <form id="release-subscription-form" class="panel rounded-[24px] w-full max-w-md p-6">
+        <div class="flex justify-between gap-4 items-start">
+          <div><div class="text-red-400 text-[10px] font-black tracking-[.16em]">END SUBSCRIPTION</div><h2 class="display text-xl font-black mt-1">إخلاء البروفايل</h2><p id="release-subscription-caption" class="muted text-xs mt-2">سينتهي ارتباط العميل بهذا البروفايل ويصبح متاحًا للتسليم، مع بقاء الطلب في السجل.</p></div>
+          <button type="button" class="btn" onclick="closeReleaseSubscription()">إغلاق</button>
+        </div>
+        <input id="release-subscription-allocation" type="hidden" />
+        <label class="muted text-xs block mt-5 mb-2">سبب الإخلاء</label>
+        <textarea id="release-subscription-reason" class="input min-h-[92px]" maxlength="500" placeholder="مثال: انتهت مدة الاشتراك أو تم التسليم يدويًا"></textarea>
+        <label class="flex items-center gap-2 text-xs mt-4"><input id="release-subscription-notify" type="checkbox" checked /> إرسال إشعار انتهاء الاشتراك للعميل</label>
+        <div class="rounded-xl border border-red-500/20 bg-red-500/5 text-red-200 text-xs leading-6 p-3 mt-4">يؤثر هذا الإجراء على البروفايل المحدد فقط. لن يُحذف الطلب أو سجل العميل.</div>
+        <div class="flex justify-end gap-2 mt-6"><button type="button" class="btn" onclick="closeReleaseSubscription()">إلغاء</button><button class="btn" style="border-color:#ef444466;color:#ff8b8b" type="submit">إنهاء وإخلاء البروفايل</button></div>
       </form>
     </div>
     <div id="move-profile-modal" class="hidden fixed inset-0 z-[66] p-4 bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -2115,17 +2135,20 @@
                         profileCustomer(x) +
                         "</td><td>" +
                         statusBadge(x.status) +
-                        "</td><td><button class=\"btn\" onclick=\"setInventoryStatus('slots','" +
-                        esc(x.id) +
-                        "','" +
-                        (x.status === "available"
-                          ? "maintenance"
-                          : "available") +
-                        "')\">" +
-                        (x.status === "available"
-                          ? "إيقاف مؤقت"
-                          : "جعله متاحاً") +
-                        "</button>" +
+                        "</td><td>" +
+                        (allocation
+                          ? '<button class="btn" style="border-color:#ef444455;color:#ff8b8b" onclick="openReleaseSubscription(\'' +
+                            esc(allocation.id) +
+                            "','" +
+                            esc(x.label || "Profile") +
+                            "')\">إخلاء البروفايل</button>"
+                          : "<button class=\"btn\" onclick=\"setInventoryStatus('slots','" +
+                            esc(x.id) +
+                            "','" +
+                            (x.status === "available" ? "maintenance" : "available") +
+                            "')\">" +
+                            (x.status === "available" ? "إيقاف مؤقت" : "جعله متاحاً") +
+                            "</button>") +
                         (allocation
                           ? '<button class="btn neon mr-2" onclick="openEndDateEditor(\'' +
                             esc(allocation.id) +
@@ -2489,13 +2512,10 @@
                       statusBadge(s.status) +
                       (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<button class="btn" onclick="openEndDateEditor(\''+esc(allocation.id)+'\',\''+esc(allocation.ends_at||'')+'\')">تعديل الانتهاء</button>':'';})() +
                       (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<button class="btn neon" onclick="openMoveProfile(\''+esc(allocation.id)+'\',\''+esc(s.id)+'\')">نقل إلى بروفايل فارغ</button>':'';})() +
-                      "<button class=\"btn\" onclick=\"setInventoryStatus('slots','" +
-                      esc(s.id) +
-                      "','" +
-                      (s.status === "available" ? "maintenance" : "available") +
-                      "')\">" +
-                      (s.status === "available" ? "إيقاف" : "إتاحة") +
-                      "</button></div></div>"
+                      (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation
+                        ?'<button class="btn" style="border-color:#ef444455;color:#ff8b8b" onclick="openReleaseSubscription(\''+esc(allocation.id)+'\',\''+esc(s.label||'Profile')+'\')">إخلاء</button>'
+                        :"<button class=\"btn\" onclick=\"setInventoryStatus('slots','"+esc(s.id)+"','"+(s.status==="available"?"maintenance":"available")+"')\">"+(s.status==="available"?"إيقاف":"إتاحة")+"</button>";})() +
+                      "</div></div>"
                     );
                   })
                   .join("") +
@@ -2522,10 +2542,36 @@
       function openEndDateEditor(allocationId, endsAt) {
         $("end-date-allocation").value = allocationId || "";
         $("end-date-value").value = endsAt ? new Date(endsAt).toISOString().slice(0, 10) : "";
+        $("end-date-scope").value = "allocation";
+        $("end-date-notify").checked = false;
+        var allocation = state.allocations.find(function (x) { return x.id === allocationId; }),
+          siblingCount = allocation
+            ? state.allocations.filter(function (x) {
+                return x.fulfillment_id === allocation.fulfillment_id && x.status === "active";
+              }).length
+            : 0;
+        $("end-date-caption").textContent = siblingCount > 1
+          ? "هذا المنتج مرتبط بـ " + siblingCount + " بروفيلات نشطة. اختر تعديل واحد أو تعديلها كلها."
+          : "سيتم تحديث هذا البروفايل والطلب والشيت مع تسجيل التغيير.";
         $("end-date-modal").classList.remove("hidden");
       }
       function closeEndDateEditor() {
         $("end-date-modal").classList.add("hidden");
+      }
+      function openReleaseSubscription(allocationId, profileLabel) {
+        var allocation = state.allocations.find(function (x) { return x.id === allocationId; });
+        if (!allocation || allocation.status !== "active")
+          return toast("هذا الاشتراك غير نشط أو تم إخلاؤه مسبقًا.", true);
+        $("release-subscription-allocation").value = allocationId;
+        $("release-subscription-reason").value = "";
+        $("release-subscription-notify").checked = true;
+        $("release-subscription-caption").textContent =
+          "سيتم إنهاء ارتباط العميل بـ " + (profileLabel || "البروفايل المحدد") +
+          " وإتاحته للتسليم، مع الاحتفاظ بالطلب والسجل.";
+        $("release-subscription-modal").classList.remove("hidden");
+      }
+      function closeReleaseSubscription() {
+        $("release-subscription-modal").classList.add("hidden");
       }
       function openMoveProfile(allocationId, sourceSlotId) {
         var allocation = state.allocations.find(function (x) { return x.id === allocationId; }),
@@ -2574,15 +2620,46 @@
             action: "update_allocation_end",
             allocation_id: $("end-date-allocation").value,
             ends_at: $("end-date-value").value,
-            notify: false,
+            scope: $("end-date-scope").value,
+            notify: $("end-date-notify").checked,
           });
           closeEndDateEditor();
-          toast("تم تحديث تاريخ الانتهاء وتسجيله في الشيت.");
+          toast(
+            "تم تحديث " +
+              Number(result.updated_allocations || 1) +
+              " اشتراك/بروفايل وتسجيل التاريخ في الشيت.",
+          );
           await loadAll();
         } catch (error) {
           toast("تعذر تحديث تاريخ الانتهاء: " + error.message, true);
         } finally {
           button.disabled = false;
+        }
+      });
+      $("release-subscription-form").addEventListener("submit", async function (event) {
+        event.preventDefault();
+        var button = event.target.querySelector('button[type="submit"]');
+        button.disabled = true;
+        button.textContent = "جاري الإخلاء…";
+        try {
+          var result = await inventoryCall({
+            action: "release_allocation",
+            allocation_id: $("release-subscription-allocation").value,
+            reason: $("release-subscription-reason").value.trim(),
+            notify: $("release-subscription-notify").checked,
+          });
+          closeReleaseSubscription();
+          toast(
+            result.already_released
+              ? "كان الاشتراك منتهيًا بالفعل."
+              : "تم إنهاء الاشتراك وإتاحة مكانه في المخزون.",
+          );
+          await loadAll();
+        } catch (error) {
+          toast("تعذر إخلاء البروفايل: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.textContent = "إنهاء وإخلاء البروفايل";
         }
       });
       function openAccountEditor(id) {

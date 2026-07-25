@@ -125,6 +125,7 @@ const COPY = {
     credentialsChanged: ["تم تحديث معلومات الحساب", "تم تغيير بيانات الحساب المشترك. استخدم المعلومات الأحدث الظاهرة أدناه وفي حسابك."],
     renewed: ["تم تمديد اشتراكك", "تمت إضافة مدة التجديد إلى تاريخ انتهاء اشتراكك الحالي بنجاح."],
     expiring: ["اشتراكك يقترب من الانتهاء", "يمكنك تمديده الآن للمحافظة على نفس الخدمة والبروفايل."],
+    expired: ["انتهى اشتراكك", "انتهت مدة الاشتراك المحدد، ويمكنك مراجعة حالته من الطلب داخل حسابك."],
     paymentFailed: ["تعذر إكمال الدفع", "لم يتم اعتماد الدفع. افتح الطلب للمحاولة مجددًا أو اختر طريقة دفع أخرى."],
     generic: ["تحديث جديد من Strivio", "يوجد تحديث جديد متعلق بطلبك أو خدمتك."],
   },
@@ -140,6 +141,7 @@ const COPY = {
     credentialsChanged: ["Informations du compte mises à jour", "Les identifiants du compte partagé ont changé. Utilisez les informations les plus récentes ci-dessous et dans votre compte."],
     renewed: ["Abonnement prolongé", "La nouvelle durée a été ajoutée à la date d’expiration actuelle de votre abonnement."],
     expiring: ["Votre abonnement expire bientôt", "Vous pouvez le prolonger dès maintenant pour conserver le même service et le même profil."],
+    expired: ["Votre abonnement est terminé", "La durée de l’abonnement sélectionné est terminée. Consultez son état dans votre compte."],
     paymentFailed: ["Paiement non finalisé", "Le paiement n’a pas été validé. Ouvrez la commande pour réessayer ou choisir un autre moyen de paiement."],
     generic: ["Nouvelle mise à jour Strivio", "Une nouvelle mise à jour concerne votre commande ou votre service."],
   },
@@ -155,6 +157,7 @@ const COPY = {
     credentialsChanged: ["Account information updated", "The shared account credentials changed. Use the latest details shown below and in your account."],
     renewed: ["Subscription extended", "The renewal duration was successfully added to your current subscription expiry date."],
     expiring: ["Your subscription expires soon", "You can extend it now to keep the same service and profile."],
+    expired: ["Your subscription has ended", "The selected subscription period has ended. Review its status from the order in your account."],
     paymentFailed: ["Payment not completed", "The payment was not approved. Open the order to try again or choose another payment method."],
     generic: ["New Strivio update", "There is a new update about your order or service."],
   },
@@ -175,6 +178,7 @@ const CTA = {
     renewed: "عرض الاشتراك بعد التجديد",
     extended: "عرض الاشتراك بعد التمديد",
     expiring: "تجديد أو تمديد الاشتراك",
+    expired: "عرض الاشتراك المنتهي",
     generic: "فتح الطلب في حسابي",
   },
   fr: {
@@ -191,6 +195,7 @@ const CTA = {
     renewed: "Voir l’abonnement renouvelé",
     extended: "Voir l’abonnement prolongé",
     expiring: "Renouveler ou prolonger l’abonnement",
+    expired: "Voir l’abonnement terminé",
     generic: "Ouvrir la commande dans mon compte",
   },
   en: {
@@ -207,6 +212,7 @@ const CTA = {
     renewed: "View the renewed subscription",
     extended: "View the extended subscription",
     expiring: "Renew or extend the subscription",
+    expired: "View ended subscription",
     generic: "Open the order in my account",
   },
 };
@@ -262,6 +268,7 @@ function copyKey(eventType: string, templateKey?: string): keyof typeof COPY.ar 
   if (/problem\.(resolved|closed)/.test(key)) return "problemResolved";
   if (/account\.(changed|credentials)|credentials\.changed|password\.changed/.test(key)) return "credentialsChanged";
   if (/subscription\.(renewed|extended)|renewal\.(confirmed|completed)/.test(key)) return "renewed";
+  if (/subscription\.(expired|ended|released)/.test(key)) return "expired";
   if (/subscription\.(expiring|reminder)/.test(key)) return "expiring";
   if (/fulfillment\.(delivered|ready)|order\.delivered/.test(key)) return "delivered";
   return "generic";

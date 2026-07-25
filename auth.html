@@ -17,19 +17,37 @@
     <section class="form-side p-6 sm:p-10 md:p-12">
       <div class="flex items-center justify-between mb-8"><a href="./" class="display text-3xl font-black text-[#39ff14] no-underline">Strivio</a><div class="flex gap-1"><button class="lang" data-lang="ar">AR</button><button class="lang" data-lang="fr">FR</button><button class="lang" data-lang="en">EN</button></div></div>
       <div class="mb-7"><span class="inline-flex px-3 py-1 rounded-full text-[11px] font-bold border border-[#39ff14]/25 bg-[#39ff14]/10 text-[#39ff14]" data-t="badge"></span><h1 class="display text-3xl sm:text-4xl font-black mt-4 mb-2" data-t="title"></h1><p class="text-sm text-gray-500 leading-6" data-t="subtitle"></p></div>
-      <button onclick="googleLogin()" class="ghost flex items-center justify-center gap-3 mb-5"><span class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center font-black">G</span><b data-t="google"></b></button>
-      <div class="flex items-center gap-3 text-xs text-gray-600 mb-5"><span class="h-px bg-gray-800 flex-1"></span><span data-t="or"></span><span class="h-px bg-gray-800 flex-1"></span></div>
-      <div class="flex mb-5 border-b border-gray-800"><button id="loginTab" onclick="mode('login')" class="tab active flex-1 pb-3 font-bold" data-t="loginTab"></button><button id="signupTab" onclick="mode('signup')" class="tab flex-1 pb-3 font-bold" data-t="signupTab"></button></div>
+      <button id="google-login" onclick="googleLogin()" class="ghost flex items-center justify-center gap-3 mb-5"><span class="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center font-black">G</span><b data-t="google"></b></button>
+      <div id="auth-divider" class="flex items-center gap-3 text-xs text-gray-600 mb-5"><span class="h-px bg-gray-800 flex-1"></span><span data-t="or"></span><span class="h-px bg-gray-800 flex-1"></span></div>
+      <div id="auth-tabs" class="flex mb-5 border-b border-gray-800"><button id="loginTab" onclick="mode('login')" class="tab active flex-1 pb-3 font-bold" data-t="loginTab"></button><button id="signupTab" onclick="mode('signup')" class="tab flex-1 pb-3 font-bold" data-t="signupTab"></button></div>
       <form id="form" class="space-y-3"><div id="names" class="grid grid-cols-2 gap-3 hidden"><input id="first" class="input" data-ph="first"><input id="last" class="input" data-ph="last"></div><input id="email" type="email" class="input" data-ph="email" required><input id="password" type="password" minlength="8" class="input" data-ph="password" required><button class="primary" id="submit"></button></form>
+      <button id="forgot" type="button" onclick="requestPasswordReset()" class="w-full mt-4 text-xs font-bold text-gray-400 hover:text-[#39ff14] transition-colors" data-t="forgot"></button>
       <p id="msg" class="text-sm text-center mt-4 min-h-5"></p><p class="text-[11px] text-gray-600 text-center mt-5" data-t="privacy"></p>
     </section>
     <aside class="panel p-10 md:p-14 flex flex-col justify-between relative overflow-hidden"><div><div class="w-14 h-14 rounded-2xl border border-[#39ff14]/30 bg-[#39ff14]/10 flex items-center justify-center text-2xl mb-8">✦</div><h2 class="display text-4xl font-black leading-tight mb-5" data-t="sideTitle"></h2><p class="text-gray-400 leading-7" data-t="sideText"></p></div><div class="space-y-3 mt-10"><div class="rounded-2xl border border-white/5 bg-black/25 p-4 flex gap-3"><span class="text-[#39ff14]">✓</span><span data-t="benefit1"></span></div><div class="rounded-2xl border border-white/5 bg-black/25 p-4 flex gap-3"><span class="text-[#39ff14]">✓</span><span data-t="benefit2"></span></div><div class="rounded-2xl border border-white/5 bg-black/25 p-4 flex gap-3"><span class="text-[#39ff14]">✓</span><span data-t="benefit3"></span></div></div></aside>
   </main>
   <script src="supabase-client.js?v=header-unified-0720"></script>
   <script>
-    const I18N={ar:{badge:'حسابك الآمن',title:'مرحبًا بك في Strivio',subtitle:'سجّل دخولك لمتابعة طلباتك واستلام اشتراكاتك فورًا.',google:'المتابعة عبر Google',or:'أو بالبريد',loginTab:'تسجيل الدخول',signupTab:'حساب جديد',first:'الاسم',last:'اللقب',email:'البريد الإلكتروني',password:'كلمة السر (8 أحرف على الأقل)',loginBtn:'دخول آمن',signupBtn:'إنشاء الحساب',privacy:'لن نرسل عروضًا إلا بعد موافقتك الصريحة.',sideTitle:'كل طلباتك في مكان واحد.',sideText:'استلم الحسابات والأكواد بأمان، تابع مدة اشتراكك، وحمّل مستند طلبك وقتما تريد.',benefit1:'تسليم فوري بعد تأكيد الدفع',benefit2:'سجل كامل ومعلومات محمية',benefit3:'وصول من الهاتف أو الكمبيوتر',working:'جاري التحقق...',confirm:'أرسلنا رابط تأكيد إلى بريدك. افتحه ثم سجّل الدخول.',googleError:'تعذر تسجيل Google حاليًا. استخدم البريد أو حاول مجددًا.'},fr:{badge:'Votre compte sécurisé',title:'Bienvenue sur Strivio',subtitle:'Connectez-vous pour suivre vos commandes et recevoir vos abonnements instantanément.',google:'Continuer avec Google',or:'ou par e-mail',loginTab:'Connexion',signupTab:'Créer un compte',first:'Prénom',last:'Nom',email:'Adresse e-mail',password:'Mot de passe (8 caractères minimum)',loginBtn:'Connexion sécurisée',signupBtn:'Créer mon compte',privacy:'Aucune offre ne sera envoyée sans votre consentement explicite.',sideTitle:'Toutes vos commandes au même endroit.',sideText:'Recevez vos comptes et licences en toute sécurité, suivez vos abonnements et téléchargez vos documents.',benefit1:'Livraison instantanée après paiement',benefit2:'Historique complet et données protégées',benefit3:'Accessible sur mobile et ordinateur',working:'Vérification...',confirm:'Un lien de confirmation a été envoyé. Ouvrez-le puis connectez-vous.',googleError:'Google est temporairement indisponible. Utilisez votre e-mail ou réessayez.'},en:{badge:'Your secure account',title:'Welcome to Strivio',subtitle:'Sign in to track orders and receive subscriptions instantly.',google:'Continue with Google',or:'or use email',loginTab:'Sign in',signupTab:'Create account',first:'First name',last:'Last name',email:'Email address',password:'Password (8 characters minimum)',loginBtn:'Secure sign in',signupBtn:'Create my account',privacy:'We never send promotions without your explicit consent.',sideTitle:'Every order in one place.',sideText:'Receive accounts and licenses securely, track subscriptions, and download order documents anytime.',benefit1:'Instant delivery after payment',benefit2:'Complete history and protected data',benefit3:'Access on mobile and desktop',working:'Checking...',confirm:'We sent a confirmation link. Open it, then sign in.',googleError:'Google sign-in is temporarily unavailable. Use email or try again.'}};
-    let current='login',lang=localStorage.getItem('strivio_lang')||'ar';
-    function tx(){return I18N[lang]||I18N.ar}function applyLang(l){lang=l;localStorage.setItem('strivio_lang',l);document.documentElement.lang=l;document.documentElement.dir=l==='ar'?'rtl':'ltr';document.querySelectorAll('[data-t]').forEach(x=>x.textContent=tx()[x.dataset.t]||'');document.querySelectorAll('[data-ph]').forEach(x=>x.placeholder=tx()[x.dataset.ph]||'');document.querySelectorAll('.lang').forEach(x=>x.classList.toggle('active',x.dataset.lang===l));document.getElementById('submit').textContent=current==='login'?tx().loginBtn:tx().signupBtn}document.querySelectorAll('.lang').forEach(b=>b.onclick=()=>applyLang(b.dataset.lang));
+    const I18N={ar:{badge:'حسابك الآمن',title:'مرحبًا بك في Strivio',subtitle:'سجّل دخولك لمتابعة طلباتك واستلام اشتراكاتك فورًا.',google:'المتابعة عبر Google',or:'أو بالبريد',loginTab:'تسجيل الدخول',signupTab:'حساب جديد',first:'الاسم',last:'اللقب',email:'البريد الإلكتروني',password:'كلمة السر (8 أحرف على الأقل)',newPassword:'كلمة السر الجديدة (8 أحرف على الأقل)',loginBtn:'دخول آمن',signupBtn:'إنشاء الحساب',resetBtn:'حفظ كلمة السر الجديدة',forgot:'نسيت كلمة السر؟',privacy:'لن نرسل عروضًا إلا بعد موافقتك الصريحة.',sideTitle:'كل طلباتك في مكان واحد.',sideText:'استلم الحسابات والأكواد بأمان، تابع مدة اشتراكك، وحمّل مستند طلبك وقتما تريد.',benefit1:'تسليم فوري بعد تأكيد الدفع',benefit2:'سجل كامل ومعلومات محمية',benefit3:'وصول من الهاتف أو الكمبيوتر',working:'جاري التحقق...',confirm:'أرسلنا رابط تأكيد إلى بريدك. افتحه ثم سجّل الدخول.',resetSent:'إذا كان البريد مسجلاً فسيصلك رابط آمن لتعيين كلمة سر جديدة.',resetEmailRequired:'أدخل بريدك الإلكتروني أولاً.',recoveryTitle:'عيّن كلمة سر جديدة',recoverySubtitle:'اختر كلمة سر قوية لحماية حسابك وطلباتك.',passwordUpdated:'تم تغيير كلمة السر بنجاح. سيتم نقلك إلى حسابك.',googleError:'تعذر تسجيل Google حاليًا. استخدم البريد أو حاول مجددًا.'},fr:{badge:'Votre compte sécurisé',title:'Bienvenue sur Strivio',subtitle:'Connectez-vous pour suivre vos commandes et recevoir vos abonnements instantanément.',google:'Continuer avec Google',or:'ou par e-mail',loginTab:'Connexion',signupTab:'Créer un compte',first:'Prénom',last:'Nom',email:'Adresse e-mail',password:'Mot de passe (8 caractères minimum)',newPassword:'Nouveau mot de passe (8 caractères minimum)',loginBtn:'Connexion sécurisée',signupBtn:'Créer mon compte',resetBtn:'Enregistrer le nouveau mot de passe',forgot:'Mot de passe oublié ?',privacy:'Aucune offre ne sera envoyée sans votre consentement explicite.',sideTitle:'Toutes vos commandes au même endroit.',sideText:'Recevez vos comptes et licences en toute sécurité, suivez vos abonnements et téléchargez vos documents.',benefit1:'Livraison instantanée après paiement',benefit2:'Historique complet et données protégées',benefit3:'Accessible sur mobile et ordinateur',working:'Vérification...',confirm:'Un lien de confirmation a été envoyé. Ouvrez-le puis connectez-vous.',resetSent:'Si cette adresse est enregistrée, un lien sécurisé vous sera envoyé.',resetEmailRequired:'Saisissez d’abord votre adresse e-mail.',recoveryTitle:'Définir un nouveau mot de passe',recoverySubtitle:'Choisissez un mot de passe robuste pour protéger votre compte.',passwordUpdated:'Votre mot de passe a été modifié. Redirection vers votre compte…',googleError:'Google est temporairement indisponible. Utilisez votre e-mail ou réessayez.'},en:{badge:'Your secure account',title:'Welcome to Strivio',subtitle:'Sign in to track orders and receive subscriptions instantly.',google:'Continue with Google',or:'or use email',loginTab:'Sign in',signupTab:'Create account',first:'First name',last:'Last name',email:'Email address',password:'Password (8 characters minimum)',newPassword:'New password (8 characters minimum)',loginBtn:'Secure sign in',signupBtn:'Create my account',resetBtn:'Save new password',forgot:'Forgot your password?',privacy:'We never send promotions without your explicit consent.',sideTitle:'Every order in one place.',sideText:'Receive accounts and licenses securely, track subscriptions, and download order documents anytime.',benefit1:'Instant delivery after payment',benefit2:'Complete history and protected data',benefit3:'Access on mobile and desktop',working:'Checking...',confirm:'We sent a confirmation link. Open it, then sign in.',resetSent:'If this email is registered, a secure reset link will be sent.',resetEmailRequired:'Enter your email address first.',recoveryTitle:'Set a new password',recoverySubtitle:'Choose a strong password to protect your account and orders.',passwordUpdated:'Your password was updated. Redirecting to your account…',googleError:'Google sign-in is temporarily unavailable. Use email or try again.'}};
+    const recoveryRequested=new URLSearchParams(location.search).get('recovery')==='1'||/type=recovery/i.test(location.hash);
+    let current=recoveryRequested?'recovery':'login',lang=localStorage.getItem('strivio_lang')||'ar';
+    function tx(){return I18N[lang]||I18N.ar}
+    function applyLang(l){
+      lang=l;
+      localStorage.setItem('strivio_lang',l);
+      document.documentElement.lang=l;
+      document.documentElement.dir=l==='ar'?'rtl':'ltr';
+      document.querySelectorAll('[data-t]').forEach(x=>x.textContent=tx()[x.dataset.t]||'');
+      document.querySelectorAll('[data-ph]').forEach(x=>x.placeholder=tx()[x.dataset.ph]||'');
+      document.querySelectorAll('.lang').forEach(x=>x.classList.toggle('active',x.dataset.lang===l));
+      if(current==='recovery'){
+        document.querySelector('[data-t="title"]').textContent=tx().recoveryTitle;
+        document.querySelector('[data-t="subtitle"]').textContent=tx().recoverySubtitle;
+        document.getElementById('password').placeholder=tx().newPassword;
+      }
+      document.getElementById('submit').textContent=current==='login'?tx().loginBtn:current==='signup'?tx().signupBtn:tx().resetBtn;
+    }
+    document.querySelectorAll('.lang').forEach(b=>b.onclick=()=>applyLang(b.dataset.lang));
     function nextUrl(){
       const fallback='my-account';
       let raw=(new URLSearchParams(location.search).get('next')||fallback).trim();
@@ -42,8 +60,68 @@
         return cleanPath+target.search+target.hash;
       }catch(_){return fallback}
     }
-    function mode(m){current=m;document.getElementById('names').classList.toggle('hidden',m!=='signup');document.getElementById('loginTab').classList.toggle('active',m==='login');document.getElementById('signupTab').classList.toggle('active',m==='signup');applyLang(lang)}
+    function mode(m){
+      current=m;
+      const recovery=m==='recovery',signup=m==='signup';
+      document.getElementById('names').classList.toggle('hidden',!signup);
+      document.getElementById('email').classList.toggle('hidden',recovery);
+      document.getElementById('email').required=!recovery;
+      document.getElementById('google-login').classList.toggle('hidden',recovery);
+      document.getElementById('auth-divider').classList.toggle('hidden',recovery);
+      document.getElementById('auth-tabs').classList.toggle('hidden',recovery);
+      document.getElementById('forgot').classList.toggle('hidden',m!=='login');
+      document.getElementById('loginTab').classList.toggle('active',m==='login');
+      document.getElementById('signupTab').classList.toggle('active',signup);
+      document.getElementById('msg').textContent='';
+      applyLang(lang);
+    }
+    function showMessage(text,error){
+      const target=document.getElementById('msg');
+      target.style.color=error?'#ff6b6b':'#39ff14';
+      target.textContent=text;
+    }
     async function googleLogin(){const {error}=await window.supabaseClient.auth.signInWithOAuth({provider:'google',options:{redirectTo:new URL(nextUrl(),location.href).href}});if(error){const m=document.getElementById('msg');m.style.color='#ff6b6b';m.textContent=tx().googleError}}
-    document.getElementById('form').addEventListener('submit',async e=>{e.preventDefault();const msg=document.getElementById('msg'),btn=document.getElementById('submit');btn.disabled=true;msg.style.color='#aaa';msg.textContent=tx().working;const email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;let result;if(current==='signup')result=await window.supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:new URL(nextUrl(),location.href).href,data:{first_name:document.getElementById('first').value.trim(),last_name:document.getElementById('last').value.trim()}}});else result=await window.supabaseClient.auth.signInWithPassword({email,password});btn.disabled=false;if(result.error){msg.style.color='#ff6b6b';msg.textContent=result.error.message;return}if(current==='signup'&&!result.data.session){msg.style.color='#39ff14';msg.textContent=tx().confirm;return}location.href=nextUrl()});applyLang(lang);window.supabaseClient.auth.getSession().then(({data})=>{if(data.session)location.href=nextUrl()});
+    async function requestPasswordReset(){
+      const email=document.getElementById('email').value.trim();
+      if(!email)return showMessage(tx().resetEmailRequired,true);
+      const button=document.getElementById('forgot');
+      button.disabled=true;
+      const redirectTo=new URL('auth?recovery=1',location.origin+'/').href;
+      const {error}=await window.supabaseClient.auth.resetPasswordForEmail(email,{redirectTo});
+      button.disabled=false;
+      if(error)return showMessage(error.message,true);
+      showMessage(tx().resetSent,false);
+    }
+    document.getElementById('form').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const msg=document.getElementById('msg'),btn=document.getElementById('submit');
+      btn.disabled=true;msg.style.color='#aaa';msg.textContent=tx().working;
+      const email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;
+      let result;
+      if(current==='recovery'){
+        result=await window.supabaseClient.auth.updateUser({password});
+        btn.disabled=false;
+        if(result.error)return showMessage(result.error.message,true);
+        showMessage(tx().passwordUpdated,false);
+        setTimeout(()=>{location.href=nextUrl()},900);
+        return;
+      }
+      if(current==='signup'){
+        result=await window.supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:new URL(nextUrl(),location.href).href,data:{first_name:document.getElementById('first').value.trim(),last_name:document.getElementById('last').value.trim()}}});
+      }else{
+        result=await window.supabaseClient.auth.signInWithPassword({email,password});
+      }
+      btn.disabled=false;
+      if(result.error)return showMessage(result.error.message,true);
+      if(current==='signup'&&!result.data.session)return showMessage(tx().confirm,false);
+      location.href=nextUrl();
+    });
+    mode(current);
+    window.supabaseClient.auth.onAuthStateChange((event)=>{
+      if(event==='PASSWORD_RECOVERY')mode('recovery');
+    });
+    window.supabaseClient.auth.getSession().then(({data})=>{
+      if(data.session&&current!=='recovery')location.href=nextUrl();
+    });
   </script>
 </body></html>

@@ -1683,10 +1683,13 @@ serve(async (req) => {
       const parsed = new Date(body.ends_at);
       if (Number.isNaN(parsed.getTime())) throw new Error("Invalid end date");
       const { data: result, error } = await db.rpc(
-        "ops_update_allocation_end",
+        "ops_update_subscription_end",
         {
           p_allocation_id: body.allocation_id,
           p_ends_at: parsed.toISOString(),
+          p_scope: body.scope === "fulfillment"
+            ? "fulfillment"
+            : "allocation",
           p_notify: body.notify === true,
           p_actor_id: user.id,
         },
@@ -1699,6 +1702,34 @@ serve(async (req) => {
         body.allocation_id,
         result?.service_id,
       );
+      if (body.notify === true) dispatchNotifications(url, service);
+      return new Response(JSON.stringify({ ...result, success: true }), {
+        headers: cors,
+      });
+    }
+    if (action === "release_allocation") {
+      if (!body.allocation_id)
+        throw new Error("Subscription allocation is required");
+      const reason = String(body.reason || "").trim();
+      if (reason.length > 500) throw new Error("Release reason is too long");
+      const { data: result, error } = await db.rpc(
+        "ops_release_subscription_allocation",
+        {
+          p_allocation_id: body.allocation_id,
+          p_reason: reason || "Released manually from Operations",
+          p_notify: body.notify !== false,
+          p_actor_id: user.id,
+        },
+      );
+      if (error) throw error;
+      await syncInventory(
+        db,
+        url,
+        service,
+        body.allocation_id,
+        result?.service_id,
+      );
+      if (body.notify !== false) dispatchNotifications(url, service);
       return new Response(JSON.stringify({ ...result, success: true }), {
         headers: cors,
       });
