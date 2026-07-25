@@ -46,7 +46,7 @@ begin
       payment_completed=true,
       invoice_completed=true,
       invoice_status='paid',
-      paid_at=coalesce(paid_at,now()),
+      paid_at=coalesce(paid_at,now()::text),
       transfer_status='confirmed',
       updated_at=now()
     where id=v_order.id;
@@ -63,7 +63,7 @@ begin
       payment_completed=true,
       invoice_completed=true,
       invoice_status='paid',
-      paid_at=coalesce(paid_at,now()),
+      paid_at=coalesce(paid_at,now()::text),
       transfer_status='confirmed',
       updated_at=now()
     where id=v_order.id
@@ -90,7 +90,7 @@ begin
       jsonb_build_object(
         'status','paid',
         'payment_completed',true,
-        'paid_at',coalesce(v_order.paid_at,now())
+        'paid_at',coalesce(v_order.paid_at,now()::text)
       ),
       jsonb_build_object(
         'payment_method',v_order.payment_method,
@@ -254,7 +254,7 @@ begin
       v_previous_strategy='store_account'
       and lower(coalesce(v_f.mode,''))='manual_delivery'
       and lower(coalesce(v_f.status,''))='awaiting_admin'
-      and v_f.customer_input is null
+      and coalesce(v_f.customer_input,'{}'::jsonb)='{}'::jsonb
       and v_f.encrypted_delivery is null
     );
 
@@ -263,7 +263,7 @@ begin
       set
         mode='manual_delivery',
         status='awaiting_admin',
-        customer_input=null,
+        customer_input='{}'::jsonb,
         encrypted_delivery=null,
         delivered_at=null,
         email_status='pending',
@@ -403,7 +403,7 @@ begin
   set
     mode='manual_delivery',
     status='delivered',
-    customer_input=null,
+    customer_input='{}'::jsonb,
     encrypted_delivery=p_encrypted_delivery,
     delivery_summary=coalesce(delivery_summary,'{}'::jsonb)
       ||coalesce(p_delivery_summary,'{}'::jsonb)

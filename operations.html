@@ -2911,12 +2911,13 @@
           if (strategy === "customer_account")
             dispatchPendingNotifications(["email"]).catch(function () {});
         } catch (error) {
+          toast("تعذر حفظ طريقة التسليم: " + error.message, true);
+        } finally {
           if (button) {
             button.disabled = false;
             delete button.dataset.busy;
             button.textContent = originalLabel;
           }
-          toast("تعذر حفظ طريقة التسليم: " + error.message, true);
         }
       }
       async function copyActivationLink(button) {

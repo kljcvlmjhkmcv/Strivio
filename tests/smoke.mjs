@@ -183,7 +183,8 @@ check(manualFulfillmentMigration.includes('ops_confirm_manual_payment'),'Manual 
 check(manualFulfillmentMigration.includes('ops_choose_manual_delivery'),'Manual delivery strategy RPC is missing');
 check(manualFulfillmentMigration.includes('ops_complete_manual_delivery'),'Manual credential delivery RPC is missing');
 check(manualFulfillmentMigration.includes('if not public.is_admin()'),'Manual fulfillment RPCs are not admin-guarded');
-check(manualFulfillmentMigration.includes("customer_input=null"),'Switching to a Strivio account does not purge customer credentials');
+check(manualFulfillmentMigration.includes("customer_input='{}'::jsonb"),'Switching to a Strivio account does not purge customer credentials safely');
+check(!manualFulfillmentMigration.includes("customer_input=null"),'Manual delivery violates the non-null customer_input constraint');
 check(manualFulfillmentMigration.includes("'changed',v_changed"),'Repeated manual routing cannot be detected as a no-op');
 const inventoryAdmin=fs.readFileSync(path.join(root,'supabase','functions','admin-inventory','index.ts'),'utf8');
 for(const action of ['confirm_manual_payment','choose_manual_delivery','deliver_manual_credentials']){
