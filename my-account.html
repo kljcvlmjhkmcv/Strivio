@@ -1157,6 +1157,7 @@
             let entries = f.delivery?.entries || [],
               end = f.delivery_summary?.ends_at || f.delivery?.ends_at,
               note =
+                f.delivery?.instructions ||
                 f.delivery?.problem_resolution_note ||
                 f.delivery_summary?.problem_resolution_note ||
                 "";
@@ -1182,19 +1183,30 @@
               : '<div class="secret mt-2">' +
                 esc(f.delivery_summary?.message || L(f.status)) +
                 "</div>";
-            if(f.mode==='manual_activation'){
+            var explicitManualStrategy=String(
+                f.delivery_summary?.delivery_strategy||
+                f.delivery_summary?.delivery_method||
+                f.delivery_summary?.strategy||
+                ""
+              ).toLowerCase(),
+              manualStrategy=explicitManualStrategy||(f.mode==='manual_activation'?'customer_account':'');
+            if(manualStrategy){
               var input=f.customer_input||{},normalizedStatus=String(f.status||'').toLowerCase(),activationDone=['delivered','completed'].includes(normalizedStatus),closed=activationDone||['cancelled','failed'].includes(normalizedStatus),messages=f.activation_messages||[];
               var state=activationDone?copy.delivered:(normalizedStatus==='awaiting_customer'?copy.awaitingCustomer:(input.account_email?copy.awaitingAdmin:copy.awaitingCustomer));
               if(closed){
-                body=activationDone
-                  ? '<div class="secret mt-2 border-[#39ff14]/35" style="background:#39ff140d"><b class="text-[#39ff14]">'+esc(state)+'</b><p class="muted text-sm mt-2">'+esc(copy.activationCompletedHelp)+'</p></div>'
+                body=activationDone&&entries.length
+                  ? '<div class="secret mt-2 border-[#39ff14]/35" style="background:#39ff140d"><b class="text-[#39ff14]">'+esc(state)+'</b><p class="muted text-sm mt-2">'+esc(copy.activationCompletedHelp)+'</p></div>'+body
+                  : activationDone
+                    ? '<div class="secret mt-2 border-[#39ff14]/35" style="background:#39ff140d"><b class="text-[#39ff14]">'+esc(state)+'</b><p class="muted text-sm mt-2">'+esc(copy.activationCompletedHelp)+'</p></div>'
                   : '<div class="secret mt-2 border-red-400/35"><b class="text-red-300">'+esc(L(normalizedStatus))+'</b></div>';
-              }else{
+              }else if(manualStrategy==='customer_account'){
                 var activationThread='<div class="secret mt-3"><div class="flex items-center justify-between gap-2"><b>'+copy.activationChat+'</b>'+badge(f.status)+'</div><div class="space-y-2 mt-3">'+
                   (messages.length?messages.map(function(message){var admin=message.sender_role==='admin',system=message.sender_role==='system';return '<div class="rounded-xl p-3 '+(system?'bg-white/5':admin?'bg-[#171717] border border-white/10':'bg-[#39ff14] text-black')+'"><b class="text-[10px] block mb-1">'+(admin?copy.team:system?copy.system:copy.customer)+'</b><div class="text-sm whitespace-pre-wrap">'+esc(system?activationSystemMessage(message.message):message.message)+'</div><div class="text-[10px] opacity-60 mt-1">'+date(message.created_at)+'</div></div>'}).join(''):'<p class="muted text-xs">'+copy.noActivationMessages+'</p>')+
                   '</div><form class="flex flex-col sm:flex-row gap-2 mt-3" onsubmit="sendActivationMessage(event,\''+esc(f.id)+'\',\''+esc(orderId)+'\')"><textarea class="input min-h-20 flex-1" name="message" required maxlength="2000" placeholder="'+copy.replyPlaceholder+'"></textarea><button class="btn self-stretch" type="submit">'+copy.sendMessage+'</button></form></div>';
                 body='<div class="secret mt-2 border-[#39ff14]/25"><b>'+esc(state)+'</b></div>'+
                   '<form class="space-y-2 mt-3" onsubmit="saveActivationInput(event,\''+esc(f.id)+'\',\''+esc(orderId)+'\')"><div><b>'+copy.activationTitle+'</b><p class="muted text-xs mt-1">'+copy.activationHelp+'</p></div><input class="input" type="email" name="account_email" autocomplete="username" required maxlength="254" placeholder="'+copy.activationEmail+'" value="'+esc(input.account_email||'')+'"><input class="input" type="password" name="account_password" autocomplete="current-password" required maxlength="500" placeholder="'+copy.activationPassword+'" value="'+esc(input.account_password||'')+'"><textarea class="input min-h-24" name="note" maxlength="2000" placeholder="'+copy.note+'">'+esc(input.note||'')+'</textarea><button class="btn" type="submit">'+copy.saveActivation+'</button></form>'+activationThread;
+              }else{
+                body='<div class="secret mt-2 border-[#39ff14]/25"><b>'+esc(copy.awaitingAdmin)+'</b><p class="muted text-sm mt-2">'+esc(copy.preparing)+'</p></div>';
               }
             }
             return (

@@ -893,12 +893,31 @@ serve(async (req) => {
           await renewLease();
           delivery.entries = await allocateLicenses(db, svc.id, fulfillment.id, qty, endsAt, workerId);
         } else {
-          const status = mode === "manual_activation" ? "awaiting_customer" : "awaiting_admin";
+          // Account-based manual products require an explicit per-order choice:
+          // activate the customer's own account or deliver a Strivio account.
+          // Keeping the initial state with Operations prevents the customer
+          // from seeing the wrong form before the operator chooses a route.
+          const needsManualStrategy =
+            mode === "manual_activation" || mode === "manual_delivery";
+          const status = "awaiting_admin";
           delivery.message = deliveryMessage(mode);
           hasPending = true;
           await renewLease();
           const { error: manualUpdateError } = await db.from("fulfillments")
-            .update({ status, delivery_summary: { mode, product_name: productName, message: delivery.message, ends_at: endsAt } })
+            .update({
+              status,
+              delivery_summary: {
+                mode,
+                product_name: productName,
+                message: needsManualStrategy
+                  ? "Payment confirmed. Choose the manual delivery method in Operations."
+                  : delivery.message,
+                ends_at: endsAt,
+                ...(needsManualStrategy
+                  ? { delivery_strategy: "undecided" }
+                  : {}),
+              },
+            })
             .eq("id", fulfillment.id);
           if (manualUpdateError) throw manualUpdateError;
           continue;

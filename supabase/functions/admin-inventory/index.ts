@@ -424,6 +424,374 @@ serve(async (req) => {
         { headers: cors },
       );
     }
+    if (action === "confirm_manual_payment") {
+      const orderId = String(body.order_id || "").trim();
+      if (!orderId) throw new Error("Order is required");
+      const userDb = createClient(url, service, {
+        global: { headers: { Authorization: auth } },
+      });
+      const { data: confirmation, error: confirmationError } = await userDb.rpc(
+        "ops_confirm_manual_payment",
+        {
+          p_order_id: orderId,
+          p_note: String(body.note || ""),
+        },
+      );
+      if (confirmationError) throw confirmationError;
+
+      // Payment confirmation and fulfillment are one admin operation. The
+      // fulfillment worker is idempotent and preserves automatic inventory
+      // allocation, so a repeated click cannot create another order or item.
+      let fulfillment: any = {};
+      let fulfillmentError: string | null = null;
+      let fulfillmentStatus = 0;
+      try {
+        const fulfillmentResponse = await fetch(
+          `${url}/functions/v1/fulfill-order`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${service}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ order_id: orderId }),
+          },
+        );
+        fulfillmentStatus = fulfillmentResponse.status;
+        const fulfillmentText = await fulfillmentResponse.text();
+        try {
+          fulfillment = fulfillmentText ? JSON.parse(fulfillmentText) : {};
+        } catch {
+          fulfillment = { raw: fulfillmentText };
+        }
+        if (
+          !fulfillmentResponse.ok &&
+          fulfillmentResponse.status !== 202
+        ) {
+          fulfillmentError = String(
+            fulfillment?.error ||
+              `Fulfillment returned HTTP ${fulfillmentResponse.status}`,
+          );
+        }
+      } catch (error: any) {
+        fulfillmentError = String(error?.message || error);
+      }
+
+      dispatchNotifications(url, service);
+      const sheetWake = fetch(`${url}/functions/v1/sync-google-sheet`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${service}` },
+      }).catch(() => null);
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (runtime?.waitUntil) runtime.waitUntil(sheetWake);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          confirmation,
+          fulfillment,
+          fulfillment_error: fulfillmentError,
+          retryable: fulfillmentStatus === 202 || Boolean(fulfillmentError),
+          already_paid: confirmation?.changed === false,
+        }),
+        { headers: cors },
+      );
+    }
+    if (action === "choose_manual_delivery") {
+      const fulfillmentId = String(body.fulfillment_id || "").trim();
+      const strategy = String(body.strategy || "").trim().toLowerCase();
+      if (!fulfillmentId) throw new Error("Fulfillment is required");
+      if (!["customer_account", "store_account"].includes(strategy))
+        throw new Error("Choose a valid manual delivery strategy");
+
+      const userDb = createClient(url, service, {
+        global: { headers: { Authorization: auth } },
+      });
+      const { data: route, error: routeError } = await userDb.rpc(
+        "ops_choose_manual_delivery",
+        {
+          p_fulfillment_id: fulfillmentId,
+          p_strategy: strategy,
+          p_admin_message: String(body.admin_message || ""),
+        },
+      );
+      if (routeError) throw routeError;
+
+      let notificationEventId: string | null = null;
+      let notificationWarning: string | null = null;
+      if (
+        strategy === "customer_account" &&
+        body.notify_customer !== false &&
+        !String(body.admin_message || "").trim()
+      ) {
+        const resend = body.resend_notification === true;
+        const { data: eventId, error: notificationError } = await db.rpc(
+          "enqueue_customer_notification",
+          {
+            p_event_type: "activation.action_required",
+            p_order_id: String(route.order_id),
+            p_template_key: "activation_action_required",
+            p_title_i18n: {
+              ar: "نحتاج معلومات حسابك لإكمال التفعيل",
+              fr: "Informations requises pour activer votre service",
+              en: "Account details required to activate your service",
+            },
+            p_body_i18n: {
+              ar: "افتح الطلب وأدخل إيميل الحساب وكلمة السر والملاحظة الاختيارية. ستبقى المحادثة مفتوحة حتى يكتمل التفعيل.",
+              fr: "Ouvrez la commande et saisissez l’e-mail du compte, le mot de passe et une note facultative. La conversation restera ouverte jusqu’à l’activation.",
+              en: "Open the order and enter the account email, password and an optional note. The conversation will remain open until activation is complete.",
+            },
+            p_fulfillment_id: fulfillmentId,
+            p_problem_id: null,
+            p_service_id: null,
+            p_action_url:
+              `/my-account?order=${encodeURIComponent(String(route.order_id))}`,
+            p_data: {
+              delivery_strategy: "customer_account",
+              requested_at: new Date().toISOString(),
+            },
+            p_send_email: true,
+            p_dedupe_key: resend
+              ? `activation-link:${fulfillmentId}:${crypto.randomUUID()}`
+              : `activation-link:${fulfillmentId}`,
+          },
+        );
+        if (notificationError) {
+          notificationWarning = String(
+            notificationError.message || notificationError,
+          );
+        } else {
+          notificationEventId = eventId;
+          dispatchNotifications(url, service);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          route,
+          notification_event_id: notificationEventId,
+          notification_warning: notificationWarning,
+          order_url:
+            `https://www.striviodz.store/my-account?order=${
+              encodeURIComponent(String(route.order_id))
+            }`,
+        }),
+        { headers: cors },
+      );
+    }
+    if (action === "deliver_manual_credentials") {
+      const fulfillmentId = String(body.fulfillment_id || "").trim();
+      const note = String(body.note || "").trim().slice(0, 2000);
+      const requestedEndDate = String(body.ends_at || "").trim();
+      if (!fulfillmentId) throw new Error("Fulfillment is required");
+      if (
+        requestedEndDate &&
+        !/^\d{4}-\d{2}-\d{2}$/.test(requestedEndDate)
+      ) throw new Error("Enter a valid expiry date");
+
+      const { data: fulfillmentRow, error: fulfillmentError } = await db
+        .from("fulfillments")
+        .select(
+          "id,order_id,service_id,mode,status,quantity,delivery_summary,customer_input",
+        )
+        .eq("id", fulfillmentId)
+        .maybeSingle();
+      if (fulfillmentError || !fulfillmentRow)
+        throw fulfillmentError || new Error("Fulfillment not found");
+      if (
+        !["manual_activation", "manual_delivery"].includes(
+          String(fulfillmentRow.mode || "").toLowerCase(),
+        )
+      ) throw new Error("Automatic fulfillment cannot be completed here");
+      if (
+        ["delivered", "completed", "cancelled", "failed"].includes(
+          String(fulfillmentRow.status || "").toLowerCase(),
+        )
+      ) throw new Error("This fulfillment is already closed");
+
+      const [orderResult, serviceResult] = await Promise.all([
+        db
+          .from("orders")
+          .select("id,status,items,customer_info")
+          .eq("id", fulfillmentRow.order_id)
+          .single(),
+        db
+          .from("services")
+          .select("id,n")
+          .eq("id", fulfillmentRow.service_id)
+          .single(),
+      ]);
+      if (orderResult.error) throw orderResult.error;
+      if (serviceResult.error) throw serviceResult.error;
+      if (
+        !["paid", "completed"].includes(
+          String(orderResult.data.status || "").toLowerCase(),
+        )
+      ) throw new Error("The order must be paid first");
+
+      const names = plainObject(serviceResult.data.n);
+      const serviceName = String(
+        names.ar || names.fr || names.en || fulfillmentRow.service_id,
+      );
+      const quantityValue = Number(fulfillmentRow.quantity || 1);
+      const expectedQuantity = Number.isInteger(quantityValue) &&
+          quantityValue >= 1 &&
+          quantityValue <= 20
+        ? quantityValue
+        : 1;
+      const submittedAccounts = Array.isArray(body.accounts)
+        ? body.accounts
+        : [{
+          account_email: body.account_email,
+          account_password: body.account_password,
+          profile: body.profile,
+          pin: body.pin,
+        }];
+      if (submittedAccounts.length !== expectedQuantity) {
+        throw new Error(
+          `This delivery requires ${expectedQuantity} account entr${
+            expectedQuantity === 1 ? "y" : "ies"
+          }`,
+        );
+      }
+      const summaryEnd = String(
+        fulfillmentRow.delivery_summary?.ends_at || "",
+      );
+      const endsAt = requestedEndDate
+        ? `${requestedEndDate}T12:00:00.000Z`
+        : summaryEnd || null;
+      const entries = submittedAccounts.map((rawEntry: any, index: number) => {
+        const accountEmail = String(rawEntry?.account_email || rawEntry?.email || "")
+          .trim();
+        const accountPassword = String(
+          rawEntry?.account_password || rawEntry?.password || "",
+        );
+        const profile = String(rawEntry?.profile || "")
+          .trim()
+          .slice(0, 160);
+        const pin = String(rawEntry?.pin || "").trim().slice(0, 80);
+        if (
+          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail) ||
+          accountEmail.length > 254
+        ) throw new Error(`Enter a valid account email for item ${index + 1}`);
+        if (accountPassword.length < 2 || accountPassword.length > 500) {
+          throw new Error(
+            `Enter a valid account password for item ${index + 1}`,
+          );
+        }
+        const entry: Record<string, unknown> = {
+          email: accountEmail,
+          password: accountPassword,
+          profile: profile ||
+            (expectedQuantity > 1
+              ? `${serviceName} #${index + 1}`
+              : serviceName),
+        };
+        if (pin) entry.pin = pin;
+        if (endsAt) entry.ends_at = endsAt;
+        return entry;
+      });
+
+      const encryptedDelivery = await encrypt({
+        service_id: fulfillmentRow.service_id,
+        mode: "manual_delivery",
+        product_name: serviceName,
+        ends_at: endsAt,
+        instructions: note,
+        entries,
+      });
+      const userDb = createClient(url, service, {
+        global: { headers: { Authorization: auth } },
+      });
+      const { data: completion, error: completionError } = await userDb.rpc(
+        "ops_complete_manual_delivery",
+        {
+          p_fulfillment_id: fulfillmentId,
+          p_encrypted_delivery: encryptedDelivery,
+          p_delivery_summary: {
+            mode: "manual_delivery",
+            product_name: serviceName,
+            count: entries.length,
+            requested: expectedQuantity,
+            ends_at: endsAt,
+            admin_note: note,
+          },
+        },
+      );
+      if (completionError) throw completionError;
+      if (completion?.already_delivered === true) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            completion,
+            already_delivered: true,
+            warning:
+              "This fulfillment was already delivered. The submitted replacement credentials were not saved.",
+          }),
+          { headers: cors },
+        );
+      }
+
+      // The fulfillment worker is the single delivery-notification authority.
+      // It atomically persists a retryable notification event, includes every
+      // delivered item in a bundle, and avoids duplicate credential emails.
+      let workerResult: any = {};
+      let notificationWarning: string | null = null;
+      try {
+        const workerResponse = await fetch(
+          `${url}/functions/v1/fulfill-order`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${service}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ order_id: String(completion.order_id) }),
+          },
+        );
+        const workerText = await workerResponse.text();
+        try {
+          workerResult = workerText ? JSON.parse(workerText) : {};
+        } catch {
+          workerResult = { raw: workerText };
+        }
+        if (!workerResponse.ok || workerResult?.success === false) {
+          notificationWarning = String(
+            workerResult?.error ||
+              `Fulfillment returned HTTP ${workerResponse.status}`,
+          );
+        }
+      } catch (workerError: any) {
+        notificationWarning = String(
+          workerError?.message || workerError ||
+            "Delivery notification is waiting for retry",
+        );
+      }
+
+      const syncPromise = fetch(`${url}/functions/v1/sync-google-sheet`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${service}` },
+      }).catch(() => null);
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (runtime?.waitUntil) {
+        runtime.waitUntil(syncPromise);
+      }
+      dispatchNotifications(url, service);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          completion,
+          fulfillment: workerResult,
+          notification_warning: notificationWarning,
+          retryable: Boolean(notificationWarning),
+          customer_credentials_purged:
+            Boolean(fulfillmentRow.customer_input?.account_password_cipher),
+        }),
+        { headers: cors },
+      );
+    }
     if (action === "complete_activation") {
       if (!body.fulfillment_id)
         throw new Error("Activation request is required");

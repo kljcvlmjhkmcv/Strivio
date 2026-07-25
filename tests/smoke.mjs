@@ -68,6 +68,20 @@ const operations=fs.readFileSync(path.join(root,'operations.html'),'utf8');
 check(operations.includes('openActivationModal'),'Operations activation conversation is missing');
 check(operations.includes('activationCredentialsHtml'),'Activation credentials are missing from service records');
 check(allText.includes('ops_send_activation_message'),'Admin activation chat RPC is missing');
+for(const action of ['confirm_manual_payment','choose_manual_delivery','deliver_manual_credentials']){
+  check(operations.includes(`action: "${action}"`),`Operations manual fulfillment UI is missing ${action}`);
+}
+check(operations.includes('data-manual-account'),'Operations cannot submit multiple manual account entries');
+check(operations.includes('result.fulfillment_error || result.retryable'),'Operations hides a recoverable fulfillment failure after manual payment confirmation');
+check(operations.includes('result.already_delivered'),'Operations can claim that replacement credentials were saved after a concurrent delivery');
+const activationLinkStart=operations.indexOf('function activationOrderLink()');
+const activationLinkEnd=operations.indexOf('async function chooseManualDelivery',activationLinkStart);
+check(activationLinkStart>=0&&activationLinkEnd>activationLinkStart,'Operations safe order-link builder is missing');
+if(activationLinkStart>=0&&activationLinkEnd>activationLinkStart){
+  const activationLinkSource=operations.slice(activationLinkStart,activationLinkEnd);
+  check(activationLinkSource.includes('"/my-account?order="'),'Manual activation link does not deep-link to the same order');
+  check(!/account_(?:email|password)|customer_info|credentials|password/i.test(activationLinkSource),'Manual activation URL can expose customer credentials');
+}
 
 const auth=fs.readFileSync(path.join(root,'auth.html'),'utf8');
 const nextStart=auth.indexOf('function nextUrl()');
@@ -164,19 +178,49 @@ check(bundleControlMigration.includes("quantity_mode in ('per_screen', 'per_unit
 check(bundleControlMigration.includes('v_fixed_rule_ids'),'A fixed promotion can be granted repeatedly across duplicate cart rows');
 check(bundleControlMigration.includes('touch_service_bundle_rule'),'Bundle rule updated_at is not maintained');
 check(bundleControlMigration.includes('revoke insert, update, delete'),'Browser roles can mutate bundle rules directly');
+const manualFulfillmentMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607250100_manual_payment_fulfillment.sql'),'utf8');
+check(manualFulfillmentMigration.includes('ops_confirm_manual_payment'),'Manual payment confirmation RPC is missing');
+check(manualFulfillmentMigration.includes('ops_choose_manual_delivery'),'Manual delivery strategy RPC is missing');
+check(manualFulfillmentMigration.includes('ops_complete_manual_delivery'),'Manual credential delivery RPC is missing');
+check(manualFulfillmentMigration.includes('if not public.is_admin()'),'Manual fulfillment RPCs are not admin-guarded');
+check(manualFulfillmentMigration.includes("customer_input=null"),'Switching to a Strivio account does not purge customer credentials');
+check(manualFulfillmentMigration.includes("'changed',v_changed"),'Repeated manual routing cannot be detected as a no-op');
 const inventoryAdmin=fs.readFileSync(path.join(root,'supabase','functions','admin-inventory','index.ts'),'utf8');
+for(const action of ['confirm_manual_payment','choose_manual_delivery','deliver_manual_credentials']){
+  check(inventoryAdmin.includes(`action === "${action}"`),`Admin inventory endpoint is missing ${action}`);
+}
+const manualConfirmStart=inventoryAdmin.indexOf('action === "confirm_manual_payment"');
+const manualConfirmEnd=inventoryAdmin.indexOf('action === "choose_manual_delivery"',manualConfirmStart);
+check(manualConfirmStart>=0&&manualConfirmEnd>manualConfirmStart,'Manual payment confirmation handler is incomplete');
+if(manualConfirmStart>=0&&manualConfirmEnd>manualConfirmStart){
+  const manualConfirmSource=inventoryAdmin.slice(manualConfirmStart,manualConfirmEnd);
+  check(manualConfirmSource.includes('/functions/v1/fulfill-order'),'Manual payment confirmation does not start fulfillment for the same order');
+  check(manualConfirmSource.includes('body: JSON.stringify({ order_id: orderId })'),'Manual payment confirmation does not pass the confirmed order to fulfillment');
+}
 check(inventoryAdmin.includes('validateBundleRule'),'Admin bundle mutations are not server-validated');
 check(inventoryAdmin.includes('auditBundleRule'),'Admin bundle changes are not audited');
 check(inventoryAdmin.includes('bundle_rules: bundleRulesResult.data'),'Operations cannot load disabled or archived bundle rules through the admin backend');
 check(inventoryAdmin.includes('This promotion has customer delivery history'),'Used bundle rules can be hard-deleted');
 check(inventoryAdmin.includes('Archive it and create a new offer'),'Used bundle rule semantics can be rewritten retroactively');
 check(inventoryAdmin.includes('action === "complete_activation"')&&inventoryAdmin.includes('/functions/v1/fulfill-order'),'Manual source completion does not retry dependent promotional gifts');
+check(inventoryAdmin.includes('submittedAccounts.length !== expectedQuantity'),'Manual account delivery can under-deliver a multi-unit order');
+check(inventoryAdmin.includes('entries,')&&inventoryAdmin.includes('requested: expectedQuantity'),'Manual delivery does not persist every required account entry');
+const manualDeliveryHandler=inventoryAdmin.slice(inventoryAdmin.indexOf('action === "deliver_manual_credentials"'),inventoryAdmin.indexOf('action === "complete_activation"'));
+check(!manualDeliveryHandler.includes('p_event_type: "fulfillment.delivered"'),'Manual delivery can enqueue a duplicate credential email outside fulfill-order');
 const fulfillOrder=fs.readFileSync(path.join(root,'supabase','functions','fulfill-order','index.ts'),'utf8');
+for(const mode of ['automatic_slot','automatic_account','automatic_license','automatic_shared_slot']){
+  check(fulfillOrder.includes(`"${mode}"`),`Automatic inventory path ${mode} was removed by manual fulfillment changes`);
+}
+check(fulfillOrder.includes('delivery.entries = await allocateSlots('),'Automatic account/profile allocation is no longer invoked');
+check(fulfillOrder.includes('delivery.entries = await allocateLicenses('),'Automatic license allocation is no longer invoked');
 check(fulfillOrder.includes('allocate_shared_promotion_slots_atomic'),'Shared promotion allocator is not used by fulfillment');
 check(fulfillOrder.includes('.eq("pool_kind", "standard")'),'Exclusive fulfillment can consume shared promotion stock');
 check(fulfillOrder.includes('outOfStock && !isPromotionGift'),'A free gift stock miss can block the paid product');
 const myAccountSource=fs.readFileSync(path.join(root,'my-account.html'),'utf8');
 check(myAccountSource.includes('giftsBySource')&&myAccountSource.includes('termsAfter[termsTarget.id] = source'),'Promotional gift details can render below Netflix usage terms');
+check(myAccountSource.includes('let entries = f.delivery?.entries || []'),'My Account no longer reads delivered Strivio account entries');
+check(myAccountSource.includes('body=activationDone&&entries.length'),'Completed manual delivery can hide Strivio account credentials');
+check(myAccountSource.includes('f.delivery?.instructions ||'),'Manual delivery instructions are hidden from the customer');
 check(fulfillOrder.includes('isPromotionGift && !promotionSourceReady'),'A promotional gift can be delivered before its paid source item');
 check(fulfillOrder.includes('renewalGiftContext'),'Renewal promotions are not fulfilled after extending the original subscription');
 const deliveryApi=fs.readFileSync(path.join(root,'supabase','functions','customer-delivery','index.ts'),'utf8');

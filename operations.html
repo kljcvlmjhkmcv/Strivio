@@ -374,9 +374,9 @@
         <div class="panel rounded-[20px] p-5">
           <div class="flex flex-col md:flex-row justify-between gap-3 mb-4">
             <div>
-              <h2 class="font-black text-lg">طلبات التفعيل اليدوي</h2>
+              <h2 class="font-black text-lg">طلبات التجهيز اليدوي</h2>
               <p class="muted text-xs mt-1">
-                Spotify وأي منتج يحتاج بيانات من العميل.
+                تفعيل حساب العميل أو تسليمه حسابًا جاهزًا من Strivio.
               </p>
             </div>
             <select
@@ -387,7 +387,8 @@
               <option value="">كل الحالات</option>
               <option value="awaiting_admin">بانتظار الأدمن</option>
               <option value="awaiting_customer">بانتظار العميل</option>
-              <option value="delivered">مكتمل</option>
+              <option value="processing">قيد التجهيز</option>
+              <option value="pending">جديد</option>
               <option value="problem">مشكلة</option>
             </select>
           </div>
@@ -418,7 +419,7 @@
             <div>
               <h2 class="font-black text-lg">سجل الطلبات</h2>
               <p class="muted text-xs mt-1">
-                للعرض والبحث؛ حالة الدفع لا تُعدّل يدويًا من الواجهة.
+                ابحث عن الطلب، ثم اعتمد الدفع اليدوي بعد التحقق من التحويل عبر WhatsApp.
               </p>
             </div>
             <input
@@ -561,14 +562,48 @@
     >
       <div class="panel rounded-[24px] w-full max-w-3xl max-h-[92vh] overflow-auto p-6">
         <div class="flex justify-between gap-4 items-start">
-          <div>
-            <div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">MANUAL ACTIVATION</div>
-            <h2 id="activation-modal-title" class="display text-xl font-black mt-1">طلب التفعيل</h2>
-            <div id="activation-modal-status" class="mt-2"></div>
+            <div>
+              <div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">MANUAL FULFILLMENT</div>
+              <h2 id="activation-modal-title" class="display text-xl font-black mt-1">تجهيز الطلب</h2>
+              <div id="activation-modal-status" class="mt-2"></div>
+            </div>
+            <button type="button" class="btn" onclick="closeActivationModal()">إغلاق</button>
           </div>
-          <button type="button" class="btn" onclick="closeActivationModal()">إغلاق</button>
-        </div>
         <div id="activation-customer" class="grid md:grid-cols-2 gap-3 mt-5"></div>
+        <div id="manual-delivery-options" class="mt-5 rounded-2xl border border-[#292929] bg-black/25 p-4">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div>
+              <b>طريقة تنفيذ الطلب</b>
+              <p class="muted text-xs mt-1">اختر تفعيل حساب العميل أو تسليمه حسابًا جاهزًا من المتجر.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button id="choose-customer-account" type="button" class="btn" onclick="chooseManualDelivery('customer_account',this)">تفعيل حساب العميل</button>
+              <button id="choose-store-account" type="button" class="btn" onclick="chooseManualDelivery('store_account',this)">تسليم حساب من Strivio</button>
+            </div>
+          </div>
+          <div id="customer-account-actions" class="hidden mt-4 border-t border-white/10 pt-4">
+            <p class="muted text-xs">أرسل للعميل رابط طلبه الآمن ليُدخل بيانات الحساب. الرابط لا يحتوي أي معلومات حساسة.</p>
+            <div class="flex flex-wrap gap-2 mt-3">
+              <button type="button" class="btn" onclick="copyActivationLink(this)">نسخ رابط الطلب</button>
+              <button type="button" class="btn" onclick="sendActivationLinkEmail(this)">إرسال الرابط بالبريد</button>
+              <button type="button" class="btn" onclick="openActivationWhatsApp()">فتح WhatsApp برسالة جاهزة</button>
+            </div>
+          </div>
+          <form id="store-account-form" class="hidden mt-4 border-t border-white/10 pt-4" onsubmit="deliverManualCredentials(event)">
+            <div class="grid md:grid-cols-2 gap-3">
+              <div id="store-account-entries" class="md:col-span-2 grid gap-3"></div>
+              <label class="text-xs muted">تاريخ انتهاء الاشتراك
+                <input id="store-account-end-date" name="ends_at" type="date" class="input mt-1" />
+              </label>
+              <label class="text-xs muted md:col-span-2">ملاحظة تظهر للعميل
+                <textarea id="store-account-note" name="note" class="input min-h-20 mt-1" maxlength="2000" placeholder="اختياري"></textarea>
+              </label>
+            </div>
+            <div class="flex justify-end mt-3">
+              <button id="store-account-deliver" class="btn neon" type="submit">حفظ وتسليم الحساب</button>
+            </div>
+          </form>
+        </div>
         <div id="activation-thread" class="mt-5 space-y-3 rounded-2xl border border-[#292929] bg-black/30 p-4 max-h-[36vh] overflow-auto"></div>
         <div id="activation-reply-box" class="mt-4">
           <label class="muted text-xs block mb-2">رسالة للعميل (مثلاً: كلمة السر غير صحيحة)</label>
@@ -1144,6 +1179,40 @@
             manual_delivery: "تسليم يدوي",
           }[mode] || "تسليم يدوي"
         );
+      }
+      function explicitDeliveryStrategy(fulfillment) {
+        var summary = (fulfillment && fulfillment.delivery_summary) || {};
+        return String(
+          summary.delivery_strategy ||
+            summary.delivery_method ||
+            summary.strategy ||
+            "",
+        ).toLowerCase();
+      }
+      function deliveryStrategy(fulfillment) {
+        var explicit = explicitDeliveryStrategy(fulfillment);
+        if (explicit) return explicit;
+        // Existing manual-activation rows predate the strategy selector and
+        // already expect the customer to submit their own account.
+        return fulfillment && fulfillment.mode === "manual_activation"
+          ? "customer_account"
+          : "";
+      }
+      function isManualFulfillment(fulfillment) {
+        return ["manual_activation", "manual_delivery"].includes(
+          String((fulfillment && fulfillment.mode) || "").toLowerCase(),
+        );
+      }
+      function isTerminalFulfillment(fulfillment) {
+        return ["delivered", "completed", "cancelled", "failed"].includes(
+          String((fulfillment && fulfillment.status) || "").toLowerCase(),
+        );
+      }
+      function manualStrategyLabel(fulfillment) {
+        var strategy = deliveryStrategy(fulfillment);
+        if (strategy === "customer_account") return "تفعيل حساب العميل";
+        if (strategy === "store_account") return "حساب جاهز من Strivio";
+        return "لم تُحدد طريقة التسليم";
       }
       var PROMOTION_DURATIONS = [
         "شهر واحد",
@@ -1877,8 +1946,18 @@
       function activationCredentialsHtml(f) {
         var input = f.customer_input || {},
           secretId = "activation-secret-" + String(f.id || "").replace(/[^a-zA-Z0-9_-]/g, "");
-        if (!input.account_email && !input.account_password)
-          return '<span class="muted">بانتظار بيانات العميل</span>';
+        if (!input.account_email && !input.account_password) {
+          var strategy = deliveryStrategy(f);
+          return (
+            '<span class="muted">' +
+            (strategy === "store_account"
+              ? "بانتظار إدخال حساب Strivio"
+              : strategy === "customer_account"
+                ? "بانتظار بيانات العميل"
+                : "بانتظار اختيار طريقة التسليم") +
+            "</span>"
+          );
+        }
         return (
           '<div class="grid gap-2 text-xs min-w-[250px]" dir="ltr"><div><span class="muted">Email:</span> <b class="select-all">' +
           esc(input.account_email || "—") +
@@ -1923,9 +2002,18 @@
           rows
             .map(function (f) {
               var o = orderFor(f.order_id),
-                detail = mode === "manual_activation"
+                rowMode = String(f.mode || mode || ""),
+                manualRow = isManualFulfillment(f),
+                terminal = isTerminalFulfillment(f),
+                detail = rowMode === "manual_activation"
                   ? activationCredentialsHtml(f)
                   : esc((f.delivery_summary && f.delivery_summary.message) || modeLabel(mode));
+              if (manualRow) {
+                detail +=
+                  '<div class="muted text-[10px] mt-2">طريقة التنفيذ: ' +
+                  esc(manualStrategyLabel(f)) +
+                  "</div>";
+              }
               return (
                 "<tr><td><b>#" +
                 esc(String(f.order_id || "").slice(0, 8)) +
@@ -1942,15 +2030,19 @@
                 '</td><td class="muted whitespace-nowrap">' +
                 date(f.updated_at || f.created_at) +
                 "</td><td>" +
-                (["delivered", "completed"].includes(
-                  String(f.status).toLowerCase(),
-                )
-                  ? (mode === "manual_activation"
-                      ? '<button class="btn" onclick="openActivationModal(\'' + esc(f.id) + '\')">فتح السجل</button>'
-                      : '<span class="muted">مكتمل</span>')
-                  : (mode === "manual_activation"
-                      ? '<button class="btn neon" onclick="openActivationModal(\'' + esc(f.id) + '\')">فتح ومراسلة</button>'
-                      : '<button class="btn neon" onclick="updateFulfillment(\'' + esc(f.id) + "','delivered')\">تأكيد الإنجاز</button>")) +
+                (manualRow
+                  ? '<button class="btn ' +
+                    (terminal ? "" : "neon") +
+                    '" onclick="openActivationModal(\'' +
+                    esc(f.id) +
+                    "')\">" +
+                    (terminal ? "فتح السجل" : "فتح وتجهيز") +
+                    "</button>"
+                  : terminal
+                    ? '<span class="muted">مكتمل</span>'
+                    : '<button class="btn neon" onclick="updateFulfillment(\'' +
+                      esc(f.id) +
+                      "','delivered')\">تأكيد الإنجاز</button>") +
                 "</td></tr>"
               );
             })
@@ -2134,11 +2226,65 @@
           })
           .join("");
       }
+      function isManualPaymentOrder(order) {
+        return ["baridimob", "ccp", "wise", "usdt", "flexy"].includes(
+          String((order && order.payment_method) || "").toLowerCase(),
+        );
+      }
+      function manualPaymentAction(order) {
+        var status = String((order && order.status) || "").toLowerCase(),
+          orderFulfillments = state.fulfillments.filter(function (fulfillment) {
+            return fulfillment.order_id === order.id;
+          }),
+          expectedItems = Array.isArray(order && order.items)
+            ? order.items.length
+            : 0,
+          presentIndexes = new Set(
+            orderFulfillments.map(function (fulfillment) {
+              return Number(fulfillment.order_item_index);
+            }),
+          ),
+          missingItem =
+            expectedItems > 0 &&
+            (orderFulfillments.length !== expectedItems ||
+              Array.from({ length: expectedItems }, function (_, index) {
+                return index;
+              }).some(function (index) {
+                return !presentIndexes.has(index);
+              })),
+          recoverable = orderFulfillments.some(function (fulfillment) {
+            return ["pending", "processing", "failed", "out_of_stock"].includes(
+              String(fulfillment.status || "").toLowerCase(),
+            );
+          });
+        if (
+          isManualPaymentOrder(order) &&
+          ["pending", "pending_payment"].includes(status)
+        ) {
+          return (
+            '<button class="btn neon whitespace-nowrap" onclick="confirmManualPayment(\'' +
+            esc(order.id) +
+            "',this)\">اعتماد الدفع اليدوي</button>"
+          );
+        }
+        if (
+          isManualPaymentOrder(order) &&
+          ["paid", "completed"].includes(status) &&
+          (missingItem || recoverable)
+        ) {
+          return (
+            '<button class="btn whitespace-nowrap" onclick="confirmManualPayment(\'' +
+            esc(order.id) +
+            "',this)\">إعادة محاولة التجهيز</button>"
+          );
+        }
+        return '<span class="muted">—</span>';
+      }
       function ordersTable(rows) {
         if (!rows.length)
           return '<div class="loading">لا توجد بيانات بعد.</div>';
         return (
-          '<table class="table"><thead><tr><th>الطلب</th><th>العميل</th><th>المبلغ</th><th>الدفع</th><th>التسليم</th><th>التاريخ</th></tr></thead><tbody>' +
+          '<table class="table"><thead><tr><th>الطلب</th><th>العميل</th><th>المبلغ</th><th>الدفع</th><th>التسليم</th><th>التاريخ</th><th>إجراء</th></tr></thead><tbody>' +
           rows
             .map(function (o) {
               var c = o.customer_info || {};
@@ -2163,6 +2309,8 @@
                 statusBadge(o.fulfillment_status) +
                 '</td><td class="muted whitespace-nowrap">' +
                 date(o.created_at) +
+                "</td><td>" +
+                manualPaymentAction(o) +
                 "</td></tr>"
               );
             })
@@ -2193,6 +2341,33 @@
             return !q || hay.includes(q);
           });
         $("orders-list").innerHTML = ordersTable(rows);
+      }
+      async function confirmManualPayment(id, button) {
+        if (!id || !button || button.disabled) return;
+        var originalLabel = button.textContent;
+        button.disabled = true;
+        button.dataset.busy = "1";
+        button.textContent = "جاري اعتماد الدفع";
+        try {
+          var result = await inventoryCall({
+            action: "confirm_manual_payment",
+            order_id: id,
+          });
+          toast(
+            result.fulfillment_error || result.retryable
+              ? "تم حفظ اعتماد الدفع، لكن تجهيز الطلب يحتاج إعادة محاولة من الزر نفسه."
+              : result.already_paid
+                ? "الدفع معتمد مسبقًا، وتم تجهيز سجل الطلب."
+                : "تم اعتماد الدفع وبدء تجهيز خدمات الطلب.",
+            Boolean(result.fulfillment_error || result.retryable),
+          );
+          await loadAll();
+        } catch (error) {
+          button.disabled = false;
+          delete button.dataset.busy;
+          button.textContent = originalLabel;
+          toast("تعذر اعتماد الدفع اليدوي: " + error.message, true);
+        }
       }
       function renderRenewals() {
         var rows = state.renewals || [];
@@ -2570,7 +2745,7 @@
         var filter = $("activation-filter").value,
           rows = state.fulfillments
             .filter(function (f) {
-              return f.mode === "manual_activation";
+              return isManualFulfillment(f) && !isTerminalFulfillment(f);
             })
             .filter(function (f) {
               return !filter || f.status === filter;
@@ -2590,7 +2765,9 @@
                   esc(String(f.order_id || "").slice(0, 8)) +
                   '<div class="muted text-[11px] mt-1">' + esc(customerFor(o)) + "</div></td><td><b>" +
                   esc(serviceName(f.service_id)) +
-                  "</b></td><td>" + activationCredentialsHtml(f) +
+                  '</b><div class="muted text-[10px] mt-1">' +
+                  esc(manualStrategyLabel(f)) +
+                  "</div></td><td>" + activationCredentialsHtml(f) +
                   '</td><td class="muted max-w-[260px]">' + esc(latest) +
                   "</td><td>" +
                   statusBadge(f.status) +
@@ -2602,17 +2779,48 @@
               .join("") +
             "</tbody></table>";
       }
+      function renderStoreAccountEntries(fulfillment) {
+        var rawQuantity = Number(
+            (fulfillment && fulfillment.quantity) || 1,
+          ),
+          quantity =
+            Number.isInteger(rawQuantity) && rawQuantity >= 1 && rawQuantity <= 20
+              ? rawQuantity
+              : 1,
+          container = $("store-account-entries");
+        if (!container) return;
+        container.innerHTML = Array.from({ length: quantity }, function (_, index) {
+          var number = index + 1;
+          return (
+            '<fieldset data-manual-account class="rounded-2xl border border-white/10 bg-black/20 p-4">' +
+            '<legend class="px-2 text-xs font-black text-[#39ff14]">الحساب ' +
+            number +
+            " من " +
+            quantity +
+            '</legend><div class="grid md:grid-cols-2 gap-3">' +
+            '<label class="text-xs muted">بريد الحساب<input data-manual-field="account_email" type="email" class="input mt-1" maxlength="254" autocomplete="off" required /></label>' +
+            '<label class="text-xs muted">كلمة السر<input data-manual-field="account_password" type="password" class="input mt-1" maxlength="500" autocomplete="new-password" required /></label>' +
+            '<label class="text-xs muted">اسم البروفايل / الحساب<input data-manual-field="profile" class="input mt-1" maxlength="160" placeholder="اختياري" /></label>' +
+            '<label class="text-xs muted">PIN<input data-manual-field="pin" class="input mt-1" maxlength="64" placeholder="اختياري" /></label>' +
+            "</div></fieldset>"
+          );
+        }).join("");
+      }
       function openActivationModal(id) {
         editingActivation = state.fulfillments.find(function (item) { return item.id === id; });
         if (!editingActivation) return;
         var f = editingActivation,
           o = orderFor(f.order_id),
           info = (o && o.customer_info) || {},
-          input = f.customer_input || {},
           closed = ["delivered", "completed", "cancelled", "failed"].includes(String(f.status || "").toLowerCase()),
-          messages = state.activationMessages.filter(function (message) { return message.fulfillment_id === id; });
+          messages = state.activationMessages.filter(function (message) { return message.fulfillment_id === id; }),
+          strategy = deliveryStrategy(f);
         $("activation-modal-title").textContent = serviceName(f.service_id) + " — #" + String(f.order_id || "").slice(0, 8);
-        $("activation-modal-status").innerHTML = statusBadge(f.status);
+        $("activation-modal-status").innerHTML =
+          statusBadge(f.status) +
+          ' <span class="badge b-gray">' +
+          esc(manualStrategyLabel(f)) +
+          "</span>";
         $("activation-customer").innerHTML =
           '<div class="secret"><b>العميل</b><div class="mt-2">' + esc(customerFor(o)) + '</div><div class="muted text-xs mt-1" dir="ltr">' + esc(info.email || "—") + " · " + esc(info.phone || "—") + "</div></div>" +
           '<div class="secret"><b>حساب الخدمة</b><div class="mt-2">' + activationCredentialsHtml(f) + "</div></div>";
@@ -2626,14 +2834,222 @@
                 '</div><div class="text-[10px] opacity-60 mt-2">' + esc(date(message.created_at)) + "</div></div>";
             }).join("")
           : '<div class="loading">لا توجد رسائل بعد. يمكنك بدء المحادثة عند الحاجة.</div>';
+        $("manual-delivery-options").classList.toggle("hidden", closed);
+        $("choose-customer-account").className =
+          "btn" + (strategy === "customer_account" ? " neon" : "");
+        $("choose-store-account").className =
+          "btn" + (strategy === "store_account" ? " neon" : "");
+        $("customer-account-actions").classList.toggle(
+          "hidden",
+          closed || strategy !== "customer_account",
+        );
+        $("store-account-form").classList.toggle(
+          "hidden",
+          closed || strategy !== "store_account",
+        );
+        $("activation-thread").classList.toggle(
+          "hidden",
+          strategy !== "customer_account",
+        );
+        renderStoreAccountEntries(f);
+        $("store-account-note").value = "";
+        $("store-account-end-date").value = String(
+          (f.delivery_summary && f.delivery_summary.ends_at) || "",
+        ).slice(0, 10);
         $("activation-reply").value = "";
-        $("activation-reply-box").classList.toggle("hidden", closed);
+        $("activation-reply-box").classList.toggle(
+          "hidden",
+          closed || strategy !== "customer_account",
+        );
         $("activation-modal").classList.remove("hidden");
-        setTimeout(function () { $("activation-thread").scrollTop = $("activation-thread").scrollHeight; }, 0);
+        if (strategy === "customer_account")
+          setTimeout(function () {
+            $("activation-thread").scrollTop =
+              $("activation-thread").scrollHeight;
+          }, 0);
       }
       function closeActivationModal() {
         editingActivation = null;
         $("activation-modal").classList.add("hidden");
+      }
+      function activationOrderLink() {
+        if (!editingActivation) return "";
+        return (
+          location.origin +
+          "/my-account?order=" +
+          encodeURIComponent(editingActivation.order_id)
+        );
+      }
+      async function chooseManualDelivery(strategy, button) {
+        if (
+          !editingActivation ||
+          !["customer_account", "store_account"].includes(strategy) ||
+          (button && button.disabled)
+        )
+          return;
+        var fulfillmentId = editingActivation.id,
+          originalLabel = button ? button.textContent : "";
+        if (button) {
+          button.disabled = true;
+          button.dataset.busy = "1";
+          button.textContent = "جاري الحفظ";
+        }
+        try {
+          await inventoryCall({
+            action: "choose_manual_delivery",
+            fulfillment_id: fulfillmentId,
+            strategy: strategy,
+            notify_customer: strategy === "customer_account",
+          });
+          toast(
+            strategy === "customer_account"
+              ? "تم اختيار تفعيل حساب العميل وإرسال رابط الطلب."
+              : "تم اختيار تسليم حساب جاهز. أدخل معلومات الحساب لإكمال التسليم.",
+          );
+          await loadAll();
+          openActivationModal(fulfillmentId);
+          if (strategy === "customer_account")
+            dispatchPendingNotifications(["email"]).catch(function () {});
+        } catch (error) {
+          if (button) {
+            button.disabled = false;
+            delete button.dataset.busy;
+            button.textContent = originalLabel;
+          }
+          toast("تعذر حفظ طريقة التسليم: " + error.message, true);
+        }
+      }
+      async function copyActivationLink(button) {
+        var link = activationOrderLink();
+        if (!link) return;
+        var originalLabel = button ? button.textContent : "";
+        try {
+          await navigator.clipboard.writeText(link);
+          if (button) button.textContent = "تم النسخ";
+          toast("تم نسخ رابط الطلب الآمن.");
+          setTimeout(function () {
+            if (button) button.textContent = originalLabel;
+          }, 1400);
+        } catch (error) {
+          var field = document.createElement("textarea");
+          field.value = link;
+          field.style.position = "fixed";
+          field.style.opacity = "0";
+          document.body.appendChild(field);
+          field.select();
+          var copied = document.execCommand("copy");
+          field.remove();
+          if (!copied)
+            return toast("تعذر نسخ الرابط. حاول مرة أخرى.", true);
+          toast("تم نسخ رابط الطلب الآمن.");
+        }
+      }
+      async function sendActivationLinkEmail(button) {
+        if (!editingActivation || (button && button.disabled)) return;
+        var originalLabel = button ? button.textContent : "",
+          fulfillmentId = editingActivation.id;
+        if (button) {
+          button.disabled = true;
+          button.dataset.busy = "1";
+          button.textContent = "جاري الإرسال";
+        }
+        try {
+          await inventoryCall({
+            action: "choose_manual_delivery",
+            fulfillment_id: fulfillmentId,
+            strategy: "customer_account",
+            notify_customer: true,
+            resend_notification: true,
+          });
+          toast("تم وضع رسالة رابط الطلب في طابور البريد.");
+          dispatchPendingNotifications(["email"]).catch(function () {});
+        } catch (error) {
+          toast("تعذر إرسال رابط الطلب: " + error.message, true);
+        } finally {
+          if (button) {
+            button.disabled = false;
+            delete button.dataset.busy;
+            button.textContent = originalLabel;
+          }
+        }
+      }
+      function openActivationWhatsApp() {
+        if (!editingActivation) return;
+        var order = orderFor(editingActivation.order_id),
+          info = (order && order.customer_info) || {},
+          phone = String(info.phone || "").replace(/[^0-9]/g, "");
+        if (phone.indexOf("00") === 0) phone = phone.slice(2);
+        if (/^0[5-7]\d{8}$/.test(phone)) phone = "213" + phone.slice(1);
+        else if (/^[5-7]\d{8}$/.test(phone)) phone = "213" + phone;
+        if (!phone)
+          return toast("لا يوجد رقم هاتف صالح في معلومات هذا الطلب.", true);
+        var message =
+          "مرحبًا، تم تأكيد طلبك لدى Strivio. أدخل معلومات الحساب المطلوب تفعيله من الرابط الآمن التالي:\n" +
+          activationOrderLink();
+        window.open(
+          "https://wa.me/" +
+            encodeURIComponent(phone) +
+            "?text=" +
+            encodeURIComponent(message),
+          "_blank",
+          "noopener",
+        );
+      }
+      async function deliverManualCredentials(event) {
+        event.preventDefault();
+        if (!editingActivation) return;
+        var form = event.currentTarget,
+          button = $("store-account-deliver"),
+          originalLabel = button.textContent,
+          fulfillmentId = editingActivation.id;
+        button.disabled = true;
+        button.dataset.busy = "1";
+        button.textContent = "جاري حفظ وتسليم الحساب";
+        try {
+          var accounts = Array.from(
+              form.querySelectorAll("[data-manual-account]"),
+            ).map(function (group) {
+              function field(name) {
+                return group.querySelector(
+                  '[data-manual-field="' + name + '"]',
+                );
+              }
+              return {
+                account_email: field("account_email").value.trim(),
+                account_password: field("account_password").value,
+                profile: field("profile").value.trim(),
+                pin: field("pin").value.trim(),
+              };
+            }),
+            result = await inventoryCall({
+            action: "deliver_manual_credentials",
+            fulfillment_id: fulfillmentId,
+            accounts: accounts,
+            ends_at: form.ends_at.value || null,
+            note: form.note.value.trim(),
+          });
+          closeActivationModal();
+          toast(
+            result.already_delivered
+              ? "كان هذا الطلب مسلّمًا مسبقًا؛ لم تُحفظ بيانات الحساب الجديدة."
+              : result.notification_warning || result.retryable
+                ? "تم حفظ وتسليم الحساب، وإشعار العميل بانتظار إعادة المحاولة التلقائية."
+                : "تم تسليم الحساب وحفظه داخل الطلب، وتم وضع رسالة العميل في طابور البريد.",
+            Boolean(
+              result.already_delivered ||
+                result.notification_warning ||
+                result.retryable,
+            ),
+          );
+          await loadAll();
+          if (!result.already_delivered)
+            dispatchPendingNotifications(["email"]).catch(function () {});
+        } catch (error) {
+          button.disabled = false;
+          delete button.dataset.busy;
+          button.textContent = originalLabel;
+          toast("تعذر تسليم الحساب: " + error.message, true);
+        }
       }
       async function sendActivationReply() {
         if (!editingActivation) return;
