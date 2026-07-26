@@ -1111,7 +1111,7 @@ serve(async (req) => {
           .eq("rule_id", ruleId);
         if (usageError) throw usageError;
         if (Number(usageCount || 0) > 0) {
-          const immutableFields = [
+          const immutableFields: Array<keyof typeof payload> = [
             "source_service_id",
             "source_duration_idx",
             "source_type_idx",

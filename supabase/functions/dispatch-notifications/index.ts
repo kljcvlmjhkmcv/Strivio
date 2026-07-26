@@ -148,7 +148,9 @@ async function buildContext(db: any, delivery: any, event: any) {
     : { data: [], error: null };
   if (serviceResult.error) throw serviceResult.error;
   const services = serviceResult.data;
-  const serviceMap = new Map((services || []).map((service: any) => [service.id, service]));
+  const serviceMap = new Map<string, any>(
+    (services || []).map((service: any) => [String(service.id), service]),
+  );
 
   const locale = delivery.locale === "fr" || delivery.locale === "en" ? delivery.locale : "ar";
   const entries: DeliveryEntry[] = [];
@@ -247,7 +249,8 @@ async function buildContext(db: any, delivery: any, event: any) {
   const renewalActionRaw = String(
     data.action_kind || data.renewal_action_kind || data.renewal_action || data.renewal_kind || "",
   ).toLowerCase();
-  const renewalAction = /extend|extension|prolong|تمديد/.test(renewalActionRaw)
+  const renewalAction: "extension" | "renewal" | undefined =
+    /extend|extension|prolong|تمديد/.test(renewalActionRaw)
     ? "extension"
     : /renew|renewal|renouv|تجديد/.test(renewalActionRaw)
     ? "renewal"
