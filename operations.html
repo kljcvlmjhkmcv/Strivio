@@ -1226,7 +1226,15 @@
           } else if (mode === "automatic_account") {
             var accounts = state.accounts.filter(function (x) { return x.service_id === service.id; });
             total = accounts.length;
-            available = accounts.filter(function (x) { return String(x.status || "active").toLowerCase() === "active"; }).length;
+            available = accounts.filter(function (account) {
+              if (String(account.status || "active").toLowerCase() !== "active") return false;
+              var accountSlots = state.slots.filter(function (slot) {
+                return slot.account_id === account.id;
+              });
+              return accountSlots.some(function (slot) {
+                return String(slot.status || "").toLowerCase() === "available";
+              });
+            }).length;
             unit = "حساب";
           } else {
             var slots = state.slots.filter(function (x) {
