@@ -904,8 +904,12 @@ function buildMessage(rpcData){
 ════════════════════════════════════════════════════════ */
 async function confirmOrder(){
   if(checkoutInFlight || !selPay || cart.length === 0) return;
+  checkoutInFlight = true;
   var customerInfo = await getCustomerInfo();
-  if (!customerInfo) return;
+  if (!customerInfo) {
+    checkoutInFlight = false;
+    return;
+  }
   var tx = t();
   var btn = $('CFRMBTN');
   var loadTxt = L === 'ar' ? '⏳ جاري إنشاء فاتورة الدفع الآمنة...' : (L === 'fr' ? '⏳ Création de la facture sécurisée...' : '⏳ Creating secure invoice...');
@@ -969,9 +973,13 @@ async function confirmOrderSocial(platform){
     showAppNotice(t().selectPayFirst, { tone: 'error' });
     return;
   }
+  checkoutInFlight = true;
   var tx = t();
   var customerInfo = await getCustomerInfo();
-  if (!customerInfo) return;
+  if (!customerInfo) {
+    checkoutInFlight = false;
+    return;
+  }
   var btnId = platform === 'ig' ? 'IG_BTN' : 'FB_BTN';
   var btn = $(btnId);
   var origTxt = btn ? btn.innerHTML : '';
