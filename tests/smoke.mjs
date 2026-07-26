@@ -262,6 +262,7 @@ check(deliveryApi.includes("subscription_state:subscriptionState")&&deliveryApi.
 check(deliveryApi.includes("expired_entries:expiredAllocations.map"),'Customer delivery does not expose expired profile labels without credentials');
 check(myAccountSource.includes('maintenanceTitle')&&myAccountSource.includes('accountUnderMaintenance'),'My Account does not warn customers when their inventory account is under maintenance');
 check(myAccountSource.includes('expiredProfile')&&myAccountSource.includes('badge(inactive ? "expired" : f.status)')&&myAccountSource.includes('entries = entries.filter'), 'My Account does not render expired subscriptions safely');
+check(myAccountSource.includes('allDatedSubscriptionsExpired')&&myAccountSource.includes('hasActiveSubscription'),'Expired order cards can show a non-functional renewal button');
 const bundleRenewalMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607260100_bundle_renewal_dates.sql'),'utf8');
 check(bundleRenewalMigration.includes('extend_bundle_gifts_for_renewal'),'Bundle gifts are not extended from the server during renewal');
 check(bundleRenewalMigration.includes("'gift_updates'"),'Renewal result does not expose gift date updates');

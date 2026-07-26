@@ -1537,14 +1537,31 @@
         const copy = portalText();
         const report = activeProblem(o.id);
         const renewalState = renewalStateForSource(o.id);
+        const orderFulfillments = fulfillments.filter(function (f) {
+          return f.order_id === o.id;
+        });
+        const expiryValues = orderFulfillments
+          .filter(function (f) { return f.delivery_summary?.ends_at; })
+          .map(function (f) { return f.delivery_summary.ends_at; });
+        const expiry = expiryValues
+          .slice()
+          .sort(function (a, b) { return new Date(a).getTime() - new Date(b).getTime(); })[0] || null;
+        const hasActiveSubscription = orderFulfillments.some(function (f) {
+          var status = String(f.status || "").toLowerCase(),
+            endsAt = f.delivery_summary?.ends_at;
+          return ["delivered", "completed"].includes(status) &&
+            (!endsAt || new Date(endsAt).getTime() > Date.now());
+        });
+        const allDatedSubscriptionsExpired = expiryValues.length > 0 &&
+          !expiryValues.some(function (value) {
+            return new Date(value).getTime() > Date.now();
+          });
         const statusBadges = badge(o.status || "pending") +
-          (o.fulfillment_status ? badge(o.fulfillment_status) : "") +
+          (allDatedSubscriptionsExpired
+            ? badge("expired")
+            : (o.fulfillment_status ? badge(o.fulfillment_status) : "")) +
           (report ? badge("reported") : "") +
           (renewalState ? badge(renewalState.label) : "");
-        const expiry = fulfillments
-          .filter(function (f) { return f.order_id === o.id && f.delivery_summary?.ends_at; })
-          .map(function (f) { return f.delivery_summary.ends_at; })
-          .sort(function (a, b) { return new Date(a).getTime() - new Date(b).getTime(); })[0] || null;
         return (
           '<article class="order panel rounded-2xl p-5"><div class="flex flex-wrap justify-between gap-3"><div>' +
           '<div class="flex flex-wrap gap-2">' + statusBadges + '</div>' +
@@ -1563,7 +1580,8 @@
             : '<div class="flex flex-wrap gap-2 mt-4"><button class="btn" onclick="showDetails(\'' +
               esc(o.id) +
               '\')">'+copy.viewDetails+'</button>' +
-              (['paid','completed'].includes(String(o.status || '').toLowerCase())
+              (['paid','completed'].includes(String(o.status || '').toLowerCase()) &&
+                hasActiveSubscription
                 ? '<button class="btn" data-renew-order="1" data-renew-end="' + esc(expiry || "") + '" onclick="openRenewalForOrder(\'' + esc(o.id) + '\')">' + renewalActionLabel(expiry) + ' '+copy.subscription+'</button>'
                 : '') +
               (report || canReportOrder(o.id) ? '<button class="ghost" onclick="openReport(\'' +
