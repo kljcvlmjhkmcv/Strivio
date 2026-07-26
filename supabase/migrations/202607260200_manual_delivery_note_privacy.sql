@@ -3,4 +3,5 @@
 -- copy from delivery_summary.
 update public.fulfillments
 set delivery_summary = delivery_summary - 'admin_note'
-where delivery_summary ? 'admin_note';
+where delivery_summary ? 'admin_note'
+  and encrypted_delivery is not null;
