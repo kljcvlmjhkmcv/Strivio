@@ -51,6 +51,9 @@ check(account.includes('ORDER_DEEP_LINK_PATTERN'),'Account order links are not v
 check(account.includes('new URLSearchParams(location.search).get("order")'),'Account page does not read the order deep link');
 check(account.includes('encodeURIComponent(currentAccountReturnTarget())'),'Account login redirect drops the requested order');
 check(account.includes('await showDetails(linkedOrderId)'),'Account page does not open a linked owned order');
+check(account.includes('renewalStateForSource'),'Customer orders do not show the independent renewal state');
+check(account.includes('.from("renewal_requests")'),'Customer account cannot load renewal payment state');
+check(account.includes('paymentOrders = o.data || []'),'Customer payment history still hides renewal invoices');
 const deepLinkStart=account.indexOf('const ORDER_DEEP_LINK_PATTERN');
 const deepLinkEnd=account.indexOf('      const renewalDurationLabels',deepLinkStart);
 check(deepLinkStart>=0&&deepLinkEnd>deepLinkStart,'Account deep-link helpers are missing');
@@ -74,6 +77,10 @@ for(const action of ['confirm_manual_payment','choose_manual_delivery','deliver_
 check(operations.includes('data-manual-account'),'Operations cannot submit multiple manual account entries');
 check(operations.includes('result.fulfillment_error || result.retryable'),'Operations hides a recoverable fulfillment failure after manual payment confirmation');
 check(operations.includes('result.already_delivered'),'Operations can claim that replacement credentials were saved after a concurrent delivery');
+check(operations.includes('paymentOrders: []'),'Operations discards technical renewal invoices');
+check(operations.includes('paymentOrderFor(renewal.order_id)'),'Renewal register cannot resolve its payment invoice');
+check(operations.includes('manualPaymentAction(invoice)'),'Renewal payment cannot be approved or repaired from its register');
+check(operations.includes('حالة الدفع')&&operations.includes('حالة التجديد'),'Renewal payment and application states are still conflated');
 const activationLinkStart=operations.indexOf('function activationOrderLink()');
 const activationLinkEnd=operations.indexOf('async function chooseManualDelivery',activationLinkStart);
 check(activationLinkStart>=0&&activationLinkEnd>activationLinkStart,'Operations safe order-link builder is missing');

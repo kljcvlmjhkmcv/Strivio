@@ -490,6 +490,8 @@
       let user,
         profile = {},
         orders = [],
+        paymentOrders = [],
+        renewalRequests = [],
         fulfillments = [],
         problems = [],
         problemMessages = [],
@@ -605,6 +607,10 @@
           awaiting_customer: "بانتظار بيانات العميل",
           awaiting_admin: "قيد التفعيل",
           out_of_stock: "بانتظار توفر المخزون",
+          renewal_pending_payment: "تجديد بانتظار الدفع",
+          renewal_processing: "تم الدفع، جارٍ تطبيق التجديد",
+          renewal_applied: "تم تطبيق التجديد",
+          renewal: "تجديد",
         },
         fr: {
           paid: "Payée",
@@ -623,6 +629,10 @@
           awaiting_customer: "Informations client requises",
           awaiting_admin: "Activation en cours",
           out_of_stock: "En attente de stock",
+          renewal_pending_payment: "Renouvellement en attente de paiement",
+          renewal_processing: "Paiement reçu, renouvellement en cours",
+          renewal_applied: "Renouvellement appliqué",
+          renewal: "Renouvellement",
         },
         en: {
           paid: "Paid",
@@ -641,6 +651,10 @@
           awaiting_customer: "Customer details required",
           awaiting_admin: "Activation in progress",
           out_of_stock: "Awaiting stock",
+          renewal_pending_payment: "Renewal awaiting payment",
+          renewal_processing: "Paid, renewal processing",
+          renewal_applied: "Renewal applied",
+          renewal: "Renewal",
         },
       };
       function L(v) {
@@ -1451,12 +1465,34 @@
         });
         return fulfillment?.id || "";
       }
+      function renewalStateForSource(orderId) {
+        var request = renewalRequests.find(function (item) {
+          return String(item.metadata?.source_order_id || "") === String(orderId);
+        });
+        if (!request) return null;
+        var invoice = paymentOrders.find(function (order) {
+          return String(order.id) === String(request.order_id);
+        });
+        var requestStatus = String(request.status || "").toLowerCase();
+        var paymentStatus = String(invoice?.status || "pending").toLowerCase();
+        return {
+          request: request,
+          invoice: invoice,
+          label: requestStatus === "applied"
+            ? "renewal_applied"
+            : ["paid", "completed"].includes(paymentStatus)
+              ? "renewal_processing"
+              : "renewal_pending_payment",
+        };
+      }
       function orderCard(o, small = false) {
         const copy = portalText();
         const report = activeProblem(o.id);
+        const renewalState = renewalStateForSource(o.id);
         const statusBadges = badge(o.status || "pending") +
           (o.fulfillment_status ? badge(o.fulfillment_status) : "") +
-          (report ? badge("reported") : "");
+          (report ? badge("reported") : "") +
+          (renewalState ? badge(renewalState.label) : "");
         const expiry = fulfillments
           .filter(function (f) { return f.order_id === o.id && f.delivery_summary?.ends_at; })
           .map(function (f) { return f.delivery_summary.ends_at; })
@@ -1504,13 +1540,16 @@
                 .map((o) => orderCard(o, true))
                 .join("")
             : '<p class="muted">' + actionText().emptyOrders + '</p>';
-        document.getElementById("paymentsList").innerHTML = orders.length
+        document.getElementById("paymentsList").innerHTML = paymentOrders.length
           ? '<table class="w-full text-sm min-w-[620px]"><thead class="text-right text-xs text-gray-500 bg-black/30"><tr><th class="p-4">الطلب</th><th class="p-4">التاريخ</th><th class="p-4">المبلغ</th><th class="p-4">الحالة</th></tr></thead><tbody>' +
-            orders
+            paymentOrders
               .map(
                 (o) =>
                   '<tr class="border-t border-white/5"><td class="p-4 font-mono text-xs">#' +
                   esc(String(o.id).slice(0, 8)) +
+                  (String(o.customer_info?.order_kind || "").toLowerCase() === "renewal"
+                    ? '<div class="mt-1">' + badge("renewal") + "</div>"
+                    : "") +
                   '</td><td class="p-4 muted">' +
                   date(o.created_at) +
                   '</td><td class="p-4 font-bold">' +
@@ -1758,12 +1797,22 @@
         if (accountStatePollBusy || document.hidden || !user) return;
         accountStatePollBusy = true;
         try {
-          var result = await window.supabaseClient
-            .from("orders")
-            .select("*")
-            .order("created_at", { ascending: false });
-          if (result.error) return;
-          var nextOrders = (result.data || []).filter(function (order) {
+          var liveResults = await Promise.all([
+              window.supabaseClient
+                .from("orders")
+                .select("*")
+                .order("created_at", { ascending: false }),
+              window.supabaseClient
+                .from("renewal_requests")
+                .select("*")
+                .order("created_at", { ascending: false }),
+            ]),
+            result = liveResults[0],
+            renewalResult = liveResults[1];
+          if (result.error || renewalResult.error) return;
+          var nextPaymentOrders = result.data || [],
+            nextRenewalRequests = renewalResult.data || [],
+            nextOrders = nextPaymentOrders.filter(function (order) {
               return String(order.customer_info?.order_kind || "").toLowerCase() !== "renewal";
             }),
             nextFulfillments;
@@ -1776,14 +1825,20 @@
           var
             before = JSON.stringify({
               orders: orders.map(function (order) { return [order.id,order.status,order.fulfillment_status,order.updated_at]; }),
+              payments: paymentOrders.map(function (order) { return [order.id,order.status,order.updated_at]; }),
+              renewals: renewalRequests.map(function (request) { return [request.id,request.status,request.applied_at]; }),
               fulfillments: fulfillments.map(function (f) { return [f.id,f.status,f.updated_at,f.delivery_summary?.activation_completed_at]; }),
             }),
             after = JSON.stringify({
               orders: nextOrders.map(function (order) { return [order.id,order.status,order.fulfillment_status,order.updated_at]; }),
+              payments: nextPaymentOrders.map(function (order) { return [order.id,order.status,order.updated_at]; }),
+              renewals: nextRenewalRequests.map(function (request) { return [request.id,request.status,request.applied_at]; }),
               fulfillments: nextFulfillments.map(function (f) { return [f.id,f.status,f.updated_at,f.delivery_summary?.activation_completed_at]; }),
             });
           if (before !== after) {
+            paymentOrders = nextPaymentOrders;
             orders = nextOrders;
+            renewalRequests = nextRenewalRequests;
             fulfillments = nextFulfillments;
             renderAll();
             if (window.accountPortalApply) window.accountPortalApply();
@@ -1814,6 +1869,8 @@
         }
         accountRealtimeChannel = window.supabaseClient
           .channel("account-portal-" + user.id)
+          .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: "user_id=eq." + user.id }, scheduleRefresh)
+          .on("postgres_changes", { event: "*", schema: "public", table: "renewal_requests", filter: "user_id=eq." + user.id }, scheduleRefresh)
           .on("postgres_changes", { event: "*", schema: "public", table: "fulfillments", filter: "user_id=eq." + user.id }, scheduleRefresh)
           .on("postgres_changes", { event: "*", schema: "public", table: "activation_messages" }, scheduleRefresh)
           .on("postgres_changes", { event: "*", schema: "public", table: "problem_reports" }, scheduleRefresh)
@@ -1851,7 +1908,7 @@
           return;
         }
         user = s.user;
-        let [p, o] = await Promise.all([
+        let [p, o, renewalResult] = await Promise.all([
           window.supabaseClient
             .from("profiles")
             .select("*")
@@ -1861,11 +1918,17 @@
             .from("orders")
             .select("*")
             .order("created_at", { ascending: false }),
+          window.supabaseClient
+            .from("renewal_requests")
+            .select("*")
+            .order("created_at", { ascending: false }),
         ]);
         profile = p.data || {};
         // Renewal payment orders are technical invoices. The customer keeps
         // one original order card whose subscription dates are extended.
-        orders = (o.data || []).filter(function (order) {
+        paymentOrders = o.data || [];
+        renewalRequests = renewalResult.data || [];
+        orders = paymentOrders.filter(function (order) {
           return String(order.customer_info?.order_kind || "").toLowerCase() !== "renewal";
         });
         try {

@@ -838,6 +838,7 @@
           services: [],
           configs: [],
           orders: [],
+          paymentOrders: [],
           accounts: [],
           slots: [],
           licenses: [],
@@ -1077,9 +1078,10 @@
           }
           state.services = value(0, []);
           state.configs = value(1, []);
-          // Keep renewal invoices out of the purchase register. Renewals update
-          // the original order subscriptions and remain auditable in the DB.
-          state.orders = value(2, []).filter(function (order) {
+          // Renewal invoices stay out of the normal purchase register, but
+          // remain available to the renewal register for payment approval.
+          state.paymentOrders = value(2, []);
+          state.orders = state.paymentOrders.filter(function (order) {
             return String(order.customer_info?.order_kind || "").toLowerCase() !== "renewal";
           });
           state.fulfillments = value(3, []);
@@ -2254,6 +2256,11 @@
           String((order && order.payment_method) || "").toLowerCase(),
         );
       }
+      function paymentOrderFor(id) {
+        return state.paymentOrders.find(function (order) {
+          return String(order.id) === String(id || "");
+        });
+      }
       function manualPaymentAction(order) {
         var status = String((order && order.status) || "").toLowerCase(),
           orderFulfillments = state.fulfillments.filter(function (fulfillment) {
@@ -2400,14 +2407,19 @@
           return;
         }
         $("renewal-list").innerHTML =
-          '<table class="table min-w-[1050px]"><thead><tr><th>التجديد</th><th>الطلب الأصلي</th><th>العميل</th><th>الخدمة</th><th>العناصر</th><th>المدة</th><th>الحالة</th><th>تاريخ العملية</th></tr></thead><tbody>' +
+          '<table class="table min-w-[1250px]"><thead><tr><th>التجديد</th><th>الطلب الأصلي</th><th>العميل</th><th>الخدمة</th><th>العناصر</th><th>المدة</th><th>حالة الدفع</th><th>حالة التجديد</th><th>تاريخ العملية</th><th>إجراء</th></tr></thead><tbody>' +
           rows.map(function (renewal) {
             var sourceId = renewal.metadata && renewal.metadata.source_order_id,
               original = orderFor(sourceId),
-              customer = original.customer_info || {},
+              invoice = paymentOrderFor(renewal.order_id),
+              customer = (original && original.customer_info) || (invoice && invoice.customer_info) || {},
               customerName = [customer.first_name || customer.firstname, customer.last_name || customer.lastname].filter(Boolean).join(" ") || customer.email || "—",
-              targetCount = Array.isArray(renewal.target_ids) ? renewal.target_ids.length : 0;
-            return '<tr><td><b>#' + esc(String(renewal.order_id || renewal.id || "").slice(0, 8)) + '</b></td><td><b>#' + esc(String(sourceId || "").slice(0, 8)) + '</b><div class="muted text-[10px]">' + esc(sourceId || "—") + '</div></td><td><b>' + esc(customerName) + '</b><div class="muted text-[11px]">' + esc(customer.email || customer.phone || "—") + '</div></td><td>' + esc(serviceName(renewal.service_id)) + '</td><td><b>' + targetCount + '</b> ' + (renewal.target_kind === "allocation" ? "بروفايل" : "اشتراك") + '</td><td><b>' + Number(renewal.months || 0) + '</b> شهر</td><td>' + statusBadge(renewal.status) + '</td><td class="whitespace-nowrap">' + date(renewal.applied_at || renewal.created_at) + '</td></tr>';
+              targetCount = Array.isArray(renewal.target_ids) ? renewal.target_ids.length : 0,
+              paymentState = invoice ? invoice.status : "missing_invoice",
+              action = invoice
+                ? manualPaymentAction(invoice)
+                : '<span class="badge b-red">missing invoice</span>';
+            return '<tr><td><b>#' + esc(String(renewal.order_id || renewal.id || "").slice(0, 8)) + '</b><div class="muted text-[10px]">' + esc(invoice && invoice.payment_method || "—") + '</div></td><td><b>#' + esc(String(sourceId || "").slice(0, 8)) + '</b><div class="muted text-[10px]">' + esc(sourceId || "—") + '</div></td><td><b>' + esc(customerName) + '</b><div class="muted text-[11px]">' + esc(customer.email || customer.phone || "—") + '</div></td><td>' + esc(serviceName(renewal.service_id)) + '</td><td><b>' + targetCount + '</b> ' + (renewal.target_kind === "allocation" ? "بروفايل" : "اشتراك") + '</td><td><b>' + Number(renewal.months || 0) + '</b> شهر</td><td>' + statusBadge(paymentState) + '</td><td>' + statusBadge(renewal.status) + '</td><td class="whitespace-nowrap">' + date(renewal.applied_at || renewal.created_at) + '</td><td>' + action + '</td></tr>';
           }).join("") +
           "</tbody></table>";
       }
