@@ -19,6 +19,7 @@ declare
   v_new_end timestamptz;
   v_updated integer;
   v_rows integer;
+  v_parent_end timestamptz;
   v_gift_updates jsonb := '[]'::jsonb;
 begin
   if coalesce(auth.role(),'') <> 'service_role'
@@ -32,6 +33,24 @@ begin
      or p_months < 1
      or p_months > 36 then
     return jsonb_build_object('success',true,'updated',0,'updates','[]'::jsonb);
+  end if;
+
+  -- The gift follows the current parent subscription end.  This keeps a
+  -- Netflix + Prime offer on one clear date even after earlier renewals.
+  select max(a.ends_at)
+    into v_parent_end
+    from public.fulfillment_allocations a
+    join public.fulfillments f on f.id=a.fulfillment_id
+   where f.order_id=p_source_order_id
+     and f.order_item_index=any(p_source_item_indices)
+     and a.status='active';
+  if v_parent_end is null then
+    select max(nullif(f.delivery_summary->>'ends_at','')::timestamptz)
+      into v_parent_end
+      from public.fulfillments f
+     where f.order_id=p_source_order_id
+       and f.order_item_index=any(p_source_item_indices)
+       and lower(coalesce(f.status,'')) in ('delivered','completed');
   end if;
 
   for v_b in
@@ -68,8 +87,11 @@ begin
     v_updated=0;
     -- Lock and extend reusable gift profiles.
     update public.shared_profile_allocations s
-       set ends_at=greatest(coalesce(s.ends_at,now()),now())
-             + make_interval(months=>p_months),
+       set ends_at=coalesce(
+             v_parent_end,
+             greatest(coalesce(s.ends_at,now()),now())
+               + make_interval(months=>p_months)
+           ),
            renewal_count=coalesce(s.renewal_count,0)+1,
            sheet_version=coalesce(s.sheet_version,0)+1,
            updated_at=now()
@@ -79,8 +101,11 @@ begin
 
     -- Also support an exclusive gift allocation if an offer uses one.
     update public.fulfillment_allocations a
-       set ends_at=greatest(coalesce(a.ends_at,now()),now())
-             + make_interval(months=>p_months),
+       set ends_at=coalesce(
+             v_parent_end,
+             greatest(coalesce(a.ends_at,now()),now())
+               + make_interval(months=>p_months)
+           ),
            renewal_count=coalesce(a.renewal_count,0)+1,
            sheet_version=coalesce(a.sheet_version,0)+1,
            admin_notes=concat_ws(
@@ -113,7 +138,8 @@ begin
        and lower(coalesce(v_b.gift_status,'')) in ('delivered','completed') then
       v_old_end=nullif(v_b.delivery_summary->>'ends_at','')::timestamptz;
       if v_old_end is not null then
-        v_new_end=greatest(v_old_end,now())+make_interval(months=>p_months);
+        v_new_end=coalesce(v_parent_end,
+          greatest(v_old_end,now())+make_interval(months=>p_months));
       end if;
     end if;
 
@@ -198,6 +224,7 @@ declare
   req public.renewal_requests%rowtype;
   ord public.orders%rowtype;
   target uuid;
+  sorted_targets uuid[];
   new_end timestamptz;
   base_end timestamptz;
   f_id uuid;
@@ -238,7 +265,11 @@ begin
     raise exception 'Renewal request is not payable';
   end if;
 
-  foreach target in array req.target_ids loop
+  select array_agg(value order by value)
+    into sorted_targets
+    from unnest(req.target_ids) as values(value);
+
+  foreach target in array sorted_targets loop
     if req.target_kind='allocation' then
       select a.ends_at,a.fulfillment_id
         into base_end,f_id
