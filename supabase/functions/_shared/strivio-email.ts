@@ -239,13 +239,27 @@ const URL_PART_RE = /(https?:\/\/[^\s<>"']+)/gi;
 const LTR_RUN_RE =
   /([A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9@._:+/#?&=%,'’()\-]*(?:[ \t]+[A-Za-zÀ-ÖØ-öø-ÿ0-9@._:+/#?&=%,'’()\-]+)*)/g;
 
+function isTrustedStrivioLink(value: string): boolean {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === "striviodz.store" || host.endsWith(".striviodz.store");
+  } catch {
+    return false;
+  }
+}
+
 function mixedText(value: unknown): { dir: "rtl" | "ltr"; html: string; plain: string } {
   const text = String(value ?? "");
   const dir: "rtl" | "ltr" = /[\u0600-\u06ff]/.test(text) ? "rtl" : "ltr";
   const html = text.split(URL_PART_RE).map((part) => {
     if (/^https?:\/\//i.test(part)) {
       const safe = esc(part);
-      return `<a href="${safe}" dir="ltr" style="color:${BRAND.neon};direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere;word-break:break-word">${safe}</a>`;
+      if (isTrustedStrivioLink(part)) {
+        return `<a href="${safe}" dir="ltr" style="color:${BRAND.neon};direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere;word-break:break-word">${safe}</a>`;
+      }
+      // External 2FA/help URLs remain visible and copyable, but are deliberately
+      // not clickable inside credential emails to reduce phishing/spam signals.
+      return `<bdi dir="ltr" style="color:${BRAND.text};direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere;word-break:break-word">${safe}</bdi>`;
     }
     if (dir !== "rtl") return esc(part);
     return part.split(LTR_RUN_RE).map((run, index) =>

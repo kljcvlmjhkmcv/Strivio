@@ -509,7 +509,11 @@ function fulfillmentNotification(
     templateKey: "order_processing",
     orderId,
     actionUrl,
-    title: { ar: "طلبك قيد التجهيز", fr: "Votre commande est en cours de préparation", en: "Your order is being prepared" },
+    title: {
+      ar: "تم تأكيد الدفع وطلبك قيد التجهيز",
+      fr: "Paiement confirmé — commande en préparation",
+      en: "Payment confirmed — order being prepared",
+    },
     body: {
       ar: "تم تأكيد الدفع، وبعض خدمات الطلب تحتاج إلى بيانات الحساب أو إجراء من فريق Strivio.",
       fr: "Le paiement est confirmé. Certains services nécessitent les informations du compte ou une intervention de l’équipe Strivio.",

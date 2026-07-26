@@ -117,7 +117,7 @@ begin
         'payment_method',v_order.payment_method,
         'confirmed_at',now()
       ),
-      true,
+      false,
       concat('manual-payment-confirmed:',v_order.id::text)
     );
 
