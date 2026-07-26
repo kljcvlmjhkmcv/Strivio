@@ -1169,12 +1169,23 @@
         return orderedRows
           .map((f) => {
             let entries = f.delivery?.entries || [],
-              end = f.delivery_summary?.ends_at || f.delivery?.ends_at,
+              allEntries = entries.slice(),
+              end = null,
+              rawEnd = f.delivery_summary?.ends_at || f.delivery?.ends_at,
+              inactive = false,
               note =
                 f.delivery?.instructions ||
                 f.delivery?.problem_resolution_note ||
                 f.delivery_summary?.problem_resolution_note ||
                 "";
+            entries = entries.filter(function (entry) {
+                return !entry.ends_at || new Date(entry.ends_at).getTime() > Date.now();
+              });
+            end = rawEnd && new Date(rawEnd).getTime() > Date.now() ? rawEnd : null;
+            inactive = f.subscription_state === "expired" ||
+                (!entries.length && !!allEntries.length && allEntries.every(function (entry) {
+                  return entry.ends_at && new Date(entry.ends_at).getTime() <= Date.now();
+                }));
             let body = entries.length
               ? entries
                   .map(
@@ -1194,9 +1205,17 @@
                       "</div>",
                   )
                   .join("")
-              : '<div class="secret mt-2">' +
-                esc(f.delivery_summary?.message || L(f.status)) +
-                "</div>";
+              : inactive
+                ? '<div class="secret mt-2 border-white/15"><span class="muted">' +
+                  esc(lang === "fr"
+                    ? "Ce service n’est pas actif actuellement."
+                    : lang === "en"
+                      ? "This service is not active right now."
+                      : "هذه الخدمة غير نشطة حالياً.") +
+                  "</span></div>"
+                : '<div class="secret mt-2">' +
+                  esc(f.delivery_summary?.message || L(f.status)) +
+                  "</div>";
             var accountUnderMaintenance =
               String(f.inventory_status || "").toLowerCase() === "maintenance" ||
               entries.some(function (entry) {

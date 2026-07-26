@@ -258,7 +258,14 @@ const deliveryApi=fs.readFileSync(path.join(root,'supabase','functions','custome
 check(deliveryApi.includes("isPromotionGift?[]:rowAllocations.length"),'Free promotional gifts can incorrectly be renewed');
 check(deliveryApi.includes("allocation_kind:'shared_promotion'"),'Customer delivery does not validate shared allocations');
 check(deliveryApi.includes("accountStatusById"),'Customer delivery does not expose maintenance state safely');
+check(deliveryApi.includes("subscription_state:subscriptionState")&&deliveryApi.includes("expired_at:expiredAt"),'Customer delivery does not expose inactive subscription state safely');
 check(myAccountSource.includes('maintenanceTitle')&&myAccountSource.includes('accountUnderMaintenance'),'My Account does not warn customers when their inventory account is under maintenance');
+check(myAccountSource.includes('This service is not active right now.')&&myAccountSource.includes('entries = entries.filter'), 'My Account still exposes expired delivery details');
+const bundleRenewalMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607260100_bundle_renewal_dates.sql'),'utf8');
+check(bundleRenewalMigration.includes('extend_bundle_gifts_for_renewal'),'Bundle gifts are not extended from the server during renewal');
+check(bundleRenewalMigration.includes("'gift_updates'"),'Renewal result does not expose gift date updates');
+check(bundleRenewalMigration.includes("'new_ends_at',latest_end"),'Renewal result does not expose the updated parent expiry');
+check(fulfillOrder.includes('renewalGiftUpdates')&&fulfillOrder.includes('gift_updates: renewalGiftUpdates'),'Renewal notifications do not include updated gift subscriptions');
 
 const emailTemplate=fs.readFileSync(path.join(root,'supabase','functions','_shared','strivio-email.ts'),'utf8');
 check(emailTemplate.includes('const CTA ='),'Transactional emails do not have event-specific CTA labels');

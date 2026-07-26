@@ -285,7 +285,7 @@ serve(async req=>{
     // payment flow itself still validates the selected targets and ownership.
     const eligible=(endsAt?:string|null)=>{
       if(!endsAt)return true;
-      return new Date(endsAt).getTime()>=Date.now();
+      return new Date(endsAt).getTime()>Date.now();
     };
     const fulfillments=[];
     for(const row of rows||[]){
@@ -296,6 +296,10 @@ serve(async req=>{
       const promotionBenefit=(benefits||[]).find((item:any)=>item.fulfillment_id===row.id)||null;
       const allRowAllocations=(allocations||[]).filter((item:any)=>item.fulfillment_id===row.id);
       const rowAllocations=allRowAllocations.filter((item:any)=>String(item.status||'').toLowerCase()==='active'&&eligible(item.ends_at));
+      const expiredAllocations=allRowAllocations.filter((item:any)=>{
+        const state=String(item.status||'').toLowerCase();
+        return state==='expired'||state==='revoked'||(state==='active'&&!!item.ends_at&&!eligible(item.ends_at));
+      });
       let visibleDelivery=delivery;
       if(allRowAllocations.length&&delivery&&Array.isArray(delivery.entries)){
         const activeAllocationIds=new Set(rowAllocations.map((item:any)=>item.id));
@@ -340,6 +344,13 @@ serve(async req=>{
         }))};
       }
       const summaryEnd=row.delivery_summary?.ends_at||delivery?.ends_at||null;
+      const summaryExpired=!!summaryEnd&&!eligible(summaryEnd);
+      const subscriptionState=rowAllocations.length
+        ? 'active'
+        : (expiredAllocations.length||summaryExpired ? 'expired' : 'pending');
+      const expiredAt=[...expiredAllocations.map((item:any)=>item.ends_at),summaryExpired?summaryEnd:null]
+        .filter(Boolean)
+        .sort((a:any,b:any)=>new Date(b).getTime()-new Date(a).getTime())[0]||null;
       const renewalTargets=isPromotionGift?[]:rowAllocations.length
         ? rowAllocations.map((item:any)=>({
             id:item.id,
@@ -370,6 +381,8 @@ serve(async req=>{
           included_free:true,
           label_i18n:promotionBenefit.metadata?.label_i18n||sourceItem.bundle_label_i18n||{}
         }:null,
+        subscription_state:subscriptionState,
+        expired_at:expiredAt,
         renewal_targets:renewalTargets,
         renewal_options:{
           durations:RENEWAL_DURATION_LABELS,

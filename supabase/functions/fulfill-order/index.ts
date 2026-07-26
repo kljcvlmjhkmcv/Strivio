@@ -672,12 +672,23 @@ serve(async (req) => {
       const { data: renewalResult, error: renewalError } = await db.rpc("apply_paid_renewal_order", { p_order_id: order.id });
       if (renewalError) throw renewalError;
       const sourceOrderId = renewalRequest.metadata?.source_order_id || order.id;
-      const effectiveEnd = renewalResult?.new_ends_at || renewalResult?.updates?.[0]?.ends_at || null;
+      const renewalEnds = [
+        ...(Array.isArray(renewalResult?.updates) ? renewalResult.updates : []),
+        ...(Array.isArray(renewalResult?.gift_updates) ? renewalResult.gift_updates : []),
+      ]
+        .map((item: any) => item?.ends_at)
+        .filter((value: any) => value && Number.isFinite(new Date(value).getTime()))
+        .sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime());
+      const effectiveEnd = renewalResult?.new_ends_at || renewalEnds[0] || null;
       const renewalGiftItems = (order.items || []).filter((item: any) =>
         item?.is_promotional_gift === true &&
         item?.included_free === true &&
         item?.bundle_renewal_gift === true
       );
+      const renewalGiftUpdates = Array.isArray(renewalResult?.gift_updates)
+        ? renewalResult.gift_updates
+        : [];
+      const hasRenewalGifts = renewalGiftItems.length > 0 || renewalGiftUpdates.length > 0;
       const renewalActionKind = String(order.customer_info?.renewal_action_kind || "").toLowerCase() === "extension"
         ? "extension"
         : "renewal";
@@ -691,13 +702,13 @@ serve(async (req) => {
           ? { ar: "تم تمديد اشتراكك", fr: "Votre abonnement a été prolongé", en: "Your subscription has been extended" }
           : { ar: "تم تجديد اشتراكك", fr: "Votre abonnement a été renouvelé", en: "Your subscription has been renewed" },
         body: {
-          ar: renewalGiftItems.length
+          ar: hasRenewalGifts
             ? "تم تأكيد الدفع وتمديد نفس الاشتراك بنجاح. يشمل طلبك هدية مجانية ويمكنك متابعة تسليمها من حسابك."
             : "تم تأكيد الدفع وتمديد نفس الاشتراك بنجاح. يمكنك الاطلاع على تاريخ الانتهاء المحدّث من حسابك.",
-          fr: renewalGiftItems.length
+          fr: hasRenewalGifts
             ? "Le paiement est confirmé et le même abonnement a été prolongé. Votre renouvellement inclut un cadeau gratuit dont vous pouvez suivre la livraison."
             : "Le paiement est confirmé et le même abonnement a été prolongé. Consultez la nouvelle date d’expiration dans votre compte.",
-          en: renewalGiftItems.length
+          en: hasRenewalGifts
             ? "Payment is confirmed and the same subscription has been extended. Your renewal includes a free gift whose delivery you can follow."
             : "Payment is confirmed and the same subscription has been extended. View the updated expiry date in your account.",
         },
@@ -706,7 +717,8 @@ serve(async (req) => {
           ends_at: effectiveEnd,
           source_order_id: sourceOrderId,
           action_kind: renewalActionKind,
-          included_gifts: renewalGiftItems.length,
+          included_gifts: hasRenewalGifts ? Math.max(renewalGiftItems.length, renewalGiftUpdates.length) : 0,
+          gift_updates: renewalGiftUpdates,
         },
         dedupeKey: `subscription-renewed:${order.id}`,
       });
@@ -715,16 +727,15 @@ serve(async (req) => {
         refresh_scope: "inventory",
         include_inventory: true,
       }));
-      if (!renewalGiftItems.length) {
-        return new Response(JSON.stringify({
-          success: true,
-          status: "delivered",
-          renewal: true,
-          renewal_result: renewalResult,
-          email_status: renewalNotification.status,
-        }), { headers: cors });
-      }
-      renewalGiftContext = { endsAt: effectiveEnd };
+      // The renewal RPC updates the original gift allocations in the same
+      // transaction. There is no second free order to fulfill here.
+      return new Response(JSON.stringify({
+        success: true,
+        status: "delivered",
+        renewal: true,
+        renewal_result: renewalResult,
+        email_status: renewalNotification.status,
+      }), { headers: cors });
     }
 
     const { data: processingOrder, error: processingOrderError } = await db.from("orders")

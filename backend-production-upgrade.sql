@@ -351,6 +351,11 @@ begin
 end;
 $$;
 
+-- NOTE: The canonical renewal implementation is overridden by
+-- supabase/migrations/202607260100_bundle_renewal_dates.sql.  That migration
+-- also extends any delivered promotional gift attached to the source order.
+-- Keep this legacy bootstrap function for fresh installs, then apply the
+-- migration in order.
 create or replace function public.apply_paid_renewal_order(p_order_id uuid)
 returns jsonb language plpgsql security definer set search_path=public as $$
 declare req public.renewal_requests%rowtype; ord public.orders%rowtype; target uuid; new_end timestamptz; base_end timestamptz; f_id uuid; updates jsonb='[]'::jsonb;
