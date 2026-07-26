@@ -2416,7 +2416,9 @@
               customerName = [customer.first_name || customer.firstname, customer.last_name || customer.lastname].filter(Boolean).join(" ") || customer.email || "—",
               targetCount = Array.isArray(renewal.target_ids) ? renewal.target_ids.length : 0,
               paymentState = invoice ? invoice.status : "missing_invoice",
-              action = invoice
+              action = String(renewal.status || "").toLowerCase() === "applied"
+                ? "—"
+                : invoice
                 ? manualPaymentAction(invoice)
                 : '<span class="badge b-red">missing invoice</span>';
             return '<tr><td><b>#' + esc(String(renewal.order_id || renewal.id || "").slice(0, 8)) + '</b><div class="muted text-[10px]">' + esc(invoice && invoice.payment_method || "—") + '</div></td><td><b>#' + esc(String(sourceId || "").slice(0, 8)) + '</b><div class="muted text-[10px]">' + esc(sourceId || "—") + '</div></td><td><b>' + esc(customerName) + '</b><div class="muted text-[11px]">' + esc(customer.email || customer.phone || "—") + '</div></td><td>' + esc(serviceName(renewal.service_id)) + '</td><td><b>' + targetCount + '</b> ' + (renewal.target_kind === "allocation" ? "بروفايل" : "اشتراك") + '</td><td><b>' + Number(renewal.months || 0) + '</b> شهر</td><td>' + statusBadge(paymentState) + '</td><td>' + statusBadge(renewal.status) + '</td><td class="whitespace-nowrap">' + date(renewal.applied_at || renewal.created_at) + '</td><td>' + action + '</td></tr>';
