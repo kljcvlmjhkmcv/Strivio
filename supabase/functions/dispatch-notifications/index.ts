@@ -71,7 +71,17 @@ function label(value: any, locale: string) {
 function safeUrl(path: unknown, siteUrl: string) {
   const value = String(path || "");
   const relative = /^\/(?!\/)/.test(value) ? value : "/my-account";
-  return new URL(relative, siteUrl).toString();
+  const configured = (() => {
+    try {
+      return new URL(siteUrl);
+    } catch {
+      return null;
+    }
+  })();
+  const trusted = configured?.protocol === "https:" &&
+    ["striviodz.store", "www.striviodz.store"].includes(configured.hostname.toLowerCase());
+  const origin = trusted ? configured!.origin : "https://www.striviodz.store";
+  return new URL(relative, origin).toString();
 }
 
 function entriesFromDelivery(value: any): DeliveryEntry[] {

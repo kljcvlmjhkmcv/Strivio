@@ -280,14 +280,16 @@ const adminInventory=fs.readFileSync(path.join(root,'supabase','functions','admi
 check(dispatchNotifications.includes('decrypted?.instructions'),'Manual delivery notes are not read from encrypted delivery for email');
 check(dispatchNotifications.includes('entry_kind: entry.entry_kind || defaultEntryKind'),'Manual accounts can still be rendered as profiles in email');
 check(emailTemplate.includes('unicode-bidi:plaintext')&&emailTemplate.includes('function mixedText('),'Mixed Arabic and Latin delivery notes are not isolated safely');
-check(emailTemplate.includes('function isTrustedStrivioLink(')&&emailTemplate.includes('host.endsWith(".striviodz.store")'),'Credential emails do not restrict clickable links to the Strivio domain');
-check(emailTemplate.includes('External 2FA/help URLs remain visible and copyable'),'External credential links can still become clickable phishing signals');
+check(emailTemplate.includes('function stripEmailUrls(')&&emailTemplate.includes('externalLinkNotice(lang)'),'Credential emails do not remove external URLs from the message body');
+check(emailTemplate.includes('const hasSensitiveCredentials =')&&emailTemplate.includes('hasSensitiveCredentials ? sensitiveDeliveryHint'),'Credential emails still include a clickable CTA');
+check(!emailTemplate.includes('<a href="https://www.striviodz.store"'),'The email logo still creates a second link');
 check(emailTemplate.includes('entry.entry_kind === "account"'),'Ready-account emails still use the generic profile label');
 check(emailTemplate.includes('${credentialBlock}${messageBlock}')&&emailTemplate.indexOf('plainEntries(entries, lang)')<emailTemplate.lastIndexOf('formattedAdminNote.plain'),'Manual delivery notes are not placed below the account details');
 check(emailTemplate.includes("font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:15px;font-weight:600"),'Manual delivery notes do not use the improved readable font style');
 check(adminInventory.includes('has_instructions: Boolean(note)')&&!adminInventory.includes('admin_note: note'),'Manual delivery notes are copied into plaintext delivery summaries');
 check(myAccountSource.includes('mixedTextHtml(note)')&&myAccountSource.includes('credentialLabel = accountEntry ? copy.account : copy.profile'),'My Account does not render ready-account notes and labels safely');
 check(fulfillOrder.includes('تم تأكيد الدفع وطلبك قيد التجهيز')&&fulfillOrder.includes('Paiement confirmé — commande en préparation'),'Processing email does not combine payment confirmation with order preparation');
+check(dispatchNotifications.includes('const trusted = configured?.protocol === "https:"'),'Notification action URLs are not restricted to the Strivio HTTPS origin');
 const manualPaymentMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607250100_manual_payment_fulfillment.sql'),'utf8');
 check(/'payment\.confirmed'[\s\S]*?\n\s*false,\s*\n\s*concat\('manual-payment-confirmed:/.test(manualPaymentMigration),'Manual payment confirmation still sends a duplicate email');
 

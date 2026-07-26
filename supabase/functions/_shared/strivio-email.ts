@@ -239,35 +239,28 @@ const URL_PART_RE = /(https?:\/\/[^\s<>"']+)/gi;
 const LTR_RUN_RE =
   /([A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9@._:+/#?&=%,'’()\-]*(?:[ \t]+[A-Za-zÀ-ÖØ-öø-ÿ0-9@._:+/#?&=%,'’()\-]+)*)/g;
 
-function isTrustedStrivioLink(value: string): boolean {
-  try {
-    const host = new URL(value).hostname.toLowerCase();
-    return host === "striviodz.store" || host.endsWith(".striviodz.store");
-  } catch {
-    return false;
-  }
+function externalLinkNotice(lang: StrivioLocale): string {
+  return lang === "ar"
+    ? "[الرابط الخارجي محفوظ داخل تفاصيل الطلب في حسابك]"
+    : lang === "fr"
+    ? "[Le lien externe est disponible dans les détails de la commande sur votre compte]"
+    : "[The external link is available in the order details in your account]";
 }
 
-function mixedText(value: unknown): { dir: "rtl" | "ltr"; html: string; plain: string } {
-  const text = String(value ?? "");
+function stripEmailUrls(value: unknown, lang: StrivioLocale): string {
+  return String(value ?? "").replace(URL_PART_RE, externalLinkNotice(lang));
+}
+
+function mixedText(value: unknown, lang: StrivioLocale): { dir: "rtl" | "ltr"; html: string; plain: string } {
+  const text = stripEmailUrls(value, lang);
   const dir: "rtl" | "ltr" = /[\u0600-\u06ff]/.test(text) ? "rtl" : "ltr";
-  const html = text.split(URL_PART_RE).map((part) => {
-    if (/^https?:\/\//i.test(part)) {
-      const safe = esc(part);
-      if (isTrustedStrivioLink(part)) {
-        return `<a href="${safe}" dir="ltr" style="color:${BRAND.neon};direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere;word-break:break-word">${safe}</a>`;
-      }
-      // External 2FA/help URLs remain visible and copyable, but are deliberately
-      // not clickable inside credential emails to reduce phishing/spam signals.
-      return `<bdi dir="ltr" style="color:${BRAND.text};direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere;word-break:break-word">${safe}</bdi>`;
-    }
-    if (dir !== "rtl") return esc(part);
-    return part.split(LTR_RUN_RE).map((run, index) =>
+  const html = dir !== "rtl"
+    ? esc(text)
+    : text.split(LTR_RUN_RE).map((run, index) =>
       index % 2
         ? `<bdi dir="ltr" style="direction:ltr;unicode-bidi:isolate">${esc(run)}</bdi>`
         : esc(run)
     ).join("");
-  }).join("");
   const plain = dir === "rtl"
     ? text.replace(LTR_RUN_RE, "\u2066$1\u2069")
     : text;
@@ -343,15 +336,15 @@ function entryCards(entries: DeliveryEntry[], lang: StrivioLocale): string {
       ? `${entry.service_name} · ${entryTitle}`
       : entryTitle;
     const values: Array<[string, string]> = [];
-    if (entry.email) values.push([c.email, entry.email]);
-    if (entry.password) values.push([c.password, entry.password]);
+    if (entry.email) values.push([c.email, stripEmailUrls(entry.email, lang)]);
+    if (entry.password) values.push([c.password, stripEmailUrls(entry.password, lang)]);
     if (explicitName && (!isAccount || !sameAsService)) {
-      values.push([isAccount ? c.account : c.profile, explicitName]);
+      values.push([isAccount ? c.account : c.profile, stripEmailUrls(explicitName, lang)]);
     }
-    if (entry.pin) values.push([c.pin, entry.pin]);
-    if (entry.code) values.push([c.code, entry.code]);
+    if (entry.pin) values.push([c.pin, stripEmailUrls(entry.pin, lang)]);
+    if (entry.code) values.push([c.code, stripEmailUrls(entry.code, lang)]);
     if (entry.ends_at) values.push([c.expiry, formatDate(entry.ends_at, lang)]);
-    return `<div style="margin:14px 0;padding:18px;background:#080808;border:1px solid #2a3d28;border-radius:16px"><div dir="auto" style="margin-bottom:12px;color:${BRAND.neon};font-size:17px;font-weight:900">${esc(title)}</div>${values.map(([label, value]) => `<div style="margin:8px 0;line-height:1.7"><span style="color:${BRAND.muted};font-size:13px">${esc(label)}:</span> <strong dir="auto" style="color:${BRAND.text};font-size:14px;word-break:break-word;font-family:${label === c.password || label === c.pin || label === c.code ? "Consolas,Monaco,monospace" : "Arial,Tahoma,sans-serif"}">${esc(value)}</strong></div>`).join("")}</div>`;
+    return `<div style="margin:14px 0;padding:18px;background:#080808;border:1px solid #2a3d28;border-radius:16px"><div dir="auto" style="margin-bottom:12px;color:${BRAND.neon};font-size:17px;font-weight:900">${esc(stripEmailUrls(title, lang))}</div>${values.map(([label, value]) => `<div style="margin:8px 0;line-height:1.7"><span style="color:${BRAND.muted};font-size:13px">${esc(label)}:</span> <strong dir="auto" style="color:${BRAND.text};font-size:14px;word-break:break-word;font-family:${label === c.password || label === c.pin || label === c.code ? "Consolas,Monaco,monospace" : "Arial,Tahoma,sans-serif"}">${esc(value)}</strong></div>`).join("")}</div>`;
   }).join("");
 }
 
@@ -370,17 +363,20 @@ function plainEntries(entries: DeliveryEntry[], lang: StrivioLocale): string {
       ? (entry.service_name || explicitName || c.account)
       : explicitName || `${c.profile} ${index + 1}`;
     const lines = [
-      !isAccount && entry.service_name
-        ? `${entry.service_name} · ${entryTitle}`
-        : entryTitle,
+      stripEmailUrls(
+        !isAccount && entry.service_name
+          ? `${entry.service_name} · ${entryTitle}`
+          : entryTitle,
+        lang,
+      ),
     ];
-    if (entry.email) lines.push(`${c.email}: ${entry.email}`);
-    if (entry.password) lines.push(`${c.password}: ${entry.password}`);
+    if (entry.email) lines.push(`${c.email}: ${stripEmailUrls(entry.email, lang)}`);
+    if (entry.password) lines.push(`${c.password}: ${stripEmailUrls(entry.password, lang)}`);
     if (explicitName && (!isAccount || !sameAsService)) {
-      lines.push(`${isAccount ? c.account : c.profile}: ${explicitName}`);
+      lines.push(`${isAccount ? c.account : c.profile}: ${stripEmailUrls(explicitName, lang)}`);
     }
-    if (entry.pin) lines.push(`${c.pin}: ${entry.pin}`);
-    if (entry.code) lines.push(`${c.code}: ${entry.code}`);
+    if (entry.pin) lines.push(`${c.pin}: ${stripEmailUrls(entry.pin, lang)}`);
+    if (entry.code) lines.push(`${c.code}: ${stripEmailUrls(entry.code, lang)}`);
     if (entry.ends_at) lines.push(`${c.expiry}: ${formatDate(entry.ends_at, lang)}`);
     return lines.join("\n");
   }).join("\n\n");
@@ -400,12 +396,15 @@ export function renderStrivioEmail(ctx: StrivioEmailContext): RenderedStrivioEma
   const body = pick(ctx.bodyI18n, lang) || ctx.message || fallback[1];
   const entries = Array.isArray(ctx.entries) ? ctx.entries : [];
   const isDelivery = key === "delivered" || key === "credentialsChanged";
+  const hasSensitiveCredentials = isDelivery && entries.some((entry) =>
+    Boolean(entry.password || entry.pin || entry.code)
+  );
   const showNetflixTerms = !!ctx.isNetflix && isDelivery;
   const preheader = body.slice(0, 140);
   const greetingName = String(ctx.customerName || "").trim();
   const greeting = greetingName ? `${c.hello} ${greetingName},` : `${c.hello},`;
   const adminNote = String(ctx.adminNote || "").trim();
-  const formattedAdminNote = mixedText(adminNote);
+  const formattedAdminNote = mixedText(adminNote, lang);
   const subjectOrder = ctx.orderId ? ` #${String(ctx.orderId).slice(0, 8)}` : "";
   const subject = `${title}${subjectOrder} — Strivio`.slice(0, 180);
   const deliveryNoteTitle = lang === "ar"
@@ -422,8 +421,16 @@ export function renderStrivioEmail(ctx: StrivioEmailContext): RenderedStrivioEma
   const credentialBlock = entries.length
     ? `<div style="margin-top:22px"><div style="color:${BRAND.text};font-size:16px;font-weight:900">${esc(lang === "ar" ? "معلومات التسليم" : lang === "fr" ? "Informations de livraison" : "Delivery details")}</div>${entryCards(entries, lang)}</div>`
     : "";
+  const sensitiveDeliveryHint = lang === "ar"
+    ? "للوصول إلى الروابط الخارجية أو متابعة الطلب، افتح موقع Strivio يدويًا ثم ادخل إلى حسابك."
+    : lang === "fr"
+    ? "Pour accéder aux liens externes ou suivre la commande, ouvrez manuellement le site Strivio puis connectez-vous à votre compte."
+    : "To access external links or follow the order, open the Strivio website manually and sign in to your account.";
+  const actionBlock = hasSensitiveCredentials
+    ? `<p style="margin:22px 0 0;color:${BRAND.muted};font-size:13px;line-height:1.8">${esc(sensitiveDeliveryHint)}</p>`
+    : `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:24px"><tr><td bgcolor="${BRAND.neon}" style="border-radius:13px"><a href="${esc(ctx.actionUrl)}" style="display:inline-block;padding:14px 21px;color:#050505;text-decoration:none;font-size:14px;font-weight:900;border-radius:13px">${esc(ctaLabel)}</a></td></tr></table>`;
 
-  const html = `<!doctype html><html lang="${lang}" dir="${rtl ? "rtl" : "ltr"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head><body style="margin:0;padding:0;background:${BRAND.black};color:${BRAND.text};font-family:Arial,Tahoma,sans-serif;-webkit-text-size-adjust:100%"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.black};border-collapse:collapse"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;border-collapse:separate;border-spacing:0;background:${BRAND.panel};border:1px solid ${BRAND.border};border-radius:24px;overflow:hidden"><tr><td style="padding:26px 28px;background:linear-gradient(135deg,#080808,#10200d);border-bottom:1px solid ${BRAND.border}"><a href="https://www.striviodz.store" style="text-decoration:none;color:${BRAND.neon};font-size:30px;font-weight:900;letter-spacing:.5px">STRIVIO</a><div style="margin-top:5px;color:${BRAND.muted};font-size:12px">${esc(c.brandLine)}</div></td></tr><tr><td style="padding:30px 28px;text-align:${rtl ? "right" : "left"}"><div dir="auto" style="color:${BRAND.muted};font-size:14px;margin-bottom:10px">${esc(greeting)}</div><h1 dir="auto" style="margin:0;color:${BRAND.text};font-size:26px;line-height:1.35">${esc(title)}</h1><p dir="auto" style="margin:13px 0 0;color:#d0d0d0;font-size:15px;line-height:1.85">${esc(body)}</p>${detailsRows(ctx, lang)}${credentialBlock}${messageBlock}${showNetflixTerms ? netflixTerms() : ""}${supportBlock}<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:24px"><tr><td bgcolor="${BRAND.neon}" style="border-radius:13px"><a href="${esc(ctx.actionUrl)}" style="display:inline-block;padding:14px 21px;color:#050505;text-decoration:none;font-size:14px;font-weight:900;border-radius:13px">${esc(ctaLabel)}</a></td></tr></table>${entries.length ? `<p style="margin:20px 0 0;color:${BRAND.warning};font-size:12px;line-height:1.7">${esc(c.safety)}</p>` : ""}</td></tr><tr><td style="padding:20px 28px;border-top:1px solid ${BRAND.border};color:#777;font-size:11px;line-height:1.7;text-align:${rtl ? "right" : "left"}">${esc(c.automated)}<br>© ${new Date().getUTCFullYear()} Strivio · striviodz.store</td></tr></table></td></tr></table></body></html>`;
+  const html = `<!doctype html><html lang="${lang}" dir="${rtl ? "rtl" : "ltr"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head><body style="margin:0;padding:0;background:${BRAND.black};color:${BRAND.text};font-family:Arial,Tahoma,sans-serif;-webkit-text-size-adjust:100%"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.black};border-collapse:collapse"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;border-collapse:separate;border-spacing:0;background:${BRAND.panel};border:1px solid ${BRAND.border};border-radius:24px;overflow:hidden"><tr><td style="padding:26px 28px;background:linear-gradient(135deg,#080808,#10200d);border-bottom:1px solid ${BRAND.border}"><span style="color:${BRAND.neon};font-size:30px;font-weight:900;letter-spacing:.5px">STRIVIO</span><div style="margin-top:5px;color:${BRAND.muted};font-size:12px">${esc(c.brandLine)}</div></td></tr><tr><td style="padding:30px 28px;text-align:${rtl ? "right" : "left"}"><div dir="auto" style="color:${BRAND.muted};font-size:14px;margin-bottom:10px">${esc(greeting)}</div><h1 dir="auto" style="margin:0;color:${BRAND.text};font-size:26px;line-height:1.35">${esc(title)}</h1><p dir="auto" style="margin:13px 0 0;color:#d0d0d0;font-size:15px;line-height:1.85">${esc(body)}</p>${detailsRows(ctx, lang)}${credentialBlock}${messageBlock}${showNetflixTerms ? netflixTerms() : ""}${supportBlock}${actionBlock}${entries.length ? `<p style="margin:20px 0 0;color:${BRAND.warning};font-size:12px;line-height:1.7">${esc(c.safety)}</p>` : ""}</td></tr><tr><td style="padding:20px 28px;border-top:1px solid ${BRAND.border};color:#777;font-size:11px;line-height:1.7;text-align:${rtl ? "right" : "left"}">${esc(c.automated)}<br>© ${new Date().getUTCFullYear()} Strivio</td></tr></table></td></tr></table></body></html>`;
 
   const textParts = [
     "STRIVIO",
@@ -439,7 +446,7 @@ export function renderStrivioEmail(ctx: StrivioEmailContext): RenderedStrivioEma
     showNetflixTerms ? "شروط Netflix: الحساب والبروفايل لصاحب الطلب فقط. يمنع مشاركة البروفايل بين أكثر من شخص أو المشاهدة من جهازين في الوقت نفسه. يمنع تغيير بريد الحساب أو كلمة سره أو إعداداته العامة، ويسمح فقط بتعديل اسم البروفايل ورمز PIN. قد تؤدي المخالفة إلى سحب الاشتراك دون استرداد." : "",
     isDelivery ? c.support : "",
     ctx.isNetflix ? c.renewal : "",
-    `${ctaLabel}: ${ctx.actionUrl}`,
+    hasSensitiveCredentials ? sensitiveDeliveryHint : `${ctaLabel}: ${ctx.actionUrl}`,
     c.automated,
   ].filter(Boolean);
 
