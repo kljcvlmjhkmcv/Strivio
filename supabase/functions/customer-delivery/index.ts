@@ -383,6 +383,11 @@ serve(async req=>{
         }:null,
         subscription_state:subscriptionState,
         expired_at:expiredAt,
+        expired_entries:expiredAllocations.map((item:any)=>({
+          label:item.inventory_slots?.label||'Profile',
+          ends_at:item.ends_at||null,
+          allocation_kind:item.allocation_kind||'standard'
+        })),
         renewal_targets:renewalTargets,
         renewal_options:{
           durations:RENEWAL_DURATION_LABELS,

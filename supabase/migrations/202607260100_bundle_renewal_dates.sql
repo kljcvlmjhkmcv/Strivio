@@ -19,6 +19,7 @@ declare
   v_new_end timestamptz;
   v_updated integer;
   v_rows integer;
+  v_allocation_count integer;
   v_parent_end timestamptz;
   v_gift_updates jsonb := '[]'::jsonb;
 begin
@@ -35,22 +36,37 @@ begin
     return jsonb_build_object('success',true,'updated',0,'updates','[]'::jsonb);
   end if;
 
-  -- The gift follows the current parent subscription end.  This keeps a
-  -- Netflix + Prime offer on one clear date even after earlier renewals.
+  -- Follow only the subscription targets selected in this paid renewal.
+  -- Looking at every profile in the source order would incorrectly give a
+  -- partially-renewed gift the date of another, longer profile.
   select max(a.ends_at)
     into v_parent_end
-    from public.fulfillment_allocations a
-    join public.fulfillments f on f.id=a.fulfillment_id
-   where f.order_id=p_source_order_id
-     and f.order_item_index=any(p_source_item_indices)
+    from public.renewal_requests r
+    join public.fulfillment_allocations a
+      on r.target_kind='allocation'
+     and a.id=any(r.target_ids)
+   where r.order_id=p_renewal_order_id
      and a.status='active';
   if v_parent_end is null then
     select max(nullif(f.delivery_summary->>'ends_at','')::timestamptz)
       into v_parent_end
-      from public.fulfillments f
+      from public.renewal_requests r
+      join public.fulfillments f
+        on r.target_kind='fulfillment'
+       and f.id=any(r.target_ids)
+     where r.order_id=p_renewal_order_id
+       and lower(coalesce(f.status,'')) in ('delivered','completed');
+  end if;
+  -- Backwards-compatible fallback for a deliberate server/admin call that
+  -- does not have a renewal_request row.
+  if v_parent_end is null then
+    select max(a.ends_at)
+      into v_parent_end
+      from public.fulfillment_allocations a
+      join public.fulfillments f on f.id=a.fulfillment_id
      where f.order_id=p_source_order_id
        and f.order_item_index=any(p_source_item_indices)
-       and lower(coalesce(f.status,'')) in ('delivered','completed');
+       and a.status='active';
   end if;
 
   for v_b in
@@ -85,6 +101,15 @@ begin
       ) x;
     v_new_end=null;
     v_updated=0;
+    select
+      (select count(*)
+         from public.shared_profile_allocations s
+        where s.benefit_id=v_b.id)
+      +
+      (select count(*)
+         from public.fulfillment_allocations a
+        where a.fulfillment_id=v_b.fulfillment_id)
+      into v_allocation_count;
     -- Lock and extend reusable gift profiles.
     update public.shared_profile_allocations s
        set ends_at=coalesce(
@@ -132,9 +157,11 @@ begin
            and a.status='active'
       ) x;
 
-    -- Manual gifts have no allocation row; extend their fulfillment summary
-    -- so the same customer-facing date is still updated.
+    -- A genuinely manual gift has no allocation row. An expired inventory
+    -- allocation must never fall through here: changing only the summary
+    -- would display a renewed date while its credentials remain unavailable.
     if v_new_end is null
+       and v_allocation_count=0
        and lower(coalesce(v_b.gift_status,'')) in ('delivered','completed') then
       v_old_end=nullif(v_b.delivery_summary->>'ends_at','')::timestamptz;
       if v_old_end is not null then
@@ -155,50 +182,52 @@ begin
        where id=v_b.fulfillment_id;
     end if;
 
-    insert into public.operations_audit_log(
-      actor_id,action,entity_type,entity_id,order_id,service_id,
-      before_data,after_data,metadata
-    ) values (
-      null,
-      'renew_bundle_gift',
-      'order_benefit',
-      v_b.id::text,
-      p_renewal_order_id,
-      v_b.gift_service_id,
-      jsonb_build_object('ends_at',v_old_end),
-      jsonb_build_object(
-        'ends_at',v_new_end,
-        'months',p_months,
-        'source_order_id',p_source_order_id,
-        'source_item_index',v_b.source_item_index
-      ),
-      jsonb_build_object('updated_rows',v_updated)
-    );
+    if v_new_end is not null then
+      insert into public.operations_audit_log(
+        actor_id,action,entity_type,entity_id,order_id,service_id,
+        before_data,after_data,metadata
+      ) values (
+        null,
+        'renew_bundle_gift',
+        'order_benefit',
+        v_b.id::text,
+        p_renewal_order_id,
+        v_b.gift_service_id,
+        jsonb_build_object('ends_at',v_old_end),
+        jsonb_build_object(
+          'ends_at',v_new_end,
+          'months',p_months,
+          'source_order_id',p_source_order_id,
+          'source_item_index',v_b.source_item_index
+        ),
+        jsonb_build_object('updated_rows',v_updated)
+      );
 
-    insert into public.integration_outbox(event_type,aggregate_id,payload)
-    values (
-      'subscription_updated',
-      v_b.fulfillment_id::text,
-      jsonb_build_object(
-        'order_id',p_source_order_id,
-        'renewal_order_id',p_renewal_order_id,
-        'fulfillment_id',v_b.fulfillment_id,
+      insert into public.integration_outbox(event_type,aggregate_id,payload)
+      values (
+        'subscription_updated',
+        v_b.fulfillment_id::text,
+        jsonb_build_object(
+          'order_id',p_source_order_id,
+          'renewal_order_id',p_renewal_order_id,
+          'fulfillment_id',v_b.fulfillment_id,
+          'benefit_id',v_b.id,
+          'service_id',v_b.gift_service_id,
+          'ends_at',v_new_end,
+          'scope','bundle_gift',
+          'inventory',true,
+          'source','paid_renewal'
+        )
+      );
+
+      v_gift_updates=v_gift_updates||jsonb_build_object(
         'benefit_id',v_b.id,
+        'fulfillment_id',v_b.fulfillment_id,
         'service_id',v_b.gift_service_id,
         'ends_at',v_new_end,
-        'scope','bundle_gift',
-        'inventory',true,
-        'source','paid_renewal'
-      )
-    );
-
-    v_gift_updates=v_gift_updates||jsonb_build_object(
-      'benefit_id',v_b.id,
-      'fulfillment_id',v_b.fulfillment_id,
-      'service_id',v_b.gift_service_id,
-      'ends_at',v_new_end,
-      'updated_rows',v_updated
-    );
+        'updated_rows',v_updated
+      );
+    end if;
   end loop;
 
   return jsonb_build_object(

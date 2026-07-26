@@ -259,12 +259,14 @@ check(deliveryApi.includes("isPromotionGift?[]:rowAllocations.length"),'Free pro
 check(deliveryApi.includes("allocation_kind:'shared_promotion'"),'Customer delivery does not validate shared allocations');
 check(deliveryApi.includes("accountStatusById"),'Customer delivery does not expose maintenance state safely');
 check(deliveryApi.includes("subscription_state:subscriptionState")&&deliveryApi.includes("expired_at:expiredAt"),'Customer delivery does not expose inactive subscription state safely');
+check(deliveryApi.includes("expired_entries:expiredAllocations.map"),'Customer delivery does not expose expired profile labels without credentials');
 check(myAccountSource.includes('maintenanceTitle')&&myAccountSource.includes('accountUnderMaintenance'),'My Account does not warn customers when their inventory account is under maintenance');
-check(myAccountSource.includes('This service is not active right now.')&&myAccountSource.includes('entries = entries.filter'), 'My Account still exposes expired delivery details');
+check(myAccountSource.includes('expiredProfile')&&myAccountSource.includes('badge(inactive ? "expired" : f.status)')&&myAccountSource.includes('entries = entries.filter'), 'My Account does not render expired subscriptions safely');
 const bundleRenewalMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607260100_bundle_renewal_dates.sql'),'utf8');
 check(bundleRenewalMigration.includes('extend_bundle_gifts_for_renewal'),'Bundle gifts are not extended from the server during renewal');
 check(bundleRenewalMigration.includes("'gift_updates'"),'Renewal result does not expose gift date updates');
 check(bundleRenewalMigration.includes("'new_ends_at',latest_end"),'Renewal result does not expose the updated parent expiry');
+check(bundleRenewalMigration.includes('and v_allocation_count=0'),'Expired gift allocations can be reported as renewed by changing only their summary');
 check(fulfillOrder.includes('renewalGiftUpdates')&&fulfillOrder.includes('gift_updates: renewalGiftUpdates'),'Renewal notifications do not include updated gift subscriptions');
 
 const emailTemplate=fs.readFileSync(path.join(root,'supabase','functions','_shared','strivio-email.ts'),'utf8');
