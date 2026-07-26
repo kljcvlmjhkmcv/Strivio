@@ -259,6 +259,7 @@
         id="stats"
         class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5"
       ></section>
+      <section id="inventory-alerts" class="hidden panel rounded-[20px] p-5 mb-5"></section>
       <section class="panel rounded-[20px] p-3 mb-5 flex flex-wrap gap-2">
         <button class="tab active" data-tab="overview">نظرة عامة</button
         ><button class="tab" data-tab="services">سجلات الخدمات</button
@@ -964,29 +965,43 @@
         await window.supabaseClient.auth.signOut();
         location.href = "admin";
       }
+      var inventoryCallsInFlight = new Map();
       async function inventoryCall(body) {
-        var r = await window.supabaseClient.auth.getSession(),
-          s = r.data && r.data.session;
-        if (!s) throw new Error("انتهت الجلسة");
-        var response = await fetch(
-          SUPABASE_URL + "/functions/v1/admin-inventory",
-          {
-            method: "POST",
-            headers: {
-              Authorization: "Bearer " + s.access_token,
-              apikey: SUPABASE_ANON_KEY,
-              "Content-Type": "application/json",
-              "x-client-info": "strivio-operations",
+        var action = String((body && body.action) || "");
+        var guarded = action && !["list", "sync_sheet", "flush_sheet_queue"].includes(action);
+        var callKey = guarded ? JSON.stringify(body) : "";
+        if (guarded && inventoryCallsInFlight.has(callKey))
+          return inventoryCallsInFlight.get(callKey);
+        var request = (async function () {
+          var r = await window.supabaseClient.auth.getSession(),
+            s = r.data && r.data.session;
+          if (!s) throw new Error("انتهت الجلسة");
+          var response = await fetch(
+            SUPABASE_URL + "/functions/v1/admin-inventory",
+            {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + s.access_token,
+                apikey: SUPABASE_ANON_KEY,
+                "Content-Type": "application/json",
+                "x-client-info": "strivio-operations",
+              },
+              body: JSON.stringify(body),
             },
-            body: JSON.stringify(body),
-          },
-        );
-        var data = await response.json().catch(function () {
-          return null;
-        });
-        if (!response.ok || !data || !data.success)
-          throw new Error((data && data.error) || "تعذر تنفيذ الطلب");
-        return data;
+          );
+          var data = await response.json().catch(function () {
+            return null;
+          });
+          if (!response.ok || !data || !data.success)
+            throw new Error((data && data.error) || "تعذر تنفيذ الطلب");
+          return data;
+        })();
+        if (guarded) inventoryCallsInFlight.set(callKey, request);
+        try {
+          return await request;
+        } finally {
+          if (guarded) inventoryCallsInFlight.delete(callKey);
+        }
       }
       async function dispatchPendingNotifications(channels) {
         try {
@@ -1177,6 +1192,7 @@
       }
       function renderAll() {
         renderStats();
+        renderInventoryAlerts();
         renderRecent();
         renderServiceRegisters();
         renderInventory();
@@ -1188,6 +1204,70 @@
         renderPromotions();
         var sid = new URLSearchParams(location.search).get("service");
         if (sid) openServiceRegister(sid, true);
+      }
+      function inventoryAlertServices() {
+        var waitingByService = {};
+        state.fulfillments.forEach(function (f) {
+          var status = String(f.status || "").toLowerCase();
+          if (["out_of_stock", "failed", "pending", "processing"].includes(status)) {
+            waitingByService[f.service_id] = (waitingByService[f.service_id] || 0) + 1;
+          }
+        });
+        return state.services.map(function (service) {
+          var mode = service.fulfillment_mode || serviceConfig(service.id).inventory_model || "manual_delivery";
+          if (!["automatic_slot", "automatic_shared_slot", "automatic_account", "automatic_license"].includes(mode)) return null;
+          var config = serviceConfig(service.id);
+          var available = 0, total = 0, unit = "عنصر";
+          if (mode === "automatic_license") {
+            var licenses = state.licenses.filter(function (x) { return x.service_id === service.id; });
+            total = licenses.length;
+            available = licenses.filter(function (x) { return String(x.status || "").toLowerCase() === "available"; }).length;
+            unit = "ترخيص";
+          } else if (mode === "automatic_account") {
+            var accounts = state.accounts.filter(function (x) { return x.service_id === service.id; });
+            total = accounts.length;
+            available = accounts.filter(function (x) { return String(x.status || "active").toLowerCase() === "active"; }).length;
+            unit = "حساب";
+          } else {
+            var slots = state.slots.filter(function (x) {
+              var account = state.accounts.find(function (a) { return a.id === x.account_id; });
+              return account && account.service_id === service.id;
+            });
+            total = slots.length;
+            available = slots.filter(function (x) {
+              var account = state.accounts.find(function (a) { return a.id === x.account_id; });
+              return String(x.status || "").toLowerCase() === "available" &&
+                String((account && account.status) || "active").toLowerCase() === "active";
+            }).length;
+            unit = "بروفايل";
+          }
+          var waiting = waitingByService[service.id] || 0;
+          var threshold = Math.max(1, Math.min(3, Math.ceil(Math.max(total, 1) * 0.2)));
+          var severity = available === 0 ? "critical" : (available <= threshold ? "low" : "");
+          if (waiting > 0 && available === 0) severity = "critical";
+          if (!severity && waiting === 0) return null;
+          return { service: service, mode: mode, available: available, total: total, unit: unit, waiting: waiting, severity: severity };
+        }).filter(Boolean);
+      }
+      function renderInventoryAlerts() {
+        var el = $("inventory-alerts");
+        if (!el) return;
+        var alerts = inventoryAlertServices();
+        if (!alerts.length) {
+          el.className = "panel rounded-[20px] p-5 mb-5 border border-[#1c5c1c]";
+          el.innerHTML = '<div class="flex items-center gap-3"><span class="text-2xl">✓</span><div><b class="text-[#39ff14]">المخزون تحت السيطرة</b><p class="muted text-xs mt-1">لا توجد خدمة وصلت إلى حدّ التنبيه ولا طلبات عالقة بسبب المخزون.</p></div></div>';
+          return;
+        }
+        el.className = "panel rounded-[20px] p-5 mb-5 border border-[#6b3d16]";
+          el.innerHTML = '<div class="flex flex-col gap-3"><div class="flex items-center justify-between gap-3"><div><div class="text-[#ffb347] text-[10px] font-black tracking-[.16em]">INVENTORY ALERTS</div><h2 class="font-black text-lg mt-1">تنبيهات المخزون والطلبات المنتظرة</h2><p class="muted text-xs mt-1">راجع الخدمة ثم اضغط محاولة التسليم بعد إضافة المخزون.</p></div><span class="badge b-yellow">' + alerts.length + ' تنبيه</span></div><div class="grid md:grid-cols-2 xl:grid-cols-3 gap-3">' +
+          alerts.map(function (item) {
+            var critical = item.severity === "critical";
+            var title = critical ? "نفد المخزون" : "المخزون منخفض";
+            var color = critical ? "#ff6666" : "#ffb347";
+            return '<article class="rounded-xl border p-4" style="border-color:' + color + '55;background:' + color + '0b"><div class="flex items-start justify-between gap-2"><div><b style="color:' + color + '">' + title + '</b><div class="font-black mt-1">' + esc(serviceName(item.service.id)) + '</div></div><span class="text-xs muted">' + item.available + ' / ' + item.total + ' ' + item.unit + '</span></div>' +
+              (item.waiting ? '<p class="text-xs mt-3" style="color:' + color + '">' + item.waiting + ' طلب بانتظار التسليم</p>' : '<p class="muted text-xs mt-3">أضف مخزوناً قبل وصول طلبات جديدة.</p>') +
+              '<button class="btn w-full mt-3" onclick="openServiceRegister(\'' + esc(item.service.id) + '\')">فتح سجل الخدمة</button></article>';
+          }).join("") + '</div></div>';
       }
       function modeLabel(mode) {
         return (
@@ -2057,7 +2137,7 @@
                     (terminal ? "" : "neon") +
                     '" onclick="openActivationModal(\'' +
                     esc(f.id) +
-                    "')\">" +
+                   "',this)\">" +
                     (terminal ? "فتح السجل" : "فتح وتجهيز") +
                     "</button>"
                   : terminal
@@ -2145,9 +2225,9 @@
                   statusBadge(a.status) +
                   '<button class="btn mt-2" onclick="setInventoryStatus(\'accounts\',\'' +
                   esc(a.id) +
-                  "','" +
-                  (a.status === "active" ? "maintenance" : "active") +
-                  "')\">" +
+                   "','" +
+                   (a.status === "active" ? "maintenance" : "active") +
+                   "',this)\">" +
                   (a.status === "active" ? "إيقاف الحساب للصيانة" : "إعادة الحساب للعمل") +
                   "</button>" +
                   '</div></div><div class="table-wrap border-0 rounded-none"><table class="table min-w-[780px]"><thead><tr><th>البروفايل</th><th>العميل والاشتراك</th><th>الحالة</th><th>الإدارة</th></tr></thead><tbody>' +
@@ -2172,7 +2252,7 @@
                             esc(x.id) +
                             "','" +
                             (x.status === "available" ? "maintenance" : "available") +
-                            "')\">" +
+                            "',this)\">" +
                             (x.status === "available" ? "إيقاف مؤقت" : "جعله متاحاً") +
                             "</button>") +
                         (allocation
@@ -2591,7 +2671,7 @@
                 esc(a.id) +
                 "','" +
                 (a.status === "active" ? "maintenance" : "active") +
-                "')\">" +
+                "',this)\">" +
                 (a.status === "active" ? "إيقاف مؤقت" : "تفعيل") +
                 '</button></div></div></div><div class="border-t border-[#292929]">' +
                 slots
@@ -2608,7 +2688,7 @@
                       (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation?'<button class="btn neon" onclick="openMoveProfile(\''+esc(allocation.id)+'\',\''+esc(s.id)+'\')">نقل إلى بروفايل فارغ</button>':'';})() +
                       (function(){var allocation=state.allocations.find(function(x){return x.slot_id===s.id&&x.status==='active';});return allocation
                         ?'<button class="btn" style="border-color:#ef444455;color:#ff8b8b" onclick="openReleaseSubscription(\''+esc(allocation.id)+'\',\''+esc(s.label||'Profile')+'\')">إخلاء</button>'
-                        :"<button class=\"btn\" onclick=\"setInventoryStatus('slots','"+esc(s.id)+"','"+(s.status==="available"?"maintenance":"available")+"')\">"+(s.status==="available"?"إيقاف":"إتاحة")+"</button>";})() +
+                        :"<button class=\"btn\" onclick=\"setInventoryStatus('slots','"+esc(s.id)+"','"+(s.status==="available"?"maintenance":"available")+"',this)\">"+(s.status==="available"?"إيقاف":"إتاحة")+"</button>";})() +
                       "</div></div>"
                     );
                   })
@@ -2619,7 +2699,14 @@
             .join("") +
           "</div>";
       }
-      async function setInventoryStatus(kind, id, status) {
+      async function setInventoryStatus(kind, id, status, button) {
+        if (button && button.disabled) return;
+        var originalLabel = button ? button.textContent : "";
+        if (button) {
+          button.disabled = true;
+          button.dataset.busy = "1";
+          button.textContent = "جاري الحفظ…";
+        }
         try {
           await inventoryCall({
             action: "set_status",
@@ -2631,6 +2718,12 @@
           await loadAll();
         } catch (e) {
           toast(e.message, true);
+        } finally {
+          if (button && document.body.contains(button)) {
+            button.disabled = false;
+            delete button.dataset.busy;
+            button.textContent = originalLabel;
+          }
         }
       }
       function openEndDateEditor(allocationId, endsAt) {

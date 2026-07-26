@@ -225,6 +225,9 @@ check(operations.includes("retryOrderFulfillment("),'Operations cannot retry a p
 check(operations.includes("action: \"retry_fulfillment\""),'Operations retry button is not connected to the admin backend');
 check(operations.includes("retryServiceFulfillments(")&&operations.includes("تسليم الطلبات المنتظرة"),'Operations cannot retry every waiting order for one service');
 check(operations.includes("إيقاف الحساب للصيانة")&&operations.includes("إعادة الحساب للعمل"),'Service accounts cannot be paused and restored from their register');
+check(operations.includes('id="inventory-alerts"')&&operations.includes('renderInventoryAlerts()'),'Operations does not render low/out-of-stock alerts');
+check(operations.includes('inventoryCallsInFlight'),'Duplicate admin inventory mutations are not guarded');
+check(cartPage.includes('checkoutInFlight')&&cartPage.includes('setCheckoutBusy(true'),'Checkout can be submitted repeatedly while an order is being created');
 const lifecycleMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607250200_subscription_lifecycle.sql'),'utf8');
 check(lifecycleMigration.includes('ops_update_subscription_end'),'Scoped subscription expiry RPC is missing');
 check(lifecycleMigration.includes("v_scope not in ('allocation','fulfillment')"),'Subscription expiry scope is not server-validated');

@@ -487,6 +487,8 @@ var TX={
 var L = localStorage.getItem('strivio_lang') || 'fr';
 var selPay = null;
 var cart = [];
+var checkoutInFlight = false;
+var checkoutBusyText = '';
 var appliedCoupon = null;
 var couponDiscount = 0;
 
@@ -901,13 +903,14 @@ function buildMessage(rpcData){
    CONFIRM ORDER VIA SERVER RPC & COPY CLIPBOARD
 ════════════════════════════════════════════════════════ */
 async function confirmOrder(){
-  if(!selPay || cart.length === 0) return;
+  if(checkoutInFlight || !selPay || cart.length === 0) return;
   var customerInfo = await getCustomerInfo();
   if (!customerInfo) return;
   var tx = t();
   var btn = $('CFRMBTN');
   var loadTxt = L === 'ar' ? '⏳ جاري إنشاء فاتورة الدفع الآمنة...' : (L === 'fr' ? '⏳ Création de la facture sécurisée...' : '⏳ Creating secure invoice...');
-  if(btn) { btn.disabled = true; btn.textContent = loadTxt; }
+  checkoutBusyText = loadTxt;
+  setCheckoutBusy(true, btn);
 
   var rpcData = null;
   if (typeof saveOrderToDB === 'function') {
@@ -919,16 +922,8 @@ async function confirmOrder(){
     });
   }
 
-  if(btn) { 
-    btn.disabled = false; 
-    if (selPay === 'cib') {
-      btn.textContent = L === 'ar' ? '💳 الانتقال للدفع الفوري الآمن (SATIM)' : (L === 'fr' ? '💳 Payer instantanément via SATIM' : '💳 Pay Instant & Secure via SATIM');
-    } else {
-      btn.textContent = tx.confirmBtn; 
-    }
-  }
-
   if (!rpcData || !rpcData.success) {
+    setCheckoutBusy(false, btn);
     var errMsg = rpcData && rpcData.error_message ? rpcData.error_message : (L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.'));
     showAppNotice(errMsg, { tone: 'error' });
     return;
@@ -962,11 +957,15 @@ async function confirmOrder(){
 
   copyToClipboard(msg);
   window.open(waUrl, '_blank');
+  localStorage.removeItem('strivio_cart');
+  cart = [];
+  setCheckoutBusy(false, btn);
+  render();
   showToast(tx.toastTitle, tx.toastDesc);
 }
 
 async function confirmOrderSocial(platform){
-  if(!selPay || cart.length === 0){
+  if(checkoutInFlight || !selPay || cart.length === 0){
     showAppNotice(t().selectPayFirst, { tone: 'error' });
     return;
   }
@@ -977,7 +976,8 @@ async function confirmOrderSocial(platform){
   var btn = $(btnId);
   var origTxt = btn ? btn.innerHTML : '';
   var loadTxt = L === 'ar' ? '⏳ جاري إنشاء فاتورة الدفع الآمنة...' : (L === 'fr' ? '⏳ Création de la facture sécurisée...' : '⏳ Creating secure invoice...');
-  if(btn) { btn.disabled = true; btn.innerHTML = '<span>' + loadTxt + '</span>'; }
+  checkoutBusyText = loadTxt;
+  setCheckoutBusy(true, btn);
   
   var rpcData = null;
   if (typeof saveOrderToDB === 'function') {
@@ -989,9 +989,8 @@ async function confirmOrderSocial(platform){
     });
   }
 
-  if(btn) { btn.disabled = false; btn.innerHTML = origTxt; }
-
   if (!rpcData || !rpcData.success) {
+    setCheckoutBusy(false, btn);
     var errMsg = L === 'ar' ? 'حدث خطأ أثناء إنشاء الطلب في السيرفر. يرجى المحاولة مرة أخرى.' : (L === 'en' ? 'An error occurred while creating the order on the server. Please try again.' : 'Erreur lors de la création de la commande. Veuillez réessayer.');
     showAppNotice(errMsg, { tone: 'error' });
     return;
@@ -1007,6 +1006,10 @@ async function confirmOrderSocial(platform){
 
   var msg = buildMessage(rpcData);
   copyToClipboard(msg);
+  localStorage.removeItem('strivio_cart');
+  cart = [];
+  setCheckoutBusy(false, btn);
+  render();
   
   // Show Social Copy Modal
   $('SM_TITLE').textContent = tx.socModalTitle;
@@ -1225,6 +1228,24 @@ if (cart.length === 0 && !returningFromCancelledPayment) {
   } catch (_) {
     localStorage.removeItem('strivio_saved_cart_before_renewal');
   }
+}
+
+function setCheckoutBusy(busy, activeButton){
+  checkoutInFlight = !!busy;
+  ['CFRMBTN','IG_BTN','FB_BTN'].forEach(function(id){
+    var button = $(id);
+    if(!button) return;
+    button.disabled = !!busy;
+    button.setAttribute('aria-busy', busy ? 'true' : 'false');
+  });
+  if(activeButton && busy){
+    activeButton.dataset.originalText = activeButton.innerHTML;
+    activeButton.innerHTML = '<span class="inline-flex items-center gap-2"><span class="animate-spin">↻</span>' + checkoutBusyText + '</span>';
+  } else if(activeButton && !busy && activeButton.dataset.originalText){
+    activeButton.innerHTML = activeButton.dataset.originalText;
+    delete activeButton.dataset.originalText;
+  }
+  if(!busy) updateConfirmBtn();
 }
 applyLang(L);
 prefillCustomer();
