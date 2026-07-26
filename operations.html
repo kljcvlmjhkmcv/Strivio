@@ -2062,9 +2062,15 @@
                     "</button>"
                   : terminal
                     ? '<span class="muted">مكتمل</span>'
-                    : '<button class="btn neon" onclick="updateFulfillment(\'' +
-                      esc(f.id) +
-                      "','delivered')\">تأكيد الإنجاز</button>") +
+                    : ["pending", "processing", "failed", "out_of_stock"].includes(
+                          String(f.status || "").toLowerCase(),
+                        )
+                      ? '<button class="btn neon" onclick="retryOrderFulfillment(\'' +
+                        esc(f.order_id) +
+                        "',this)\">محاولة التسليم الآن</button>"
+                      : '<button class="btn neon" onclick="updateFulfillment(\'' +
+                        esc(f.id) +
+                        "','delivered')\">تأكيد الإنجاز</button>") +
                 "</td></tr>"
               );
             })
@@ -2083,7 +2089,12 @@
             return f.service_id === id;
           }),
           workspace = $("service-workspace");
-        var inventoryButton =
+        var automaticInventory =
+            mode === "automatic_slot" ||
+            mode === "automatic_account" ||
+            mode === "automatic_license" ||
+            sharedPromotion,
+          inventoryButton =
           mode === "automatic_slot" || mode === "automatic_account" || sharedPromotion
             ? '<button class="btn neon" onclick="openInventoryCreator(\'' +
               esc(id) +
@@ -2092,7 +2103,12 @@
               ? '<button class="btn neon" onclick="openInventoryCreator(\'' +
                 esc(id) +
                 "','license')\">+ إضافة أكواد</button>"
-              : "";
+              : "",
+          retryWaitingButton = automaticInventory
+            ? '<button class="btn neon" onclick="retryServiceFulfillments(\'' +
+              esc(id) +
+              "',this)\">تسليم الطلبات المنتظرة</button>"
+            : "";
         var intro =
           '<div class="flex flex-col md:flex-row md:items-end justify-between gap-3"><div><div class="text-[#39ff14] text-[10px] font-black tracking-wider">' +
           esc(modeLabel(sharedPromotion ? "automatic_shared_slot" : mode)) +
@@ -2100,6 +2116,7 @@
           esc(serviceName(id)) +
           '</h2><p class="muted text-xs mt-2">هذا هو مكان إضافة وتعديل المخزون الرسمي. Google Sheets يعرض أحدث نسخة فقط.</p></div><div class="flex flex-wrap gap-2">' +
           inventoryButton +
+          retryWaitingButton +
           '<button class="btn" onclick="syncServiceSheet(\'' +
           esc(id) +
           '\')">↻ تحديث السجل والشيت</button></div></div>';
@@ -2126,6 +2143,13 @@
                   esc(a.id) +
                   '\')">تعديل الحساب</button>' +
                   statusBadge(a.status) +
+                  '<button class="btn mt-2" onclick="setInventoryStatus(\'accounts\',\'' +
+                  esc(a.id) +
+                  "','" +
+                  (a.status === "active" ? "maintenance" : "active") +
+                  "')\">" +
+                  (a.status === "active" ? "إيقاف الحساب للصيانة" : "إعادة الحساب للعمل") +
+                  "</button>" +
                   '</div></div><div class="table-wrap border-0 rounded-none"><table class="table min-w-[780px]"><thead><tr><th>البروفايل</th><th>العميل والاشتراك</th><th>الحالة</th><th>الإدارة</th></tr></thead><tbody>' +
                   slots
                     .map(function (x) {
@@ -2298,14 +2322,13 @@
           );
         }
         if (
-          isManualPaymentOrder(order) &&
           ["paid", "completed"].includes(status) &&
           (missingItem || recoverable)
         ) {
           return (
-            '<button class="btn whitespace-nowrap" onclick="confirmManualPayment(\'' +
+            '<button class="btn neon whitespace-nowrap" onclick="retryOrderFulfillment(\'' +
             esc(order.id) +
-            "',this)\">إعادة محاولة التجهيز</button>"
+            "',this)\">محاولة التسليم الآن</button>"
           );
         }
         return '<span class="muted">—</span>';
@@ -2397,6 +2420,63 @@
           delete button.dataset.busy;
           button.textContent = originalLabel;
           toast("تعذر اعتماد الدفع اليدوي: " + error.message, true);
+        }
+      }
+      async function retryOrderFulfillment(id, button) {
+        if (!id || !button || button.disabled) return;
+        var originalLabel = button.textContent;
+        button.disabled = true;
+        button.dataset.busy = "1";
+        button.textContent = "جاري البحث عن مخزون…";
+        try {
+          var result = await inventoryCall({
+            action: "retry_fulfillment",
+            order_id: id,
+          });
+          toast(
+            result.retryable
+              ? "لا يزال المخزون غير كافٍ. بقي الطلب بانتظار المخزون دون إلغائه."
+              : "تم العثور على المخزون وتسليم الطلب بنجاح.",
+            Boolean(result.retryable),
+          );
+          await loadAll();
+        } catch (error) {
+          button.disabled = false;
+          delete button.dataset.busy;
+          button.textContent = originalLabel;
+          toast("تعذرت محاولة التسليم: " + error.message, true);
+        }
+      }
+      async function retryServiceFulfillments(serviceId, button) {
+        if (!serviceId || !button || button.disabled) return;
+        var originalLabel = button.textContent;
+        button.disabled = true;
+        button.dataset.busy = "1";
+        button.textContent = "جاري تسليم الطلبات…";
+        try {
+          var result = await inventoryCall({
+            action: "retry_service_fulfillments",
+            service_id: serviceId,
+          });
+          toast(
+            result.attempted
+              ? "تمت محاولة " +
+                result.attempted +
+                " طلب: تم تسليم " +
+                result.delivered +
+                "، والمتبقي بانتظار المخزون " +
+                result.waiting +
+                "."
+              : "لا توجد طلبات مدفوعة بانتظار مخزون لهذه الخدمة.",
+            false,
+          );
+          await loadAll();
+          openServiceRegister(serviceId, true);
+        } catch (error) {
+          button.disabled = false;
+          delete button.dataset.busy;
+          button.textContent = originalLabel;
+          toast("تعذرت محاولة تسليم الطلبات: " + error.message, true);
         }
       }
       function renderRenewals() {

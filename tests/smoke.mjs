@@ -198,7 +198,7 @@ check(manualFulfillmentMigration.includes("customer_input='{}'::jsonb"),'Switchi
 check(!manualFulfillmentMigration.includes("customer_input=null"),'Manual delivery violates the non-null customer_input constraint');
 check(manualFulfillmentMigration.includes("'changed',v_changed"),'Repeated manual routing cannot be detected as a no-op');
 const inventoryAdmin=fs.readFileSync(path.join(root,'supabase','functions','admin-inventory','index.ts'),'utf8');
-for(const action of ['confirm_manual_payment','choose_manual_delivery','deliver_manual_credentials']){
+for(const action of ['confirm_manual_payment','retry_fulfillment','retry_service_fulfillments','choose_manual_delivery','deliver_manual_credentials']){
   check(inventoryAdmin.includes(`action === "${action}"`),`Admin inventory endpoint is missing ${action}`);
 }
 const manualConfirmStart=inventoryAdmin.indexOf('action === "confirm_manual_payment"');
@@ -221,6 +221,10 @@ check(inventoryAdmin.includes('action === "release_allocation"'),'Admin inventor
 check(inventoryAdmin.includes('ops_update_subscription_end'),'Admin inventory cannot select per-profile or whole-item expiry updates');
 check(operations.includes('end-date-scope'),'Operations expiry editor has no per-profile/all-profiles scope');
 check(operations.includes('openReleaseSubscription'),'Operations cannot release a profile without the unsafe status toggle');
+check(operations.includes("retryOrderFulfillment("),'Operations cannot retry a paid order after stock is added');
+check(operations.includes("action: \"retry_fulfillment\""),'Operations retry button is not connected to the admin backend');
+check(operations.includes("retryServiceFulfillments(")&&operations.includes("تسليم الطلبات المنتظرة"),'Operations cannot retry every waiting order for one service');
+check(operations.includes("إيقاف الحساب للصيانة")&&operations.includes("إعادة الحساب للعمل"),'Service accounts cannot be paused and restored from their register');
 const lifecycleMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607250200_subscription_lifecycle.sql'),'utf8');
 check(lifecycleMigration.includes('ops_update_subscription_end'),'Scoped subscription expiry RPC is missing');
 check(lifecycleMigration.includes("v_scope not in ('allocation','fulfillment')"),'Subscription expiry scope is not server-validated');
@@ -250,6 +254,8 @@ check(fulfillOrder.includes('renewalGiftContext'),'Renewal promotions are not fu
 const deliveryApi=fs.readFileSync(path.join(root,'supabase','functions','customer-delivery','index.ts'),'utf8');
 check(deliveryApi.includes("isPromotionGift?[]:rowAllocations.length"),'Free promotional gifts can incorrectly be renewed');
 check(deliveryApi.includes("allocation_kind:'shared_promotion'"),'Customer delivery does not validate shared allocations');
+check(deliveryApi.includes("accountStatusById"),'Customer delivery does not expose maintenance state safely');
+check(myAccountSource.includes('maintenanceTitle')&&myAccountSource.includes('accountUnderMaintenance'),'My Account does not warn customers when their inventory account is under maintenance');
 
 const emailTemplate=fs.readFileSync(path.join(root,'supabase','functions','_shared','strivio-email.ts'),'utf8');
 check(emailTemplate.includes('const CTA ='),'Transactional emails do not have event-specific CTA labels');

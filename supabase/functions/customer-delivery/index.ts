@@ -244,10 +244,10 @@ serve(async req=>{
     const serviceIds=[...new Set((rows||[]).map((row:any)=>row.service_id).filter(Boolean))];
     const [allocationsResult,sharedAllocationsResult,benefitsResult,servicesResult,activationMessagesResult]=await Promise.all([
       fulfillmentIds.length
-        ? db.from('fulfillment_allocations').select('id,fulfillment_id,ends_at,status,renewal_count,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).order('created_at')
+        ? db.from('fulfillment_allocations').select('id,fulfillment_id,account_id,slot_id,ends_at,status,renewal_count,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).order('created_at')
         : Promise.resolve({data:[],error:null}),
       fulfillmentIds.length
-        ? db.from('shared_profile_allocations').select('id,fulfillment_id,benefit_id,slot_id,ends_at,status,renewal_count,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).order('created_at')
+        ? db.from('shared_profile_allocations').select('id,fulfillment_id,benefit_id,account_id,slot_id,ends_at,status,renewal_count,inventory_slots(label)').in('fulfillment_id',fulfillmentIds).order('created_at')
         : Promise.resolve({data:[],error:null}),
       fulfillmentIds.length
         ? db.from('order_benefits').select('id,fulfillment_id,source_item_index,gift_item_index,gift_service_id,duration_months,quantity,allocation_policy,status,metadata').in('fulfillment_id',fulfillmentIds)
@@ -268,6 +268,15 @@ serve(async req=>{
       ...(allocationsResult.data||[]).map((item:any)=>({...item,allocation_kind:'standard'})),
       ...(sharedAllocationsResult.data||[]).map((item:any)=>({...item,allocation_kind:'shared_promotion'}))
     ];
+    const allocationAccountIds=[...new Set(allocations.map((item:any)=>String(item.account_id||'')).filter(Boolean))];
+    const inventoryAccountsResult=allocationAccountIds.length
+      ? await db.from('inventory_accounts').select('id,status').in('id',allocationAccountIds)
+      : {data:[],error:null};
+    if(inventoryAccountsResult.error)throw inventoryAccountsResult.error;
+    const accountStatusById=new Map((inventoryAccountsResult.data||[]).map((item:any)=>[
+      String(item.id),
+      String(item.status||'active').toLowerCase()
+    ]));
     const benefits=benefitsResult.data||[];
     const services=servicesResult.data;
     const activationMessages=activationMessagesResult.data;
@@ -312,9 +321,23 @@ serve(async req=>{
         visibleDelivery={...delivery,entries:delivery.entries.map((entry:any)=>{
           const allocation=matchingAllocation(entry);
           return allocation&&activeAllocationIds.has(allocation.id)
-            ? {...entry,ends_at:allocation.ends_at||null,allocation_id:allocation.id,slot_id:allocation.slot_id||entry.slot_id}
+            ? {
+                ...entry,
+                ends_at:allocation.ends_at||null,
+                allocation_id:allocation.id,
+                account_id:allocation.account_id||entry.account_id,
+                slot_id:allocation.slot_id||entry.slot_id,
+                account_status:accountStatusById.get(String(allocation.account_id||entry.account_id||''))||'active'
+              }
             : null;
         }).filter(Boolean)};
+      }else if(delivery&&Array.isArray(delivery.entries)){
+        visibleDelivery={...delivery,entries:delivery.entries.map((entry:any)=>({
+          ...entry,
+          account_status:entry.account_id
+            ? accountStatusById.get(String(entry.account_id))||'active'
+            : 'active'
+        }))};
       }
       const summaryEnd=row.delivery_summary?.ends_at||delivery?.ends_at||null;
       const renewalTargets=isPromotionGift?[]:rowAllocations.length
@@ -330,6 +353,9 @@ serve(async req=>{
           : [];
       fulfillments.push({
         ...row,
+        inventory_status:rowAllocations.some((item:any)=>
+          ['maintenance','disabled'].includes(accountStatusById.get(String(item.account_id))||'active')
+        )?'maintenance':'active',
         customer_input:await exposeCustomerInput(row.customer_input),
         encrypted_delivery:undefined,
         delivery:visibleDelivery,

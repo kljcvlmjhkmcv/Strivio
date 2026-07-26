@@ -497,6 +497,161 @@ serve(async (req) => {
         { headers: cors },
       );
     }
+    if (action === "retry_fulfillment") {
+      const orderId = String(body.order_id || "").trim();
+      if (!orderId) throw new Error("Order is required");
+      const { data: order, error: orderError } = await db
+        .from("orders")
+        .select("id,status")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (orderError) throw orderError;
+      if (!order) throw new Error("Order was not found");
+      if (!["paid", "completed"].includes(String(order.status || "").toLowerCase()))
+        throw new Error("Payment must be confirmed before retrying delivery");
+
+      let fulfillment: any = {};
+      let fulfillmentError: string | null = null;
+      let fulfillmentStatus = 0;
+      try {
+        const fulfillmentResponse = await fetch(
+          `${url}/functions/v1/fulfill-order`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${service}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ order_id: orderId }),
+          },
+        );
+        fulfillmentStatus = fulfillmentResponse.status;
+        const fulfillmentText = await fulfillmentResponse.text();
+        try {
+          fulfillment = fulfillmentText ? JSON.parse(fulfillmentText) : {};
+        } catch {
+          fulfillment = { raw: fulfillmentText };
+        }
+        if (!fulfillmentResponse.ok && fulfillmentResponse.status !== 202) {
+          fulfillmentError = String(
+            fulfillment?.error ||
+              `Fulfillment returned HTTP ${fulfillmentResponse.status}`,
+          );
+        }
+      } catch (error: any) {
+        fulfillmentError = String(error?.message || error);
+      }
+
+      dispatchNotifications(url, service);
+      const sheetWake = fetch(`${url}/functions/v1/sync-google-sheet`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${service}` },
+      }).catch(() => null);
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (runtime?.waitUntil) runtime.waitUntil(sheetWake);
+
+      return new Response(
+        JSON.stringify({
+          success: !fulfillmentError,
+          fulfillment,
+          fulfillment_error: fulfillmentError,
+          retryable:
+            fulfillmentStatus === 202 ||
+            Boolean(fulfillmentError) ||
+            ["needs_stock", "partially_delivered"].includes(
+              String(fulfillment?.status || "").toLowerCase(),
+            ),
+        }),
+        {
+          status: fulfillmentError ? 409 : 200,
+          headers: cors,
+        },
+      );
+    }
+    if (action === "retry_service_fulfillments") {
+      const serviceId = String(body.service_id || "").trim();
+      if (!serviceId) throw new Error("Service is required");
+      const { data: waitingRows, error: waitingError } = await db
+        .from("fulfillments")
+        .select("order_id,created_at")
+        .eq("service_id", serviceId)
+        .in("status", ["pending", "processing", "failed", "out_of_stock"])
+        .order("created_at", { ascending: true })
+        .limit(50);
+      if (waitingError) throw waitingError;
+      const candidateOrderIds = [
+        ...new Set((waitingRows || []).map((row: any) => String(row.order_id || "")).filter(Boolean)),
+      ];
+      const { data: paidOrders, error: paidOrdersError } = candidateOrderIds.length
+        ? await db
+            .from("orders")
+            .select("id")
+            .in("id", candidateOrderIds)
+            .in("status", ["paid", "completed"])
+        : { data: [], error: null };
+      if (paidOrdersError) throw paidOrdersError;
+      const paidSet = new Set((paidOrders || []).map((order: any) => String(order.id)));
+      const orderIds = candidateOrderIds.filter((id) => paidSet.has(id)).slice(0, 25);
+      const results: any[] = [];
+      for (const orderId of orderIds) {
+        try {
+          const response = await fetch(`${url}/functions/v1/fulfill-order`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${service}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ order_id: orderId }),
+          });
+          const text = await response.text();
+          let payload: any = {};
+          try {
+            payload = text ? JSON.parse(text) : {};
+          } catch {
+            payload = { raw: text };
+          }
+          results.push({
+            order_id: orderId,
+            success:
+              response.ok &&
+              response.status !== 202 &&
+              payload?.success !== false &&
+              String(payload?.status || "").toLowerCase() === "delivered",
+            retryable:
+              response.status === 202 ||
+              Boolean(payload?.retryable) ||
+              ["needs_stock", "partially_delivered"].includes(
+                String(payload?.status || "").toLowerCase(),
+              ),
+            status: response.status,
+          });
+        } catch (error: any) {
+          results.push({
+            order_id: orderId,
+            success: false,
+            retryable: true,
+            error: String(error?.message || error),
+          });
+        }
+      }
+      dispatchNotifications(url, service);
+      const sheetWake = fetch(`${url}/functions/v1/sync-google-sheet`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${service}` },
+      }).catch(() => null);
+      const runtime = (globalThis as any).EdgeRuntime;
+      if (runtime?.waitUntil) runtime.waitUntil(sheetWake);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          attempted: results.length,
+          delivered: results.filter((result) => result.success).length,
+          waiting: results.filter((result) => !result.success).length,
+          results,
+        }),
+        { headers: cors },
+      );
+    }
     if (action === "choose_manual_delivery") {
       const fulfillmentId = String(body.fulfillment_id || "").trim();
       const strategy = String(body.strategy || "").trim().toLowerCase();
