@@ -14,6 +14,7 @@ export type DeliveryEntry = {
   code?: string;
   ends_at?: string;
   service_name?: string;
+  entry_kind?: "profile" | "account" | "license";
 };
 
 export type StrivioEmailContext = {
@@ -65,6 +66,7 @@ const COMMON = {
     expiry: "تاريخ الانتهاء",
     email: "إيميل الحساب",
     password: "كلمة السر",
+    account: "الحساب",
     profile: "البروفايل",
     pin: "رمز PIN",
     code: "الكود",
@@ -83,6 +85,7 @@ const COMMON = {
     expiry: "Date d’expiration",
     email: "E-mail du compte",
     password: "Mot de passe",
+    account: "Compte",
     profile: "Profil",
     pin: "Code PIN",
     code: "Code",
@@ -101,6 +104,7 @@ const COMMON = {
     expiry: "Expiry date",
     email: "Account email",
     password: "Password",
+    account: "Account",
     profile: "Profile",
     pin: "PIN",
     code: "Code",
@@ -231,6 +235,31 @@ function esc(value: unknown): string {
   })[char]!);
 }
 
+const URL_PART_RE = /(https?:\/\/[^\s<>"']+)/gi;
+const LTR_RUN_RE =
+  /([A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9@._:+/#?&=%,'’()\-]*(?:[ \t]+[A-Za-zÀ-ÖØ-öø-ÿ0-9@._:+/#?&=%,'’()\-]+)*)/g;
+
+function mixedText(value: unknown): { dir: "rtl" | "ltr"; html: string; plain: string } {
+  const text = String(value ?? "");
+  const dir: "rtl" | "ltr" = /[\u0600-\u06ff]/.test(text) ? "rtl" : "ltr";
+  const html = text.split(URL_PART_RE).map((part) => {
+    if (/^https?:\/\//i.test(part)) {
+      const safe = esc(part);
+      return `<a href="${safe}" dir="ltr" style="color:${BRAND.neon};direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere;word-break:break-word">${safe}</a>`;
+    }
+    if (dir !== "rtl") return esc(part);
+    return part.split(LTR_RUN_RE).map((run, index) =>
+      index % 2
+        ? `<bdi dir="ltr" style="direction:ltr;unicode-bidi:isolate">${esc(run)}</bdi>`
+        : esc(run)
+    ).join("");
+  }).join("");
+  const plain = dir === "rtl"
+    ? text.replace(LTR_RUN_RE, "\u2066$1\u2069")
+    : text;
+  return { dir, html, plain };
+}
+
 function pick(value: LocalizedText, lang: StrivioLocale): string {
   if (!value || typeof value !== "object") return "";
   return String(value[lang] || value.ar || value.fr || value.en || "").trim();
@@ -289,12 +318,22 @@ function entryCards(entries: DeliveryEntry[], lang: StrivioLocale): string {
   if (!entries.length) return "";
   const c = COMMON[lang];
   return entries.map((entry, index) => {
-    const entryTitle = entry.profile || entry.label || (entry.code ? `${c.code} ${index + 1}` : `${c.profile} ${index + 1}`);
-    const title = entry.service_name ? `${entry.service_name} · ${entryTitle}` : entryTitle;
+    const isAccount = entry.entry_kind === "account";
+    const explicitName = entry.label || entry.profile || "";
+    const sameAsService = explicitName.trim().toLowerCase() ===
+      String(entry.service_name || "").trim().toLowerCase();
+    const entryTitle = isAccount
+      ? (entry.service_name || explicitName || c.account)
+      : explicitName || (entry.code ? `${c.code} ${index + 1}` : `${c.profile} ${index + 1}`);
+    const title = !isAccount && entry.service_name
+      ? `${entry.service_name} · ${entryTitle}`
+      : entryTitle;
     const values: Array<[string, string]> = [];
     if (entry.email) values.push([c.email, entry.email]);
     if (entry.password) values.push([c.password, entry.password]);
-    if (entry.profile || entry.label) values.push([c.profile, entry.profile || entry.label || ""]);
+    if (explicitName && (!isAccount || !sameAsService)) {
+      values.push([isAccount ? c.account : c.profile, explicitName]);
+    }
     if (entry.pin) values.push([c.pin, entry.pin]);
     if (entry.code) values.push([c.code, entry.code]);
     if (entry.ends_at) values.push([c.expiry, formatDate(entry.ends_at, lang)]);
@@ -309,12 +348,23 @@ function netflixTerms(): string {
 function plainEntries(entries: DeliveryEntry[], lang: StrivioLocale): string {
   const c = COMMON[lang];
   return entries.map((entry, index) => {
-    const explicitName = entry.profile || entry.label || "";
-    const entryTitle = explicitName || `${c.profile} ${index + 1}`;
-    const lines = [entry.service_name ? `${entry.service_name} · ${entryTitle}` : entryTitle];
+    const isAccount = entry.entry_kind === "account";
+    const explicitName = entry.label || entry.profile || "";
+    const sameAsService = explicitName.trim().toLowerCase() ===
+      String(entry.service_name || "").trim().toLowerCase();
+    const entryTitle = isAccount
+      ? (entry.service_name || explicitName || c.account)
+      : explicitName || `${c.profile} ${index + 1}`;
+    const lines = [
+      !isAccount && entry.service_name
+        ? `${entry.service_name} · ${entryTitle}`
+        : entryTitle,
+    ];
     if (entry.email) lines.push(`${c.email}: ${entry.email}`);
     if (entry.password) lines.push(`${c.password}: ${entry.password}`);
-    if (entry.profile || entry.label) lines.push(`${c.profile}: ${entry.profile || entry.label}`);
+    if (explicitName && (!isAccount || !sameAsService)) {
+      lines.push(`${isAccount ? c.account : c.profile}: ${explicitName}`);
+    }
     if (entry.pin) lines.push(`${c.pin}: ${entry.pin}`);
     if (entry.code) lines.push(`${c.code}: ${entry.code}`);
     if (entry.ends_at) lines.push(`${c.expiry}: ${formatDate(entry.ends_at, lang)}`);
@@ -341,13 +391,14 @@ export function renderStrivioEmail(ctx: StrivioEmailContext): RenderedStrivioEma
   const greetingName = String(ctx.customerName || "").trim();
   const greeting = greetingName ? `${c.hello} ${greetingName},` : `${c.hello},`;
   const adminNote = String(ctx.adminNote || "").trim();
+  const formattedAdminNote = mixedText(adminNote);
   const subjectOrder = ctx.orderId ? ` #${String(ctx.orderId).slice(0, 8)}` : "";
   const subject = `${title}${subjectOrder} — Strivio`.slice(0, 180);
   const supportBlock = isDelivery
     ? `<div style="margin-top:18px;padding:16px;background:#0c170b;border:1px solid #24551d;border-radius:15px;color:#d7ffd0;font-size:13px;line-height:1.8"><div>${esc(c.support)}</div>${ctx.isNetflix ? `<div style="margin-top:7px">${esc(c.renewal)}</div>` : ""}</div>`
     : "";
   const messageBlock = adminNote
-    ? `<div dir="auto" style="margin:18px 0;padding:16px;background:${BRAND.panelSoft};border-right:3px solid ${BRAND.neon};border-radius:12px;color:${BRAND.text};white-space:pre-wrap;line-height:1.8">${esc(adminNote)}</div>`
+    ? `<div dir="${formattedAdminNote.dir}" style="margin:18px 0;padding:16px;background:${BRAND.panelSoft};border-${formattedAdminNote.dir === "rtl" ? "right" : "left"}:3px solid ${BRAND.neon};border-radius:12px;color:${BRAND.text};direction:${formattedAdminNote.dir};unicode-bidi:plaintext;text-align:${formattedAdminNote.dir === "rtl" ? "right" : "left"};white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8">${formattedAdminNote.html}</div>`
     : "";
   const credentialBlock = entries.length
     ? `<div style="margin-top:22px"><div style="color:${BRAND.text};font-size:16px;font-weight:900">${esc(lang === "ar" ? "معلومات التسليم" : lang === "fr" ? "Informations de livraison" : "Delivery details")}</div>${entryCards(entries, lang)}</div>`
@@ -364,7 +415,7 @@ export function renderStrivioEmail(ctx: StrivioEmailContext): RenderedStrivioEma
     ctx.serviceName ? `${c.service}: ${ctx.serviceName}` : "",
     ctx.amountDzd !== null && ctx.amountDzd !== undefined ? `${c.amount}: ${money(ctx.amountDzd, lang)}` : "",
     ctx.endsAt ? `${c.expiry}: ${formatDate(ctx.endsAt, lang)}` : "",
-    adminNote,
+    formattedAdminNote.plain,
     plainEntries(entries, lang),
     showNetflixTerms ? "شروط Netflix: الحساب والبروفايل لصاحب الطلب فقط. يمنع مشاركة البروفايل بين أكثر من شخص أو المشاهدة من جهازين في الوقت نفسه. يمنع تغيير بريد الحساب أو كلمة سره أو إعداداته العامة، ويسمح فقط بتعديل اسم البروفايل ورمز PIN. قد تؤدي المخالفة إلى سحب الاشتراك دون استرداد." : "",
     isDelivery ? c.support : "",

@@ -83,22 +83,32 @@ function entriesFromDelivery(value: any): DeliveryEntry[] {
       slot_id: String(entry?.slot_id || ""),
       email: String(entry?.email || ""),
       password: String(entry?.password || ""),
-      profile: String(entry?.profile || entry?.label || ""),
+      profile: String(entry?.profile || ""),
+      label: String(entry?.label || ""),
       pin: String(entry?.pin || ""),
       code: String(entry?.code || ""),
       ends_at: entry?.ends_at ? String(entry.ends_at) : undefined,
       service_name: String(entry?.service_name || ""),
+      entry_kind: entry?.entry_kind === "profile" || entry?.entry_kind === "account" ||
+          entry?.entry_kind === "license"
+        ? entry.entry_kind
+        : undefined,
     }));
   }
   if (value.email || value.password || value.code) {
     return [{
       email: String(value.email || ""),
       password: String(value.password || ""),
-      profile: String(value.profile || value.label || ""),
+      profile: String(value.profile || ""),
+      label: String(value.label || ""),
       pin: String(value.pin || ""),
       code: String(value.code || ""),
       ends_at: value.ends_at ? String(value.ends_at) : undefined,
       service_name: String(value.service_name || ""),
+      entry_kind: value?.entry_kind === "profile" || value?.entry_kind === "account" ||
+          value?.entry_kind === "license"
+        ? value.entry_kind
+        : undefined,
     }];
   }
   return [];
@@ -142,6 +152,7 @@ async function buildContext(db: any, delivery: any, event: any) {
 
   const locale = delivery.locale === "fr" || delivery.locale === "en" ? delivery.locale : "ar";
   const entries: DeliveryEntry[] = [];
+  const manualNotes: Array<{ serviceName: string; text: string }> = [];
   const mayIncludeCredentials = ["order.delivered", "fulfillment.delivered", "account.changed", "credentials.changed"]
     .includes(String(event.event_type || "").toLowerCase());
   for (const fulfillment of mayIncludeCredentials ? rows : []) {
@@ -149,9 +160,23 @@ async function buildContext(db: any, delivery: any, event: any) {
     let nextEntries = entriesFromDelivery(decrypted);
     const fulfillmentServiceName = label(serviceMap.get(fulfillment.service_id)?.n, locale) ||
       String(fulfillment.service_id || "");
+    const mode = String(fulfillment.mode || decrypted?.mode || "").toLowerCase();
+    const defaultEntryKind: DeliveryEntry["entry_kind"] =
+      ["manual_delivery", "manual_activation", "automatic_account"].includes(mode)
+        ? "account"
+        : ["automatic_slot", "automatic_shared_slot"].includes(mode)
+        ? "profile"
+        : undefined;
+    const manualNote = String(decrypted?.instructions || "").trim();
+    if (manualNote && !manualNotes.some((item) =>
+      item.serviceName === fulfillmentServiceName && item.text === manualNote
+    )) {
+      manualNotes.push({ serviceName: fulfillmentServiceName, text: manualNote });
+    }
     nextEntries = nextEntries.map((entry) => ({
       ...entry,
       service_name: entry.service_name || fulfillmentServiceName,
+      entry_kind: entry.entry_kind || defaultEntryKind,
     }));
     if (String(event.event_type || "").toLowerCase() === "account.changed" && data.account_id) {
       const now = new Date().toISOString();
@@ -227,6 +252,14 @@ async function buildContext(db: any, delivery: any, event: any) {
     : /renew|renewal|renouv|تجديد/.test(renewalActionRaw)
     ? "renewal"
     : undefined;
+  const eventAdminNote = String(
+    data.admin_note || data.admin_notes || problem?.admin_notes || "",
+  ).trim();
+  const manualAdminNote = manualNotes.map((item) =>
+    manualNotes.length > 1 && item.serviceName
+      ? `${item.serviceName}\n${item.text}`
+      : item.text
+  ).join("\n\n");
 
   return {
     eventType: event.event_type,
@@ -240,7 +273,7 @@ async function buildContext(db: any, delivery: any, event: any) {
     amountDzd: order?.total_payable === null || order?.total_payable === undefined ? null : Number(order.total_payable),
     actionUrl: safeUrl(actionPath, Deno.env.get("SITE_URL") || "https://www.striviodz.store"),
     message: String(data.message || problem?.message || ""),
-    adminNote: String(data.admin_note || data.admin_notes || problem?.admin_notes || ""),
+    adminNote: eventAdminNote || manualAdminNote,
     endsAt: String(data.ends_at || summaryEnd || entryEnds || "") || null,
     months: Number(data.months || 0) || null,
     entries,

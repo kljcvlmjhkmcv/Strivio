@@ -589,6 +589,40 @@
               "'": "&#39;",
             })[c],
         );
+      function mixedTextHtml(value) {
+        var text = String(value || ""),
+          direction = /[\u0600-\u06ff]/.test(text) ? "rtl" : "ltr",
+          urlPattern = /(https?:\/\/[^\s<>"']+)/gi,
+          ltrPattern =
+            /([A-Za-zÀ-ÖØ-öø-ÿ0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9@._:+/#?&=%,'’()\-]*(?:[ \t]+[A-Za-zÀ-ÖØ-öø-ÿ0-9@._:+/#?&=%,'’()\-]+)*)/g,
+          html = text
+            .split(urlPattern)
+            .map(function (part) {
+              if (/^https?:\/\//i.test(part)) {
+                var safe = esc(part);
+                return (
+                  '<a href="' +
+                  safe +
+                  '" target="_blank" rel="noopener noreferrer" dir="ltr" class="text-[#39ff14] underline" style="direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere">' +
+                  safe +
+                  "</a>"
+                );
+              }
+              if (direction !== "rtl") return esc(part);
+              return part
+                .split(ltrPattern)
+                .map(function (run, index) {
+                  return index % 2
+                    ? '<bdi dir="ltr" style="direction:ltr;unicode-bidi:isolate">' +
+                        esc(run) +
+                        "</bdi>"
+                    : esc(run);
+                })
+                .join("");
+            })
+            .join("");
+        return { direction: direction, html: html };
+      }
       const labels = {
         ar: {
           paid: "مدفوع",
@@ -774,11 +808,13 @@
         return data.fulfillments || [];
       }
       function portalText() {
-        return ({
+        var copy = ({
           ar: { details:"تفاصيل الطلب", viewDetails:"عرض التفاصيل", amount:"المبلغ", products:"المنتجات", preparing:"التسليم قيد التحضير.", email:"البريد", password:"كلمة السر", profile:"البروفايل", code:"الكود", expires:"ينتهي الاشتراك:", expiredProfile:"انتهى اشتراك", expiredHelp:"يلزم تجديد الاشتراك أو شراء اشتراك جديد لاستعادة الخدمة.", inactiveService:"هذه الخدمة غير نشطة حالياً.", admin:"تحديث الإدارة", report:"الإبلاغ أو متابعة البلاغ", reportSupport:"بلاغ / دعم", followReport:"متابعة البلاغ", subscription:"الاشتراك", whatsapp:"WhatsApp لهذا الطلب", activationTitle:"بيانات الحساب المطلوب تفعيله", activationHelp:"أدخل بريد وكلمة سر حسابك، ويمكنك العودة وتعديلها ما دام التفعيل لم يكتمل.", activationEmail:"بريد الحساب", activationPassword:"كلمة سر الحساب", note:"ملاحظات اختيارية", saveActivation:"حفظ وإرسال البيانات", saving:"جاري الحفظ…", saved:"تم حفظ بيانات الحساب وإرسالها لفريق Strivio.", awaitingCustomer:"مطلوب منك مراجعة البيانات والرد على الفريق", awaitingAdmin:"تم استلام البيانات والتفعيل قيد المعالجة", delivered:"تم التفعيل والتسليم", activationCompletedHelp:"تم تفعيل حسابك بنجاح. إذا واجهتك أي مشكلة استخدم زر البلاغ أدناه لفتح محادثة دعم جديدة.", activationChat:"محادثة التفعيل", noActivationMessages:"لا توجد رسائل بعد.", replyPlaceholder:"اكتب ردك أو وضّح المعلومة المطلوبة…", sendMessage:"إرسال الرد", messageSent:"تم إرسال ردك لفريق Strivio.", team:"فريق Strivio", customer:"أنت", system:"تحديث", maintenanceTitle:"الحساب تحت الصيانة مؤقتًا", maintenanceHelp:"الخدمة المرتبطة بهذا الحساب متوقفة مؤقتًا للصيانة. اشتراكك وبياناتك محفوظة، وستعود الخدمة بعد انتهاء الصيانة." },
           fr: { details:"Détails de la commande", viewDetails:"Voir les détails", amount:"Montant", products:"Produits", preparing:"Livraison en préparation.", email:"E-mail", password:"Mot de passe", profile:"Profil", code:"Code", expires:"Expire le :", expiredProfile:"Abonnement expiré", expiredHelp:"Renouvelez l’abonnement ou effectuez un nouvel achat pour réactiver le service.", inactiveService:"Ce service n’est pas actif actuellement.", admin:"Mise à jour de l’équipe", report:"Signaler ou suivre", reportSupport:"Support / signalement", followReport:"Suivre le signalement", subscription:"l’abonnement", whatsapp:"WhatsApp pour cette commande", activationTitle:"Compte à activer", activationHelp:"Saisissez l’e-mail et le mot de passe du compte. Vous pourrez les modifier tant que l’activation n’est pas terminée.", activationEmail:"E-mail du compte", activationPassword:"Mot de passe du compte", note:"Note facultative", saveActivation:"Enregistrer et envoyer", saving:"Enregistrement…", saved:"Les informations du compte ont été envoyées à l’équipe Strivio.", awaitingCustomer:"Une vérification ou une réponse est requise", awaitingAdmin:"Informations reçues — activation en cours", delivered:"Activation terminée", activationCompletedHelp:"Votre compte a été activé avec succès. En cas de problème, utilisez le bouton de signalement ci-dessous pour ouvrir une nouvelle conversation d’assistance.", activationChat:"Conversation d’activation", noActivationMessages:"Aucun message pour le moment.", replyPlaceholder:"Répondez ou précisez l’information demandée…", sendMessage:"Envoyer la réponse", messageSent:"Votre réponse a été envoyée à l’équipe Strivio.", team:"Équipe Strivio", customer:"Vous", system:"Mise à jour", maintenanceTitle:"Compte temporairement en maintenance", maintenanceHelp:"Le service lié à ce compte est temporairement suspendu pour maintenance. Votre abonnement et vos informations restent conservés." },
           en: { details:"Order details", viewDetails:"View details", amount:"Amount", products:"Products", preparing:"Delivery is being prepared.", email:"Email", password:"Password", profile:"Profile", code:"Code", expires:"Expires:", expiredProfile:"Subscription expired", expiredHelp:"Renew the subscription or make a new purchase to restore the service.", inactiveService:"This service is not active right now.", admin:"Team update", report:"Report or follow up", reportSupport:"Report / support", followReport:"Follow report", subscription:"subscription", whatsapp:"WhatsApp for this order", activationTitle:"Account to activate", activationHelp:"Enter the account email and password. You can edit them until activation is completed.", activationEmail:"Account email", activationPassword:"Account password", note:"Optional note", saveActivation:"Save and send details", saving:"Saving…", saved:"Your account details were sent to the Strivio team.", awaitingCustomer:"Your review or reply is required", awaitingAdmin:"Details received — activation in progress", delivered:"Activation completed", activationCompletedHelp:"Your account was activated successfully. If you experience a problem, use the report button below to open a new support conversation.", activationChat:"Activation conversation", noActivationMessages:"No messages yet.", replyPlaceholder:"Reply or provide the requested information…", sendMessage:"Send reply", messageSent:"Your reply was sent to the Strivio team.", team:"Strivio team", customer:"You", system:"Update", maintenanceTitle:"Account temporarily under maintenance", maintenanceHelp:"The service linked to this account is temporarily paused for maintenance. Your subscription and account details stay safe." }
         })[lang] || {};
+        copy.account = lang === "ar" ? "الحساب" : lang === "fr" ? "Compte" : "Account";
+        return copy;
       }
       const customerActionText = {
         ar: {
@@ -1182,6 +1218,11 @@
                 f.delivery?.problem_resolution_note ||
                 f.delivery_summary?.problem_resolution_note ||
                 "";
+            var accountEntry = ["manual_delivery", "manual_activation", "automatic_account"].includes(
+                String(f.mode || f.delivery?.mode || "").toLowerCase(),
+              ),
+              credentialLabel = accountEntry ? copy.account : copy.profile,
+              formattedNote = mixedTextHtml(note);
             entries = entries.filter(function (entry) {
                 return !entry.ends_at || new Date(entry.ends_at).getTime() > Date.now();
               });
@@ -1212,8 +1253,9 @@
                           esc(x.email) +
                           "<br>"+copy.password+": " +
                           esc(x.password) +
-                          "<br>"+copy.profile+": " +
-                          esc(x.profile) +
+                          ((x.label || x.profile)
+                            ? "<br>"+credentialLabel+": " + esc(x.label || x.profile)
+                            : "") +
                           "<br>PIN: " +
                           esc(x.pin || "—") +
                           (x.ends_at ? '<br><span class="muted text-xs">' + copy.expires + ' <span style="' + expiryStyle(x.ends_at) + '">' + date(x.ends_at) + '</span></span>' : "")
@@ -1285,8 +1327,8 @@
               body +
               (termsAfter[f.id] ? usageTermsHtml(termsAfter[f.id]) : "") +
               (note
-                ? '<div class="secret mt-2 border-[#39ff14]/30"><b class="text-[#39ff14]" data-admin-label>'+copy.admin+'</b><br>' +
-                  esc(note) +
+                ? '<div dir="' + formattedNote.direction + '" class="secret mt-2 border-[#39ff14]/30" style="direction:' + formattedNote.direction + ';unicode-bidi:plaintext;text-align:' + (formattedNote.direction === "rtl" ? "right" : "left") + ';white-space:pre-wrap;overflow-wrap:anywhere"><b class="text-[#39ff14]" data-admin-label>'+copy.admin+'</b><br>' +
+                  formattedNote.html +
                   "</div>"
                 : "") +
               ((f.renewal_targets || []).length

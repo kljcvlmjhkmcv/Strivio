@@ -617,7 +617,8 @@
                 <input id="store-account-end-date" name="ends_at" type="date" class="input mt-1" />
               </label>
               <label class="text-xs muted md:col-span-2">ملاحظة تظهر للعميل
-                <textarea id="store-account-note" name="note" class="input min-h-20 mt-1" maxlength="2000" placeholder="اختياري"></textarea>
+                <textarea id="store-account-note" name="note" class="input min-h-20 mt-1" maxlength="2000" dir="auto" style="unicode-bidi:plaintext;text-align:start" placeholder="مثال: مفتاح 2FA ورابط استخراج الأكواد"></textarea>
+                <span class="block mt-1 text-[10px] text-white/45">تظهر داخل الطلب وتُرسل للعميل في بريد التسليم، لذلك لا تضع فيها إلا المعلومات الخاصة بهذا العميل.</span>
               </label>
             </div>
             <div class="flex justify-end mt-3">
@@ -628,7 +629,7 @@
         <div id="activation-thread" class="mt-5 space-y-3 rounded-2xl border border-[#292929] bg-black/30 p-4 max-h-[36vh] overflow-auto"></div>
         <div id="activation-reply-box" class="mt-4">
           <label class="muted text-xs block mb-2">رسالة للعميل (مثلاً: كلمة السر غير صحيحة)</label>
-          <textarea id="activation-reply" class="input min-h-24" maxlength="2000" placeholder="اكتب ما تحتاجه من العميل…"></textarea>
+          <textarea id="activation-reply" class="input min-h-24" maxlength="2000" dir="auto" style="unicode-bidi:plaintext;text-align:start" placeholder="اكتب ما تحتاجه من العميل…"></textarea>
           <div class="flex flex-wrap justify-end gap-2 mt-3">
             <button class="btn" onclick="sendActivationReply()">إرسال وطلب رد العميل</button>
             <button class="btn neon" onclick="completeActivation(this)">تم التفعيل</button>
@@ -3072,7 +3073,7 @@
             '</legend><div class="grid md:grid-cols-2 gap-3">' +
             '<label class="text-xs muted">بريد الحساب<input data-manual-field="account_email" type="email" class="input mt-1" maxlength="254" autocomplete="off" required /></label>' +
             '<label class="text-xs muted">كلمة السر<input data-manual-field="account_password" type="password" class="input mt-1" maxlength="500" autocomplete="new-password" required /></label>' +
-            '<label class="text-xs muted">اسم البروفايل / الحساب<input data-manual-field="profile" class="input mt-1" maxlength="160" placeholder="اختياري" /></label>' +
+            '<label class="text-xs muted">اسم الحساب داخل الطلب<input data-manual-field="profile" class="input mt-1" maxlength="160" placeholder="اختياري" /></label>' +
             '<label class="text-xs muted">PIN<input data-manual-field="pin" class="input mt-1" maxlength="64" placeholder="اختياري" /></label>' +
             "</div></fieldset>"
           );

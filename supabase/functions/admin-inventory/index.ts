@@ -838,11 +838,9 @@ serve(async (req) => {
         const entry: Record<string, unknown> = {
           email: accountEmail,
           password: accountPassword,
-          profile: profile ||
-            (expectedQuantity > 1
-              ? `${serviceName} #${index + 1}`
-              : serviceName),
+          entry_kind: "account",
         };
+        if (profile) entry.label = profile;
         if (pin) entry.pin = pin;
         if (endsAt) entry.ends_at = endsAt;
         return entry;
@@ -870,7 +868,7 @@ serve(async (req) => {
             count: entries.length,
             requested: expectedQuantity,
             ends_at: endsAt,
-            admin_note: note,
+            has_instructions: Boolean(note),
           },
         },
       );

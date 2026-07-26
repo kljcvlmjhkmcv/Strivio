@@ -275,6 +275,14 @@ check(emailTemplate.includes('const CTA ='),'Transactional emails do not have ev
 check(emailTemplate.includes('credentialsChanged: "Afficher les nouveaux identifiants"'),'Credential-change emails use the generic CTA');
 check(emailTemplate.includes('problemReply: "Read the reply and continue the report"'),'Problem reply emails use the generic CTA');
 check(emailTemplate.includes('${ctaLabel}: ${ctx.actionUrl}'),'Plain-text emails do not use the event-specific CTA');
+const dispatchNotifications=fs.readFileSync(path.join(root,'supabase','functions','dispatch-notifications','index.ts'),'utf8');
+const adminInventory=fs.readFileSync(path.join(root,'supabase','functions','admin-inventory','index.ts'),'utf8');
+check(dispatchNotifications.includes('decrypted?.instructions'),'Manual delivery notes are not read from encrypted delivery for email');
+check(dispatchNotifications.includes('entry_kind: entry.entry_kind || defaultEntryKind'),'Manual accounts can still be rendered as profiles in email');
+check(emailTemplate.includes('unicode-bidi:plaintext')&&emailTemplate.includes('function mixedText('),'Mixed Arabic and Latin delivery notes are not isolated safely');
+check(emailTemplate.includes('entry.entry_kind === "account"'),'Ready-account emails still use the generic profile label');
+check(adminInventory.includes('has_instructions: Boolean(note)')&&!adminInventory.includes('admin_note: note'),'Manual delivery notes are copied into plaintext delivery summaries');
+check(myAccountSource.includes('mixedTextHtml(note)')&&myAccountSource.includes('credentialLabel = accountEntry ? copy.account : copy.profile'),'My Account does not render ready-account notes and labels safely');
 
 if(failures.length){console.error(failures.map(x=>'FAIL '+x).join('\n'));process.exit(1)}
 console.log(`Smoke checks passed for ${htmlFiles.length} pages.`);
