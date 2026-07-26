@@ -281,6 +281,8 @@ check(dispatchNotifications.includes('decrypted?.instructions'),'Manual delivery
 check(dispatchNotifications.includes('entry_kind: entry.entry_kind || defaultEntryKind'),'Manual accounts can still be rendered as profiles in email');
 check(emailTemplate.includes('unicode-bidi:plaintext')&&emailTemplate.includes('function mixedText('),'Mixed Arabic and Latin delivery notes are not isolated safely');
 check(emailTemplate.includes('entry.entry_kind === "account"'),'Ready-account emails still use the generic profile label');
+check(emailTemplate.includes('${credentialBlock}${messageBlock}')&&emailTemplate.indexOf('plainEntries(entries, lang)')<emailTemplate.lastIndexOf('formattedAdminNote.plain'),'Manual delivery notes are not placed below the account details');
+check(emailTemplate.includes("font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:15px;font-weight:600"),'Manual delivery notes do not use the improved readable font style');
 check(adminInventory.includes('has_instructions: Boolean(note)')&&!adminInventory.includes('admin_note: note'),'Manual delivery notes are copied into plaintext delivery summaries');
 check(myAccountSource.includes('mixedTextHtml(note)')&&myAccountSource.includes('credentialLabel = accountEntry ? copy.account : copy.profile'),'My Account does not render ready-account notes and labels safely');
 
