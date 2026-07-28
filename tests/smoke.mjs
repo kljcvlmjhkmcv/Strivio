@@ -233,6 +233,8 @@ check(operations.includes('id="chatbot-test-input"')&&operations.includes('mode:
 const metaChatbot=fs.readFileSync(path.join(root,'supabase','functions','meta-chatbot','index.ts'),'utf8');
 check(metaChatbot.includes('isAdminReply')&&metaChatbot.includes('sender_role: "admin"'),'Meta chatbot cannot send and audit an admin reply');
 check(metaChatbot.includes('isConversationUpdate')&&metaChatbot.includes('conversation_mode'),'Meta chatbot cannot hand conversations back to automation');
+const socialChatbot=fs.readFileSync(path.join(root,'supabase','functions','social-chatbot','index.ts'),'utf8');
+check(socialChatbot.includes('/functions/v1/meta-chatbot')&&socialChatbot.includes('x-hub-signature-256')===false,'Neutral chatbot proxy is missing or rewrites signed requests');
 check(cartPage.includes('checkoutInFlight')&&cartPage.includes('setCheckoutBusy(true'),'Checkout can be submitted repeatedly while an order is being created');
 const lifecycleMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607250200_subscription_lifecycle.sql'),'utf8');
 check(lifecycleMigration.includes('ops_update_subscription_end'),'Scoped subscription expiry RPC is missing');

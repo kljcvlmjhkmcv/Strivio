@@ -3794,7 +3794,7 @@
           session = sessionResult.data && sessionResult.data.session;
         if (!session) throw new Error("انتهت جلسة الأدمن");
         var response = await fetch(
-            SUPABASE_URL + "/functions/v1/meta-chatbot",
+            SUPABASE_URL + "/functions/v1/social-chatbot",
             {
               method: "POST",
               headers: {

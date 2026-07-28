@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.resend-webhook]
 verify_jwt = false
 
+[functions.social-chatbot]
+verify_jwt = false
+
 [functions.meta-chatbot]
 verify_jwt = false
 
