@@ -129,15 +129,20 @@ async function askGemini({
   services,
   knowledge,
   history,
+  diagnostics,
 }: {
   text: string;
   locale: string;
   services: any[];
   knowledge: any[];
   history: any[];
+  diagnostics?: { error?: string };
 }) {
   const apiKey = Deno.env.get("GEMINI_API_KEY") || "";
-  if (!apiKey) return null;
+  if (!apiKey) {
+    if (diagnostics) diagnostics.error = "GEMINI_API_KEY is missing";
+    return null;
+  }
   const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
   const safeText = redactSensitiveText(text).slice(0, 1200);
   const safeHistory = history.slice(-8).map((item) => ({
@@ -209,11 +214,27 @@ async function askGemini({
       }),
     },
   );
-  if (!response.ok) return null;
-  const payload = await response.json().catch(() => null);
+  const responseText = await response.text();
+  if (!response.ok) {
+    if (diagnostics) diagnostics.error = `Gemini HTTP ${response.status}: ${responseText.slice(0, 500)}`;
+    console.warn("Gemini request failed", {
+      status: response.status,
+      body: responseText.slice(0, 800),
+      model,
+    });
+    return null;
+  }
+  const payload = safeJson(responseText);
   const output = String(payload?.candidates?.[0]?.content?.parts?.[0]?.text || "");
   const parsed = safeJson(output);
-  if (!parsed || typeof parsed.reply !== "string" || !parsed.reply.trim()) return null;
+  if (!parsed || typeof parsed.reply !== "string" || !parsed.reply.trim()) {
+    if (diagnostics) diagnostics.error = `Gemini response parse failed: ${responseText.slice(0, 500)}`;
+    console.warn("Gemini response could not be parsed", {
+      model,
+      body: responseText.slice(0, 800),
+    });
+    return null;
+  }
   return {
     reply: parsed.reply.trim().slice(0, 1900),
     locale: ["ar", "fr", "en", "dz"].includes(parsed.language) ? parsed.language : locale,
@@ -371,6 +392,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     services: botData.services,
     knowledge: botData.knowledge,
   });
+  const aiDiagnostics: { error?: string } = {};
   if (!answer.reply && botData.settings.ai_enabled && botData.settings.provider === "gemini") {
     const ai = await askGemini({
       text: event.text,
@@ -378,6 +400,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
       services: botData.services,
       knowledge: botData.knowledge,
       history: recent,
+      diagnostics: aiDiagnostics,
     });
     if (ai) answer = { ...answer, ...ai };
   }
@@ -457,6 +480,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     handoff: Boolean(answer.handoff),
     delivery_status: deliveryStatus,
     error: deliveryError || undefined,
+    ai_diagnostic: event.eventType === "test" ? aiDiagnostics.error : undefined,
   };
 }
 

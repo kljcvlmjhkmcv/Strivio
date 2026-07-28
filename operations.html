@@ -3918,7 +3918,12 @@
             "</span></div>" +
             '<div class="whitespace-pre-wrap" dir="auto">' +
             esc(result.reply || "لم يُرجع البوت ردًا.") +
-            "</div>";
+            "</div>" +
+            (result.ai_diagnostic
+              ? '<div class="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300" dir="ltr">' +
+                esc(result.ai_diagnostic) +
+                "</div>"
+              : "");
         } catch (error) {
           output.innerHTML =
             '<div class="text-red-400">فشل الاختبار: ' +
