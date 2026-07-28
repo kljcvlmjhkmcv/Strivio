@@ -498,8 +498,13 @@ serve(async (req) => {
   }
 
   const isTest = payload?.mode === "test";
-  if (isTest) {
+  const isAdminReply = payload?.mode === "admin_reply";
+  const isConversationUpdate = payload?.mode === "conversation_update";
+  if (isTest || isAdminReply || isConversationUpdate) {
     if (!(await isAdminRequest(db, req))) return json(req, { success: false, error: "Admin only" }, 401);
+  }
+
+  if (isTest) {
     const text = String(payload?.text || "").trim();
     if (!text || text.length > 4000) return json(req, { success: false, error: "Invalid test message" }, 400);
     const botData = await loadBotData(db);
@@ -516,6 +521,83 @@ serve(async (req) => {
     };
     const result = await handleInbound(db, testEvent, botData, false);
     return json(req, { success: true, result });
+  }
+
+  if (isAdminReply) {
+    const conversationId = String(payload?.conversation_id || "").trim();
+    const text = String(payload?.text || "").trim();
+    if (!/^[0-9a-f-]{36}$/i.test(conversationId) || !text || text.length > 1900) {
+      return json(req, { success: false, error: "Invalid conversation or message" }, 400);
+    }
+    const conversationResult = await db.from("chatbot_conversations")
+      .select("*")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (conversationResult.error) throw conversationResult.error;
+    const conversation = conversationResult.data;
+    if (!conversation || !["instagram", "messenger"].includes(conversation.channel)) {
+      return json(req, { success: false, error: "Conversation not found" }, 404);
+    }
+
+    let providerMessageId = "";
+    try {
+      providerMessageId = await sendMetaReply(
+        conversation.channel,
+        conversation.channel_account_id,
+        conversation.external_user_id,
+        text,
+      );
+    } catch (error) {
+      return json(req, {
+        success: false,
+        error: String(error?.message || error),
+      }, 502);
+    }
+
+    const inserted = await db.from("chatbot_messages").insert({
+      conversation_id: conversation.id,
+      provider_message_id: providerMessageId || null,
+      direction: "outbound",
+      sender_role: "admin",
+      message_text: text,
+      normalized_text: normalizeMessage(text),
+      locale: detectLanguage(text),
+      intent: "admin_reply",
+      confidence: 1,
+      reply_source: "admin",
+      delivery_status: "sent",
+      metadata: {},
+    });
+    if (inserted.error) throw inserted.error;
+    const updated = await db.from("chatbot_conversations").update({
+      mode: "human",
+      unread_count: 0,
+      last_outbound_at: new Date().toISOString(),
+      handoff_reason: "admin_reply",
+    }).eq("id", conversation.id);
+    if (updated.error) throw updated.error;
+    return json(req, { success: true, provider_message_id: providerMessageId });
+  }
+
+  if (isConversationUpdate) {
+    const conversationId = String(payload?.conversation_id || "").trim();
+    const mode = String(payload?.conversation_mode || "").trim();
+    if (!/^[0-9a-f-]{36}$/i.test(conversationId) || !["bot", "human", "paused", "closed"].includes(mode)) {
+      return json(req, { success: false, error: "Invalid conversation update" }, 400);
+    }
+    const changes: Record<string, unknown> = {
+      mode,
+      unread_count: 0,
+      handoff_reason: mode === "bot" ? null : String(payload?.reason || mode).slice(0, 160),
+    };
+    const updated = await db.from("chatbot_conversations")
+      .update(changes)
+      .eq("id", conversationId)
+      .select("id,mode,unread_count")
+      .maybeSingle();
+    if (updated.error) throw updated.error;
+    if (!updated.data) return json(req, { success: false, error: "Conversation not found" }, 404);
+    return json(req, { success: true, conversation: updated.data });
   }
 
   if (!(await verifyMetaSignature(req, rawBody))) {

@@ -227,6 +227,11 @@ check(operations.includes("retryServiceFulfillments(")&&operations.includes("ت�
 check(operations.includes("إيقاف الحساب للصيانة")&&operations.includes("إعادة الحساب للعمل"),'Service accounts cannot be paused and restored from their register');
 check(operations.includes('id="inventory-alerts"')&&operations.includes('renderInventoryAlerts()'),'Operations does not render low/out-of-stock alerts');
 check(operations.includes('inventoryCallsInFlight'),'Duplicate admin inventory mutations are not guarded');
+check(operations.includes('data-tab="chatbot"')&&operations.includes('renderChatbot()'),'Operations has no Meta conversation inbox');
+check(operations.includes('mode: "admin_reply"')&&operations.includes('mode: "conversation_update"'),'Meta inbox is not connected to secure admin actions');
+const metaChatbot=fs.readFileSync(path.join(root,'supabase','functions','meta-chatbot','index.ts'),'utf8');
+check(metaChatbot.includes('isAdminReply')&&metaChatbot.includes('sender_role: "admin"'),'Meta chatbot cannot send and audit an admin reply');
+check(metaChatbot.includes('isConversationUpdate')&&metaChatbot.includes('conversation_mode'),'Meta chatbot cannot hand conversations back to automation');
 check(cartPage.includes('checkoutInFlight')&&cartPage.includes('setCheckoutBusy(true'),'Checkout can be submitted repeatedly while an order is being created');
 const lifecycleMigration=fs.readFileSync(path.join(root,'supabase','migrations','202607250200_subscription_lifecycle.sql'),'utf8');
 check(lifecycleMigration.includes('ops_update_subscription_end'),'Scoped subscription expiry RPC is missing');

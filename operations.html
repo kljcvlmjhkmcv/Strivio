@@ -266,6 +266,7 @@
         ><button class="tab" data-tab="promotions">العروض والهدايا</button
         ><button class="tab" data-tab="activations">طلبات التفعيل</button
         ><button class="tab" data-tab="problems">المشاكل</button
+        ><button class="tab" data-tab="chatbot">محادثات Meta</button
         ><button class="tab" data-tab="orders">كل الطلبات</button
         ><button class="tab" data-tab="renewals">سجل التجديدات</button
         ><button class="tab" data-tab="expiring">قريبة الانتهاء</button>
@@ -409,6 +410,36 @@
             <span id="problem-count" class="badge b-red">0 مفتوحة</span>
           </div>
           <div id="problem-list" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section id="view-chatbot" class="view hidden space-y-5">
+        <div class="panel rounded-[20px] p-5">
+          <div class="flex flex-col lg:flex-row gap-4 justify-between lg:items-center">
+            <div>
+              <div class="text-[#39ff14] text-[10px] font-black tracking-[.16em]">META INBOX</div>
+              <h2 class="font-black text-lg mt-1">محادثات Instagram وMessenger</h2>
+              <p class="muted text-xs mt-1">
+                راقب ردود البوت، استلم المحادثة يدويًا، ثم أعدها للوضع التلقائي متى أردت.
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+              <span id="chatbot-unread-count" class="badge b-yellow">0 غير مقروءة</span>
+              <label class="btn cursor-pointer">
+                <input id="chatbot-enabled" type="checkbox" class="accent-[#39ff14]" onchange="saveChatbotSettings(this)" />
+                <span>الرد التلقائي</span>
+              </label>
+            </div>
+          </div>
+          <div class="grid lg:grid-cols-[340px_minmax(0,1fr)] gap-4 mt-5">
+            <div class="rounded-2xl border border-white/10 bg-black/25 overflow-hidden">
+              <div class="p-3 border-b border-white/10">
+                <input id="chatbot-search" class="input" placeholder="ابحث في المحادثات…" oninput="renderChatbot()" />
+              </div>
+              <div id="chatbot-conversations" class="max-h-[620px] overflow-auto"></div>
+            </div>
+            <div id="chatbot-workspace" class="rounded-2xl border border-white/10 bg-black/25 min-h-[460px] p-4"></div>
+          </div>
         </div>
       </section>
 
@@ -853,12 +884,17 @@
           renewals: [],
           bundleRules: [],
           sharedAllocations: [],
+          chatbotConversations: [],
+          chatbotMessages: [],
+          chatbotUnanswered: [],
+          chatbotSettings: null,
         },
         editingAccount = null,
         editingProblem = null,
         editingActivation = null,
         editingPromotion = null,
-        deletingPromotion = null;
+        deletingPromotion = null,
+        activeChatbotConversationId = null;
       var $ = function (id) {
         return document.getElementById(id);
       };
@@ -1028,6 +1064,8 @@
             "expiring-list",
             "renewal-list",
             "promotion-list",
+            "chatbot-conversations",
+            "chatbot-workspace",
           ].forEach(function (id) {
             if ($(id))
               $(id).innerHTML =
@@ -1083,6 +1121,27 @@
               .select("*")
               .order("created_at", { ascending: false })
               .limit(1000),
+            window.supabaseClient
+              .from("chatbot_conversations")
+              .select("*")
+              .order("last_inbound_at", { ascending: false, nullsFirst: false })
+              .limit(300),
+            window.supabaseClient
+              .from("chatbot_messages")
+              .select("*")
+              .order("created_at", { ascending: true })
+              .limit(3000),
+            window.supabaseClient
+              .from("chatbot_unanswered")
+              .select("*")
+              .eq("resolved", false)
+              .order("created_at", { ascending: false })
+              .limit(300),
+            window.supabaseClient
+              .from("chatbot_settings")
+              .select("*")
+              .eq("id", 1)
+              .maybeSingle(),
           ]);
           var failedSources=results.map(function(result,index){return result.status==='rejected'||result.value?.error?index:null}).filter(function(index){return index!==null});
           if(failedSources.length)toast('تم تحميل البيانات المتاحة، وتعذر تحميل '+failedSources.length+' مصدر. اضغط تحديث البيانات للمحاولة مجدداً.',true);
@@ -1129,6 +1188,10 @@
               : fulfillment;
           });
           state.renewals = value(10, []);
+          state.chatbotConversations = value(11, []);
+          state.chatbotMessages = value(12, []);
+          state.chatbotUnanswered = value(13, []);
+          state.chatbotSettings = value(14, null);
           if (
             results[3].status === "rejected" ||
             results[4].status === "rejected"
@@ -1203,6 +1266,7 @@
         renderRenewals();
         renderExpiring();
         renderPromotions();
+        renderChatbot();
         var sid = new URLSearchParams(location.search).get("service");
         if (sid) openServiceRegister(sid, true);
       }
@@ -3532,6 +3596,286 @@
           });
         } catch (e) {
           toast("تعذر حفظ رد البلاغ: " + e.message, true);
+        }
+      }
+      function chatbotModeLabel(mode) {
+        return {
+          bot: "تلقائي",
+          human: "مع الأدمن",
+          paused: "متوقف",
+          closed: "مغلق",
+        }[String(mode || "bot")] || mode;
+      }
+      function chatbotChannelLabel(channel) {
+        return channel === "instagram"
+          ? "Instagram"
+          : channel === "messenger"
+            ? "Messenger"
+            : "اختبار";
+      }
+      function chatbotConversationMessages(id) {
+        return state.chatbotMessages.filter(function (message) {
+          return message.conversation_id === id;
+        });
+      }
+      function renderChatbot() {
+        if (!$("chatbot-conversations") || !$("chatbot-workspace")) return;
+        var search = String($("chatbot-search")?.value || "")
+            .trim()
+            .toLowerCase(),
+          rows = state.chatbotConversations.filter(function (conversation) {
+            if (!search) return true;
+            var messages = chatbotConversationMessages(conversation.id),
+              last = messages[messages.length - 1];
+            return [
+              conversation.channel,
+              conversation.display_name,
+              conversation.external_user_id,
+              last && last.message_text,
+            ]
+              .join(" ")
+              .toLowerCase()
+              .includes(search);
+          });
+        if (
+          activeChatbotConversationId &&
+          !state.chatbotConversations.some(function (row) {
+            return row.id === activeChatbotConversationId;
+          })
+        )
+          activeChatbotConversationId = null;
+        if (!activeChatbotConversationId && rows.length)
+          activeChatbotConversationId = rows[0].id;
+        var unread = state.chatbotConversations.reduce(function (sum, row) {
+          return sum + Number(row.unread_count || 0);
+        }, 0);
+        $("chatbot-unread-count").textContent = unread + " غير مقروءة";
+        if ($("chatbot-enabled"))
+          $("chatbot-enabled").checked = Boolean(
+            state.chatbotSettings &&
+              state.chatbotSettings.enabled &&
+              state.chatbotSettings.auto_reply_enabled,
+          );
+        $("chatbot-conversations").innerHTML = !rows.length
+          ? '<div class="p-6 text-center muted text-sm">لا توجد محادثات بعد.</div>'
+          : rows
+              .map(function (conversation) {
+                var messages = chatbotConversationMessages(conversation.id),
+                  last = messages[messages.length - 1],
+                  active =
+                    conversation.id === activeChatbotConversationId,
+                  unreadBadge = Number(conversation.unread_count || 0)
+                    ? '<span class="badge b-yellow">' +
+                      Number(conversation.unread_count) +
+                      "</span>"
+                    : "";
+                return (
+                  '<button type="button" class="w-full text-right p-4 border-b border-white/10 transition hover:bg-white/5 ' +
+                  (active ? "bg-[#39ff14]/10" : "") +
+                  '" onclick="openChatbotConversation(\'' +
+                  esc(conversation.id) +
+                  "')\">" +
+                  '<div class="flex items-center justify-between gap-2"><strong>' +
+                  esc(
+                    conversation.display_name ||
+                      chatbotChannelLabel(conversation.channel) +
+                        " · " +
+                        String(conversation.external_user_id || "").slice(-8),
+                  ) +
+                  '</strong><span class="flex items-center gap-1">' +
+                  unreadBadge +
+                  statusBadge(conversation.mode) +
+                  "</span></div>" +
+                  '<div class="muted text-[11px] mt-1">' +
+                  esc(chatbotChannelLabel(conversation.channel)) +
+                  " · " +
+                  esc(date(conversation.last_inbound_at || conversation.created_at)) +
+                  "</div>" +
+                  '<div class="text-xs mt-2 truncate" dir="auto">' +
+                  esc((last && last.message_text) || "—") +
+                  "</div></button>"
+                );
+              })
+              .join("");
+        var conversation = state.chatbotConversations.find(function (row) {
+          return row.id === activeChatbotConversationId;
+        });
+        if (!conversation) {
+          $("chatbot-workspace").innerHTML =
+            '<div class="h-full min-h-[420px] grid place-items-center text-center muted"><div><div class="text-3xl mb-3">◌</div><p>اختر محادثة لعرض الرسائل والرد.</p></div></div>';
+          return;
+        }
+        var messages = chatbotConversationMessages(conversation.id);
+        $("chatbot-workspace").innerHTML =
+          '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">' +
+          '<div><h3 class="font-black">' +
+          esc(conversation.display_name || chatbotChannelLabel(conversation.channel)) +
+          '</h3><p class="muted text-xs mt-1">' +
+          esc(chatbotChannelLabel(conversation.channel)) +
+          " · " +
+          esc(String(conversation.external_user_id || "")) +
+          "</p></div>" +
+          '<div class="flex flex-wrap gap-2"><span class="badge b-gray">' +
+          esc(chatbotModeLabel(conversation.mode)) +
+          '</span><button class="btn" type="button" onclick="updateChatbotMode(\'bot\',this)">إعادة للبوت</button>' +
+          '<button class="btn" type="button" onclick="updateChatbotMode(\'paused\',this)">إيقاف مؤقت</button>' +
+          '<button class="btn danger" type="button" onclick="updateChatbotMode(\'closed\',this)">إغلاق</button></div></div>' +
+          '<div id="chatbot-thread" class="space-y-3 py-4 max-h-[430px] overflow-auto">' +
+          (messages.length
+            ? messages
+                .map(function (message) {
+                  var outbound = message.direction === "outbound";
+                  return (
+                    '<div class="flex ' +
+                    (outbound ? "justify-start" : "justify-end") +
+                    '"><div class="max-w-[88%] rounded-2xl px-4 py-3 border ' +
+                    (outbound
+                      ? "bg-[#39ff14]/10 border-[#39ff14]/25"
+                      : "bg-white/5 border-white/10") +
+                    '"><div class="text-[10px] font-black mb-1 ' +
+                    (outbound ? "text-[#39ff14]" : "muted") +
+                    '">' +
+                    esc(
+                      message.sender_role === "admin"
+                        ? "رد الأدمن"
+                        : message.sender_role === "bot"
+                          ? "رد البوت"
+                          : "العميل",
+                    ) +
+                    " · " +
+                    esc(new Date(message.created_at).toLocaleString("ar-DZ")) +
+                    '</div><div class="text-sm whitespace-pre-wrap leading-7" dir="auto">' +
+                    esc(message.message_text) +
+                    "</div>" +
+                    (message.delivery_status === "failed"
+                      ? '<div class="text-[10px] text-red-400 mt-2">فشل الإرسال</div>'
+                      : "") +
+                    "</div></div>"
+                  );
+                })
+                .join("")
+            : '<div class="muted text-sm text-center py-10">لا توجد رسائل.</div>') +
+          '</div><div class="pt-4 border-t border-white/10">' +
+          '<textarea id="chatbot-reply" class="input min-h-24" maxlength="1900" dir="auto" placeholder="اكتب ردك للعميل…"></textarea>' +
+          '<div class="flex items-center justify-between gap-3 mt-3"><span class="muted text-[11px]">الرد اليدوي يحوّل المحادثة تلقائيًا إلى وضع الأدمن.</span>' +
+          '<button class="btn neon" type="button" onclick="sendChatbotReply(this)">إرسال الرد</button></div></div>';
+        setTimeout(function () {
+          var thread = $("chatbot-thread");
+          if (thread) thread.scrollTop = thread.scrollHeight;
+        }, 0);
+      }
+      async function openChatbotConversation(id) {
+        activeChatbotConversationId = id;
+        var conversation = state.chatbotConversations.find(function (row) {
+          return row.id === id;
+        });
+        if (conversation && Number(conversation.unread_count || 0)) {
+          conversation.unread_count = 0;
+          window.supabaseClient
+            .from("chatbot_conversations")
+            .update({ unread_count: 0 })
+            .eq("id", id)
+            .then(function () {});
+        }
+        renderChatbot();
+      }
+      async function chatbotAdminCall(body) {
+        var sessionResult = await window.supabaseClient.auth.getSession(),
+          session = sessionResult.data && sessionResult.data.session;
+        if (!session) throw new Error("انتهت جلسة الأدمن");
+        var response = await fetch(
+            SUPABASE_URL + "/functions/v1/meta-chatbot",
+            {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + session.access_token,
+                apikey: SUPABASE_ANON_KEY,
+                "Content-Type": "application/json",
+                "x-client-info": "strivio-meta-inbox",
+              },
+              body: JSON.stringify(body),
+            },
+          ),
+          data = await response.json().catch(function () {
+            return null;
+          });
+        if (!response.ok || !data || !data.success)
+          throw new Error((data && data.error) || "تعذر تنفيذ العملية");
+        return data;
+      }
+      async function sendChatbotReply(button) {
+        var input = $("chatbot-reply"),
+          message = String((input && input.value) || "").trim();
+        if (!activeChatbotConversationId || !message) {
+          toast("اكتب الرد أولًا.", true);
+          return;
+        }
+        var old = button.textContent;
+        button.disabled = true;
+        button.textContent = "جارٍ الإرسال…";
+        try {
+          await chatbotAdminCall({
+            mode: "admin_reply",
+            conversation_id: activeChatbotConversationId,
+            text: message,
+          });
+          toast("تم إرسال الرد للعميل.");
+          await loadAll();
+        } catch (error) {
+          toast("تعذر إرسال الرد: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.textContent = old;
+        }
+      }
+      async function updateChatbotMode(mode, button) {
+        if (!activeChatbotConversationId) return;
+        var old = button.textContent;
+        button.disabled = true;
+        button.textContent = "جارٍ الحفظ…";
+        try {
+          await chatbotAdminCall({
+            mode: "conversation_update",
+            conversation_id: activeChatbotConversationId,
+            conversation_mode: mode,
+          });
+          toast(
+            mode === "bot"
+              ? "عادت المحادثة للرد التلقائي."
+              : "تم تحديث حالة المحادثة.",
+          );
+          await loadAll();
+        } catch (error) {
+          toast("تعذر تحديث المحادثة: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.textContent = old;
+        }
+      }
+      async function saveChatbotSettings(input) {
+        input.disabled = true;
+        try {
+          var result = await window.supabaseClient
+            .from("chatbot_settings")
+            .update({
+              enabled: input.checked,
+              auto_reply_enabled: input.checked,
+            })
+            .eq("id", 1)
+            .select("*")
+            .single();
+          if (result.error) throw result.error;
+          state.chatbotSettings = result.data;
+          toast(
+            input.checked
+              ? "تم تشغيل الرد التلقائي."
+              : "تم إيقاف الرد التلقائي.",
+          );
+        } catch (error) {
+          input.checked = !input.checked;
+          toast("تعذر تحديث إعداد البوت: " + error.message, true);
+        } finally {
+          input.disabled = false;
         }
       }
       function showTab(name) {
