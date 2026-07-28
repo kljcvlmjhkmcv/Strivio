@@ -138,7 +138,7 @@ async function askGemini({
   history: any[];
   diagnostics?: { error?: string };
 }) {
-  const apiKey = Deno.env.get("GEMINI_API_KEY") || "";
+  const apiKey = (Deno.env.get("GEMINI_API_KEY") || "").replace(/[^A-Za-z0-9._-]/g, "");
   if (!apiKey) {
     if (diagnostics) diagnostics.error = "GEMINI_API_KEY is missing";
     return null;
@@ -167,7 +167,8 @@ async function askGemini({
   const prompt = [
     "You are Strivio's sales assistant for Instagram and Facebook messages.",
     "Understand Arabic, French, English, Algerian Darija, and Algerian Arabizi such as khsni, n7ab, ch7al, kifach, wa9tach.",
-    "Mirror the customer's language and script. Keep the reply friendly, concise, and suitable for a direct message.",
+    "Mirror the customer's language and script. Keep the reply friendly, concise, under 350 characters, and suitable for a direct message.",
+    "When language is dz, answer in Algerian Darija/Arabizi that matches the customer's writing, not formal French.",
     "Use only the catalog and facts below. Never invent a price, duration, stock state, policy, promotion, or order status.",
     "A numeric price of 0 means that duration is unavailable; never advertise it.",
     "Never request or reveal a password, PIN, payment credential, or account credential.",
@@ -180,40 +181,42 @@ async function askGemini({
     `Recent conversation: ${JSON.stringify(safeHistory)}`,
     `Customer message: ${safeText}`,
   ].join("\n\n");
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "x-goog-api-key": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.25,
-          maxOutputTokens: 500,
-          responseFormat: {
-            text: {
-              mimeType: "application/json",
-              schema: {
-                type: "object",
-                properties: {
-                  reply: { type: "string" },
-                  language: { type: "string", enum: ["ar", "fr", "en", "dz"] },
-                  intent: { type: "string" },
-                  confidence: { type: "number", minimum: 0, maximum: 1 },
-                  handoff: { type: "boolean" },
-                },
-                required: ["reply", "language", "intent", "confidence", "handoff"],
-                additionalProperties: false,
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            maxOutputTokens: 1400,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                reply: { type: "STRING" },
+                language: { type: "STRING", enum: ["ar", "fr", "en", "dz"] },
+                intent: { type: "STRING" },
+                confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
+                handoff: { type: "BOOLEAN" },
               },
+              required: ["reply", "language", "intent", "confidence", "handoff"],
             },
           },
-        },
-      }),
-    },
-  );
+        }),
+      },
+    );
+  } catch (error) {
+    const message = String(error?.message || error).slice(0, 500);
+    if (diagnostics) diagnostics.error = `Gemini network error: ${message}`;
+    console.warn("Gemini request could not be sent", { model, error: message });
+    return null;
+  }
   const responseText = await response.text();
   if (!response.ok) {
     if (diagnostics) diagnostics.error = `Gemini HTTP ${response.status}: ${responseText.slice(0, 500)}`;
@@ -362,7 +365,12 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   }).select("id").single();
   if (inbound.error) throw inbound.error;
 
-  if (!botData.settings.enabled || !botData.settings.auto_reply_enabled || conversation.mode !== "bot") {
+  const isDiagnosticTest = event.eventType === "test";
+  if (
+    !botData.settings.enabled ||
+    !botData.settings.auto_reply_enabled ||
+    (!isDiagnosticTest && conversation.mode !== "bot")
+  ) {
     return { stored: true, replied: false, mode: conversation.mode };
   }
 
