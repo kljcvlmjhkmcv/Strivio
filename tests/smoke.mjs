@@ -229,6 +229,7 @@ check(operations.includes('id="inventory-alerts"')&&operations.includes('renderI
 check(operations.includes('inventoryCallsInFlight'),'Duplicate admin inventory mutations are not guarded');
 check(operations.includes('data-tab="chatbot"')&&operations.includes('renderChatbot()'),'Operations has no Meta conversation inbox');
 check(operations.includes('mode: "admin_reply"')&&operations.includes('mode: "conversation_update"'),'Meta inbox is not connected to secure admin actions');
+check(operations.includes('id="chatbot-test-input"')&&operations.includes('mode: "test"'),'Operations cannot test chatbot replies safely before publishing');
 const metaChatbot=fs.readFileSync(path.join(root,'supabase','functions','meta-chatbot','index.ts'),'utf8');
 check(metaChatbot.includes('isAdminReply')&&metaChatbot.includes('sender_role: "admin"'),'Meta chatbot cannot send and audit an admin reply');
 check(metaChatbot.includes('isConversationUpdate')&&metaChatbot.includes('conversation_mode'),'Meta chatbot cannot hand conversations back to automation');

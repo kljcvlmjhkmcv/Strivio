@@ -440,6 +440,16 @@
             </div>
             <div id="chatbot-workspace" class="rounded-2xl border border-white/10 bg-black/25 min-h-[460px] p-4"></div>
           </div>
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4 mt-4">
+            <div class="flex flex-col lg:flex-row lg:items-end gap-3">
+              <label class="flex-1 text-xs muted">
+                اختبار داخلي آمن — لا تُرسل الرسالة إلى Meta
+                <input id="chatbot-test-input" class="input mt-2" dir="auto" maxlength="1000" placeholder="مثال: wach l compte ykhdem f téléphone w TV?" />
+              </label>
+              <button id="chatbot-test-button" class="btn neon" type="button" onclick="testChatbotReply(this)">اختبار الرد</button>
+            </div>
+            <div id="chatbot-test-result" class="hidden mt-3 rounded-xl border border-white/10 bg-black/30 p-4 text-sm leading-7" dir="auto"></div>
+          </div>
         </div>
       </section>
 
@@ -3876,6 +3886,47 @@
           toast("تعذر تحديث إعداد البوت: " + error.message, true);
         } finally {
           input.disabled = false;
+        }
+      }
+      async function testChatbotReply(button) {
+        var input = $("chatbot-test-input"),
+          output = $("chatbot-test-result"),
+          message = String((input && input.value) || "").trim();
+        if (!message) {
+          toast("اكتب رسالة تجريبية أولًا.", true);
+          return;
+        }
+        var old = button.textContent;
+        button.disabled = true;
+        button.textContent = "جارٍ اختبار البوت…";
+        output.classList.remove("hidden");
+        output.innerHTML = '<div class="loading">جارٍ إنشاء الرد…</div>';
+        try {
+          var data = await chatbotAdminCall({
+              mode: "test",
+              text: message,
+              sender_id: "operations-test",
+            }),
+            result = data.result || {};
+          output.innerHTML =
+            '<div class="flex flex-wrap gap-2 mb-2">' +
+            statusBadge(result.source || "rules") +
+            '<span class="badge b-gray">' +
+            esc(result.locale || "—") +
+            '</span><span class="badge b-gray">' +
+            esc(result.intent || "—") +
+            "</span></div>" +
+            '<div class="whitespace-pre-wrap" dir="auto">' +
+            esc(result.reply || "لم يُرجع البوت ردًا.") +
+            "</div>";
+        } catch (error) {
+          output.innerHTML =
+            '<div class="text-red-400">فشل الاختبار: ' +
+            esc(error.message) +
+            "</div>";
+        } finally {
+          button.disabled = false;
+          button.textContent = old;
         }
       }
       function showTab(name) {
