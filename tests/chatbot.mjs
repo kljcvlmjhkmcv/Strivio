@@ -78,6 +78,7 @@ assert.equal(detectLanguage("I need Netflix"), "en");
 assert.equal(detectLanguage("أريد نتفلكس"), "ar");
 
 assert.match(normalizeMessage("khsni netflix ch7al"), /احتاج netflix كم السعر/);
+assert.equal(normalizeMessage("ثلاثة أشهر"), "ثلاثة اشهر");
 assert.equal(identifyIntent("khsni netflix").intent, "purchase");
 assert.equal(identifyIntent("ch7al spotify").intent, "price");
 assert.equal(identifyIntent("kifach nkhalles").intent, "payment");
@@ -167,6 +168,15 @@ assert.equal(
 );
 
 const rememberedNetflix = mergeConversationMemory({}, "khsni netflix");
+const rememberedArabicPlan = mergeConversationMemory(
+  rememberedNetflix,
+  "ثلاثة أشهر، ثلاث شاشات",
+);
+assert.equal(rememberedArabicPlan.duration_months, 3);
+assert.equal(rememberedArabicPlan.quantity, 3);
+const rememberedScreensOnly = mergeConversationMemory(rememberedNetflix, "3 شاشات");
+assert.equal(rememberedScreensOnly.duration_months, undefined);
+assert.equal(rememberedScreensOnly.quantity, 3);
 const rememberedPlan = mergeConversationMemory(rememberedNetflix, "3 mois 2 écrans");
 assert.equal(rememberedPlan.service_id, "netflix");
 assert.equal(rememberedPlan.duration_months, 3);

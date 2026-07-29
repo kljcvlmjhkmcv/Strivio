@@ -88,7 +88,10 @@ const BUDGET_WORDS = [
 ];
 
 function stripDiacritics(value) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed]/gi, "")
+    .replace(/[إأآٱ]/g, "ا");
 }
 
 export function normalizeMessage(value) {
@@ -135,11 +138,15 @@ const DURATION_MONTHS = [1, 2, 3, 6, 12];
 
 function numberFromToken(value) {
   const normalized = normalizeMessage(value);
-  const direct = Number(normalized.match(/\b(?:1|2|3|6|12)\b/)?.[0] || 0);
+  const directMatch = normalized.match(
+    /(?:^|\s)(1|2|3|6|12)\s*(?:شهر|اشهر|شهور|mois|months?)(?=\s|$)/iu,
+  );
+  const bareMatch = normalized.match(/^(1|2|3|6|12)$/);
+  const direct = Number(directMatch?.[1] || bareMatch?.[1] || 0);
   if (DURATION_MONTHS.includes(direct)) return direct;
   if (/(?:سنة|عام|year|annual|annuel|an\b)/i.test(normalized)) return 12;
-  if (/(?:ستة|سته|six)\s*(?:اشهر|أشهر|mois|months?)/i.test(normalized)) return 6;
-  if (/(?:ثلاثة|ثلاث|trois|three)\s*(?:اشهر|أشهر|mois|months?)/i.test(normalized)) return 3;
+  if (/(?:ستة|سته|six)\s*(?:اشهر|شهور|mois|months?)/i.test(normalized)) return 6;
+  if (/(?:ثلاثة|ثلاث|trois|three)\s*(?:اشهر|شهور|mois|months?)/i.test(normalized)) return 3;
   if (/(?:شهرين|شهران|deux mois|two months)/i.test(normalized)) return 2;
   if (/(?:شهر واحد|un mois|one month)/i.test(normalized)) return 1;
   return null;
@@ -147,13 +154,15 @@ function numberFromToken(value) {
 
 function screenCountFromText(value) {
   const normalized = normalizeMessage(value);
-  const numeric = normalized.match(/\b([1-5])\s*(?:شاش(?:ة|ات)?|بروفايل(?:ات)?|profils?|profiles?|screens?|ecrans?|écrans?)\b/i);
+  const numeric = normalized.match(
+    /(?:^|\s)([1-5])\s*(?:شاش(?:ة|ات)?|بروفايل(?:ات)?|profils?|profiles?|screens?|ecrans?)(?=\s|$)/iu,
+  );
   if (numeric) return Number(numeric[1]);
-  if (/(?:شاشتين|شاشتان|بروفايلين|بروفايلان|deux écrans|two screens)/i.test(normalized)) return 2;
-  if (/(?:ثلاث شاشات|ثلاثة شاشات|trois écrans|three screens)/i.test(normalized)) return 3;
-  if (/(?:اربع شاشات|أربع شاشات|quatre écrans|four screens)/i.test(normalized)) return 4;
-  if (/(?:خمس شاشات|خمسة شاشات|cinq écrans|five screens)/i.test(normalized)) return 5;
-  if (/(?:شاشة واحدة|بروفايل واحد|un écran|one screen)/i.test(normalized)) return 1;
+  if (/(?:شاشتين|شاشتان|بروفايلين|بروفايلان|deux ecrans|two screens)/i.test(normalized)) return 2;
+  if (/(?:ثلاث شاشات|ثلاثة شاشات|trois ecrans|three screens)/i.test(normalized)) return 3;
+  if (/(?:اربع شاشات|quatre ecrans|four screens)/i.test(normalized)) return 4;
+  if (/(?:خمس شاشات|خمسة شاشات|cinq ecrans|five screens)/i.test(normalized)) return 5;
+  if (/(?:شاشة واحدة|بروفايل واحد|un ecran|one screen)/i.test(normalized)) return 1;
   return null;
 }
 
@@ -162,7 +171,7 @@ function quantityFromText(value) {
   if (screens) return screens;
   const normalized = normalizeMessage(value);
   const match = normalized.match(
-    /\b([1-9]\d?)\s*(?:حساب(?:ات)?|اشتراك(?:ات)?|نسخ(?:ة)?|accounts?|subscriptions?|comptes?|licen[cs]es?)\b/i,
+    /(?:^|\s)([1-9]\d?)\s*(?:حساب(?:ات)?|اشتراك(?:ات)?|نسخ(?:ة)?|accounts?|subscriptions?|comptes?|licen[cs]es?)(?=\s|$)/iu,
   );
   return match ? Number(match[1]) : null;
 }
