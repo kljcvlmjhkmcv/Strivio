@@ -1,12 +1,15 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import {
+  buildMetaActions,
   detectLanguage,
   deterministicReply,
   identifyIntent,
+  mergeConversationMemory,
   normalizeMessage,
   redactSensitiveText,
   socialSafeReply,
+  stabilizeBidiReply,
 } from "./chatbot-core.mjs";
 
 const JSON_HEADERS = {
@@ -99,23 +102,33 @@ function graphToken(channel: string) {
   return Deno.env.get("META_PAGE_ACCESS_TOKEN") || "";
 }
 
-async function sendMetaReply(channel: string, accountId: string, recipientId: string, text: string) {
-  const token = graphToken(channel);
-  if (!token) throw new Error(`Missing access token for ${channel}`);
-  const isInstagram = channel === "instagram";
-  const outboundText = isInstagram
-    ? socialSafeReply(text, detectLanguage(text))
-    : String(text || "").trim();
-  if (!outboundText) throw new Error("Reply is empty after safety filtering");
-  const endpoint = isInstagram
+type MetaAction = {
+  type: "web_url" | "postback";
+  title: string;
+  url?: string;
+  payload?: string;
+};
+
+function metaEndpoint(channel: string, accountId: string) {
+  return channel === "instagram"
     ? "https://graph.instagram.com/v25.0/me/messages"
     : `https://graph.facebook.com/v25.0/${encodeURIComponent(accountId)}/messages`;
+}
+
+async function postMetaMessage(
+  channel: string,
+  accountId: string,
+  recipientId: string,
+  message: Record<string, unknown>,
+) {
+  const token = graphToken(channel);
+  if (!token) throw new Error(`Missing access token for ${channel}`);
   const body: Record<string, unknown> = {
     recipient: { id: recipientId },
-    message: { text: outboundText.slice(0, 1900) },
+    message,
   };
-  if (!isInstagram) body.messaging_type = "RESPONSE";
-  const response = await fetch(endpoint, {
+  if (channel !== "instagram") body.messaging_type = "RESPONSE";
+  const response = await fetch(metaEndpoint(channel, accountId), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -126,6 +139,65 @@ async function sendMetaReply(channel: string, accountId: string, recipientId: st
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`Meta send failed (${response.status}): ${String(payload?.error?.message || "unknown")}`);
   return String(payload?.message_id || "");
+}
+
+async function sendMetaReply(
+  channel: string,
+  accountId: string,
+  recipientId: string,
+  text: string,
+  options: { actions?: MetaAction[]; locale?: string } = {},
+) {
+  const locale = options.locale || detectLanguage(text);
+  const outboundText = channel === "instagram"
+    ? socialSafeReply(text, locale)
+    : String(text || "").trim();
+  if (!outboundText) throw new Error("Reply is empty after safety filtering");
+  const actions = Array.isArray(options.actions) ? options.actions.slice(0, 3) : [];
+  if (!actions.length) {
+    const messageId = await postMetaMessage(
+      channel,
+      accountId,
+      recipientId,
+      { text: outboundText.slice(0, 1900) },
+    );
+    return { messageId, template: false, fallback: false, error: "" };
+  }
+
+  const buttons = actions.map((action) => action.type === "web_url"
+    ? {
+        type: "web_url",
+        url: String(action.url || "").slice(0, 1000),
+        title: String(action.title || "").slice(0, 20),
+      }
+    : {
+        type: "postback",
+        title: String(action.title || "").slice(0, 20),
+        payload: String(action.payload || "").slice(0, 1000),
+      });
+  try {
+    const messageId = await postMetaMessage(channel, accountId, recipientId, {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "button",
+          text: outboundText.slice(0, 600),
+          buttons,
+        },
+      },
+    });
+    return { messageId, template: true, fallback: false, error: "" };
+  } catch (error) {
+    const templateError = String(error?.message || error).slice(0, 500);
+    const fallbackText = socialSafeReply(outboundText, locale);
+    const messageId = await postMetaMessage(
+      channel,
+      accountId,
+      recipientId,
+      { text: fallbackText.slice(0, 1900) },
+    );
+    return { messageId, template: false, fallback: true, error: templateError };
+  }
 }
 
 function safeJson(value: string) {
@@ -151,6 +223,7 @@ async function askGemini({
   knowledge,
   bundleRules,
   history,
+  memory,
   diagnostics,
 }: {
   text: string;
@@ -159,6 +232,7 @@ async function askGemini({
   knowledge: any[];
   bundleRules: any[];
   history: any[];
+  memory?: Record<string, unknown>;
   diagnostics?: { error?: string };
 }) {
   const apiKey = (Deno.env.get("GEMINI_API_KEY") || "").replace(/[^A-Za-z0-9._-]/g, "");
@@ -208,6 +282,7 @@ async function askGemini({
       delivery_mode: service.fulfillment_mode,
       out_of_stock: service.out_of_stock?.all === true || service.out_of_stock === true,
       duration_notes: service.dur_notes || service.promo?.dur_notes || [],
+      promotion: service.promo || null,
     };
   });
   const now = Date.now();
@@ -242,11 +317,14 @@ async function askGemini({
   const prompt = [
     "You are Strivio's sales assistant for Instagram and Facebook messages.",
     "Understand Arabic, French, English, Algerian Darija, and Algerian Arabizi such as khsni, n7ab, ch7al, kifach, wa9tach.",
-    "Mirror the customer's language and script. Keep the reply friendly, structured, accurate, and under 900 characters.",
+    "Mirror the customer's language and script. Keep the reply friendly, structured, accurate, and under 560 characters.",
     "When language is dz, answer in Algerian Darija/Arabizi that matches the customer's writing, not formal French.",
+    "For Arabic or Darija, avoid mixing Arabic and Latin words in one sentence. Put service names, numbers and Latin terms on separate short labeled lines when useful.",
+    "Prefer one fact per line. Never use Markdown tables. Do not use URLs in text.",
     "Use only the catalog, active offers, operational rules, and knowledge below. Never invent a price, duration, stock state, policy, promotion, coupon, or order status.",
     "A numeric price of 0 means that duration is unavailable; never advertise it.",
     "For typed products such as Netflix screens or IPTV packages, quote the exact matching plan. If screen count, package, or duration is missing, ask one short clarification instead of guessing.",
+    "If the customer asks for Netflix for 1 or 2 months and a matching 3-month active gift offer exists, first quote the exact requested price, then briefly suggest the exact 3-month price and its free gift. Never replace the requested choice.",
     "Mention a free gift only when it exists in Active offers and the requested paid duration/type matches. State whether it is excluded from renewals.",
     "If the customer asks for all prices, list only available prices and group them clearly by product type.",
     "Never include a URL, domain name, clickable link, or protocol in any reply. Say 'use the link in our bio' in the customer's language.",
@@ -255,12 +333,14 @@ async function askGemini({
     "Buying flow: choose a service, duration and type/quantity; add to cart; enter name, email and phone; choose payment; confirm; then follow delivery from My Account.",
     "Payment methods: CIB/Dahabia card through SATIM; BaridiMob; CCP; Wise in EUR with the current rate shown in cart; USDT with the current rate shown in cart; Flexy with a 19% service fee. Coupons are validated in cart.",
     "Delivery modes: automatic_slot and automatic_account are delivered after payment confirmation when stock is ready; manual_activation asks the customer for their service login inside the protected order page and Strivio activates it; manual_delivery is prepared and delivered by the Strivio team.",
+    "When the customer is ready to buy, offer both choices: order securely on the website, or continue manually in this chat. Interactive buttons are added by the backend, so do not write button labels or a link.",
     "If the request is ambiguous, sensitive, angry, asks for a human, or cannot be answered from supplied facts, set handoff=true.",
     "Return only JSON matching: {reply:string, language:'ar'|'fr'|'en'|'dz', intent:string, confidence:number, handoff:boolean}.",
     `Preferred detected language: ${locale}`,
     `Catalog: ${JSON.stringify(catalog)}`,
     `Active offers: ${JSON.stringify(offers)}`,
     `Knowledge: ${JSON.stringify(facts)}`,
+    `Remembered conversation context (may be incomplete; never treat it as verified customer identity): ${JSON.stringify(memory || {})}`,
     `Recent conversation: ${JSON.stringify(safeHistory)}`,
     `Customer message: ${safeText}`,
   ].join("\n\n");
@@ -374,12 +454,23 @@ async function upsertConversation(db: any, event: any) {
     .maybeSingle();
   if (existing.error) throw existing.error;
   if (existing.data) {
+    const memory = mergeConversationMemory(
+      existing.data.memory || existing.data.metadata?.memory || {},
+      event.text,
+      event.payload,
+    );
     const updated = await db.from("chatbot_conversations")
       .update({
         locale: event.locale,
         last_inbound_at: now,
         unread_count: Number(existing.data.unread_count || 0) + 1,
-        metadata: { ...(existing.data.metadata || {}), last_event_type: event.eventType },
+        memory,
+        follow_up_due_at: null,
+        metadata: {
+          ...(existing.data.metadata || {}),
+          memory,
+          last_event_type: event.eventType,
+        },
       })
       .eq("id", existing.data.id)
       .select("*")
@@ -387,6 +478,7 @@ async function upsertConversation(db: any, event: any) {
     if (updated.error) throw updated.error;
     return updated.data;
   }
+  const memory = mergeConversationMemory({}, event.text, event.payload);
   const created = await db.from("chatbot_conversations").insert({
     channel: event.channel,
     channel_account_id: event.accountId,
@@ -395,7 +487,8 @@ async function upsertConversation(db: any, event: any) {
     locale: event.locale,
     last_inbound_at: now,
     unread_count: 1,
-    metadata: { last_event_type: event.eventType },
+    memory,
+    metadata: { memory, last_event_type: event.eventType },
   }).select("*").single();
   if (created.error) throw created.error;
   return created.data;
@@ -407,7 +500,8 @@ function extractMetaEvents(payload: any) {
   for (const entry of Array.isArray(payload?.entry) ? payload.entry : []) {
     for (const item of Array.isArray(entry?.messaging) ? entry.messaging : []) {
       if (item?.message?.is_echo) continue;
-      const text = String(item?.message?.text || item?.postback?.title || "").trim();
+      const payloadValue = String(item?.postback?.payload || item?.message?.quick_reply?.payload || "").trim();
+      const text = String(item?.message?.text || item?.postback?.title || payloadValue || "").trim();
       const providerMessageId = String(item?.message?.mid || item?.postback?.mid || "").trim();
       const senderId = String(item?.sender?.id || "").trim();
       const accountId = String(item?.recipient?.id || entry?.id || "").trim();
@@ -419,6 +513,7 @@ function extractMetaEvents(payload: any) {
         threadId: senderId,
         providerMessageId: providerMessageId || `${channel}:${entry?.time || Date.now()}:${senderId}`,
         text: text.slice(0, 4000),
+        payload: payloadValue.slice(0, 1000),
         locale: detectLanguage(text),
         eventType: item?.postback ? "postback" : "message",
         timestamp: Number(item?.timestamp || entry?.time || Date.now()),
@@ -426,6 +521,48 @@ function extractMetaEvents(payload: any) {
     }
   }
   return events;
+}
+
+function isSalesIntent(intent: string) {
+  return ["price", "purchase", "service_interest", "payment", "delivery", "ai_answer"].includes(String(intent || ""));
+}
+
+function shouldAttachActions(answer: any, memory: any) {
+  return Boolean(memory?.service_id) || isSalesIntent(answer?.intent) || answer?.intent === "greeting";
+}
+
+function followUpText(locale: string, memory: any) {
+  const service = String(memory?.service_id || "").trim();
+  const serviceLabel = service ? ` ${service}` : "";
+  const variants: Record<string, string> = {
+    ar: `هل ما زلت مهتمًا بطلب${serviceLabel}؟ يمكنك الطلب من الموقع أو إكماله هنا، وأنا أساعدك.`,
+    fr: `Êtes-vous toujours intéressé par${serviceLabel} ? Vous pouvez commander sur le site ou continuer ici.`,
+    en: `Are you still interested in${serviceLabel}? You can order on the website or continue here.`,
+    dz: `ما زلت مهتم بـ${serviceLabel}؟ تقدر تطلب من الموقع ولا نكملو هنا.`,
+  };
+  return variants[locale] || variants.fr;
+}
+
+async function canUseAi(db: any, conversationId: string, settings: any) {
+  const hourLimit = Math.max(4, Number(settings.max_ai_replies_per_hour || 16));
+  const dailyLimit = Math.max(20, Number(settings.daily_ai_limit || 300));
+  const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const dayStart = new Date();
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const [conversationUsage, dailyUsage] = await Promise.all([
+    db.from("chatbot_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", conversationId)
+      .eq("reply_source", "gemini")
+      .gte("created_at", hourAgo),
+    db.from("chatbot_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("reply_source", "gemini")
+      .gte("created_at", dayStart.toISOString()),
+  ]);
+  if (conversationUsage.error || dailyUsage.error) return true;
+  return Number(conversationUsage.count || 0) < hourLimit
+    && Number(dailyUsage.count || 0) < dailyLimit;
 }
 
 async function handleInbound(db: any, event: any, botData: any, shouldSend: boolean) {
@@ -437,7 +574,13 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   if (duplicate.data) return { duplicate: true };
 
   const conversation = await upsertConversation(db, event);
-  const detected = identifyIntent(event.text);
+  const memory = conversation.memory || conversation.metadata?.memory || {};
+  const payloadValue = String(event.payload || "");
+  const isChatOrderPostback = payloadValue.startsWith("STRIVIO_CHAT_ORDER:");
+  const isHumanPostback = payloadValue === "STRIVIO_HUMAN";
+  const detected = isChatOrderPostback
+    ? { intent: "manual_checkout", serviceId: memory.service_id || null, confidence: 1 }
+    : identifyIntent(event.text);
   const inbound = await db.from("chatbot_messages").insert({
     conversation_id: conversation.id,
     provider_message_id: event.providerMessageId,
@@ -450,7 +593,11 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     confidence: detected.confidence,
     reply_source: null,
     delivery_status: "received",
-    metadata: { event_type: event.eventType, timestamp: event.timestamp },
+    metadata: {
+      event_type: event.eventType,
+      timestamp: event.timestamp,
+      postback_payload: payloadValue || null,
+    },
   }).select("id").single();
   if (inbound.error) throw inbound.error;
 
@@ -475,7 +622,8 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   const inboundBurst = recent.filter((item: any) =>
     item.sender_role === "customer" && new Date(item.created_at).getTime() >= oneMinuteAgo
   ).length;
-  if (inboundBurst > 8) {
+  const burstLimit = Math.max(3, Number(botData.settings.burst_limit_per_minute || 6));
+  if (inboundBurst > burstLimit) {
     await db.from("chatbot_conversations").update({
       mode: "human",
       handoff_reason: "rate_limit",
@@ -489,11 +637,42 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     services: botData.services,
     knowledge: botData.knowledge,
     bundleRules: botData.bundleRules,
+    memory,
   });
+  if (isChatOrderPostback) {
+    const variants: Record<string, string> = {
+      ar: "ممتاز، سنكمل الطلب هنا. اكتب الخدمة والمدة والكمية التي تريدها، وسيستلم فريق Strivio المحادثة لتأكيد الطلب والدفع.",
+      fr: "Parfait, nous continuons ici. Indiquez le service, la durée et la quantité. L’équipe Strivio prendra la conversation pour confirmer la commande et le paiement.",
+      en: "Great, we’ll continue here. Send the service, duration and quantity. The Strivio team will take over to confirm the order and payment.",
+      dz: "مليح، نكملو الطلب هنا. اكتب الخدمة والمدة والكمية، وفريق Strivio يكمل معاك تأكيد الطلب والدفع.",
+    };
+    answer = {
+      ...answer,
+      reply: variants[event.locale] || variants.fr,
+      locale: event.locale,
+      intent: "manual_checkout",
+      confidence: 1,
+      handoff: true,
+      source: "rules",
+    };
+  } else if (isHumanPostback) {
+    answer = deterministicReply({
+      text: event.locale === "fr" ? "conseiller" : event.locale === "en" ? "human agent" : "موظف",
+      locale: event.locale,
+      services: botData.services,
+      knowledge: botData.knowledge,
+      bundleRules: botData.bundleRules,
+      memory,
+    });
+  }
   const aiDiagnostics: { error?: string } = {};
   const keepRuleAnswer = answer.handoff
     || ["human_handoff", "order_status", "greeting"].includes(answer.intent);
-  if (!keepRuleAnswer && botData.settings.ai_enabled && botData.settings.provider === "gemini") {
+  const aiAllowed = !keepRuleAnswer
+    && botData.settings.ai_enabled
+    && botData.settings.provider === "gemini"
+    && await canUseAi(db, conversation.id, botData.settings);
+  if (aiAllowed) {
     const ai = await askGemini({
       text: event.text,
       locale: event.locale,
@@ -501,9 +680,12 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
       knowledge: botData.knowledge,
       bundleRules: botData.bundleRules,
       history: recent,
+      memory,
       diagnostics: aiDiagnostics,
     });
     if (ai) answer = { ...answer, ...ai };
+  } else if (!keepRuleAnswer && botData.settings.ai_enabled) {
+    aiDiagnostics.error = "AI usage limit reached; deterministic reply used";
   }
 
   if (!answer.reply) {
@@ -528,6 +710,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   answer.reply = event.channel === "instagram"
     ? socialSafeReply(answer.reply, answer.locale || event.locale)
     : String(answer.reply || "").trim();
+  answer.reply = stabilizeBidiReply(answer.reply, answer.locale || event.locale);
 
   if (answer.handoff) {
     await db.from("chatbot_conversations").update({
@@ -539,14 +722,35 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   let providerMessageId = "";
   let deliveryStatus = shouldSend ? "queued" : "sent";
   let deliveryError = "";
+  let usedTemplate = false;
+  let usedFallback = false;
+  const actions = shouldAttachActions(answer, memory)
+    ? buildMetaActions({
+        locale: answer.locale || event.locale,
+        serviceId: String(memory.service_id || answer.serviceId || ""),
+        websiteUrl: String(botData.settings.website_url || "https://www.striviodz.store"),
+        includeWebsite: botData.settings.structured_messages_enabled !== false
+          && botData.settings.website_buttons_enabled !== false,
+        includeChat: botData.settings.structured_messages_enabled !== false
+          && botData.settings.manual_checkout_enabled !== false
+          && !answer.handoff,
+        includeHuman: botData.settings.structured_messages_enabled !== false
+          && !answer.handoff,
+      })
+    : [];
   if (shouldSend) {
     try {
-      providerMessageId = await sendMetaReply(
+      const sent = await sendMetaReply(
         event.channel,
         event.accountId,
         event.senderId,
         answer.reply,
+        { actions, locale: answer.locale || event.locale },
       );
+      providerMessageId = sent.messageId;
+      usedTemplate = sent.template;
+      usedFallback = sent.fallback;
+      deliveryError = sent.error || "";
       deliveryStatus = "sent";
     } catch (error) {
       deliveryStatus = "failed";
@@ -566,13 +770,30 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     confidence: answer.confidence,
     reply_source: answer.source,
     delivery_status: deliveryStatus,
-    metadata: deliveryError ? { error: deliveryError } : {},
+    metadata: {
+      ...(deliveryError ? { error: deliveryError } : {}),
+      actions,
+      template: usedTemplate,
+      template_fallback: usedFallback,
+      memory_snapshot: memory,
+    },
   });
   if (outbound.error) throw outbound.error;
 
-  await db.from("chatbot_conversations").update({
+  const conversationChanges: Record<string, unknown> = {
     last_outbound_at: new Date().toISOString(),
-  }).eq("id", conversation.id);
+  };
+  if (
+    !answer.handoff
+    && deliveryStatus === "sent"
+    && botData.settings.follow_up_enabled !== false
+    && isSalesIntent(answer.intent)
+    && Number(conversation.follow_up_count || 0) < Number(botData.settings.max_followups_per_conversation || 1)
+  ) {
+    const delay = Math.max(30, Number(botData.settings.follow_up_delay_minutes || 120));
+    conversationChanges.follow_up_due_at = new Date(Date.now() + delay * 60_000).toISOString();
+  }
+  await db.from("chatbot_conversations").update(conversationChanges).eq("id", conversation.id);
 
   return {
     stored: true,
@@ -585,8 +806,100 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     handoff: Boolean(answer.handoff),
     delivery_status: deliveryStatus,
     error: deliveryError || undefined,
+    actions,
+    structured_message: usedTemplate,
+    structured_fallback: usedFallback,
+    memory,
     ai_diagnostic: event.eventType === "test" ? aiDiagnostics.error : undefined,
   };
+}
+
+async function processFollowUps(db: any, botData: any, limitValue: number) {
+  if (botData.settings.follow_up_enabled === false) return { processed: 0, sent: 0, skipped: 0 };
+  const maximum = Math.min(50, Math.max(1, Number(limitValue || 20)));
+  const nowIso = new Date().toISOString();
+  const windowStart = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString();
+  const maximumFollowUps = Math.max(0, Number(botData.settings.max_followups_per_conversation || 1));
+  if (!maximumFollowUps) return { processed: 0, sent: 0, skipped: 0 };
+
+  const dueResult = await db.from("chatbot_conversations")
+    .select("*")
+    .eq("mode", "bot")
+    .in("channel", ["instagram", "messenger"])
+    .not("follow_up_due_at", "is", null)
+    .lte("follow_up_due_at", nowIso)
+    .gte("last_inbound_at", windowStart)
+    .lt("follow_up_count", maximumFollowUps)
+    .order("follow_up_due_at", { ascending: true })
+    .limit(maximum);
+  if (dueResult.error) throw dueResult.error;
+
+  let sentCount = 0;
+  let skipped = 0;
+  for (const conversation of dueResult.data || []) {
+    const memory = conversation.memory || conversation.metadata?.memory || {};
+    const locale = String(conversation.locale || botData.settings.default_locale || "fr");
+    const text = stabilizeBidiReply(followUpText(locale, memory), locale);
+    const actions = buildMetaActions({
+      locale,
+      serviceId: String(memory.service_id || ""),
+      websiteUrl: String(botData.settings.website_url || "https://www.striviodz.store"),
+      includeWebsite: botData.settings.website_buttons_enabled !== false,
+      includeChat: botData.settings.manual_checkout_enabled !== false,
+      includeHuman: true,
+    });
+    try {
+      const sent = await sendMetaReply(
+        conversation.channel,
+        conversation.channel_account_id,
+        conversation.external_user_id,
+        text,
+        { actions, locale },
+      );
+      const messageResult = await db.from("chatbot_messages").insert({
+        conversation_id: conversation.id,
+        provider_message_id: sent.messageId || null,
+        direction: "outbound",
+        sender_role: "bot",
+        message_text: text,
+        normalized_text: normalizeMessage(text),
+        locale,
+        intent: "sales_follow_up",
+        confidence: 1,
+        reply_source: "scheduler",
+        delivery_status: "sent",
+        metadata: {
+          actions,
+          template: sent.template,
+          template_fallback: sent.fallback,
+          ...(sent.error ? { warning: sent.error } : {}),
+        },
+      });
+      if (messageResult.error) throw messageResult.error;
+      const updated = await db.from("chatbot_conversations").update({
+        follow_up_due_at: null,
+        follow_up_sent_at: nowIso,
+        follow_up_count: Number(conversation.follow_up_count || 0) + 1,
+        last_outbound_at: nowIso,
+      }).eq("id", conversation.id);
+      if (updated.error) throw updated.error;
+      sentCount += 1;
+    } catch (error) {
+      skipped += 1;
+      console.warn("Chatbot follow-up failed", {
+        conversation_id: conversation.id,
+        error: String(error?.message || error).slice(0, 500),
+      });
+      await db.from("chatbot_conversations").update({
+        follow_up_due_at: null,
+        metadata: {
+          ...(conversation.metadata || {}),
+          last_follow_up_error: String(error?.message || error).slice(0, 500),
+        },
+      }).eq("id", conversation.id);
+    }
+  }
+  return { processed: (dueResult.data || []).length, sent: sentCount, skipped };
 }
 
 serve(async (req) => {
@@ -629,6 +942,17 @@ serve(async (req) => {
   const isTest = payload?.mode === "test";
   const isAdminReply = payload?.mode === "admin_reply";
   const isConversationUpdate = payload?.mode === "conversation_update";
+  const isFollowUpWorker = payload?.mode === "process_followups";
+  if (isFollowUpWorker) {
+    const expectedWorkerSecret = Deno.env.get("META_CHATBOT_WORKER_SECRET") || "";
+    const providedWorkerSecret = req.headers.get("x-chatbot-worker-secret") || "";
+    if (!expectedWorkerSecret || !constantTimeEqual(expectedWorkerSecret, providedWorkerSecret)) {
+      return json(req, { success: false, error: "Worker authorization failed" }, 401);
+    }
+    const botData = await loadBotData(db);
+    const result = await processFollowUps(db, botData, Number(payload?.limit || 20));
+    return json(req, { success: true, result });
+  }
   if (isTest || isAdminReply || isConversationUpdate) {
     if (!(await isAdminRequest(db, req))) return json(req, { success: false, error: "Admin only" }, 401);
   }
@@ -676,12 +1000,13 @@ serve(async (req) => {
 
     let providerMessageId = "";
     try {
-      providerMessageId = await sendMetaReply(
+      const sent = await sendMetaReply(
         conversation.channel,
         conversation.channel_account_id,
         conversation.external_user_id,
         outboundText,
       );
+      providerMessageId = sent.messageId;
     } catch (error) {
       return json(req, {
         success: false,

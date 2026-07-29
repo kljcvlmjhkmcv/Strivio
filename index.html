@@ -825,6 +825,19 @@ function openModal(sid){
   document.body.style.overflow='hidden';
 }
 
+var requestedServiceOpened=false;
+function openRequestedService(){
+  if(requestedServiceOpened)return;
+  var requested=new URLSearchParams(window.location.search).get('service');
+  if(!requested||!/^[a-z0-9_-]{1,60}$/i.test(requested))return;
+  var exists=SERVICES.some(function(service){return service.id===requested});
+  if(!exists)return;
+  requestedServiceOpened=true;
+  var products=document.getElementById('products');
+  if(products)products.scrollIntoView({behavior:'smooth',block:'start'});
+  window.setTimeout(function(){openModal(requested)},220);
+}
+
 function renderModalDurations(){
   var tx=t();
   var MN=[1,2,3,6,12];
@@ -1060,6 +1073,7 @@ if (typeof loadServicesFromDB === 'function') {
       window.SERVICES = dbServices;
       if (typeof buildFilters === 'function') buildFilters();
       if (typeof renderProducts === 'function') renderProducts(curFilt || 'all');
+      openRequestedService();
     } else {
       SERVICES_LOAD_FAILED = true;
       renderProducts(curFilt || 'all');

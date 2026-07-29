@@ -112,6 +112,50 @@ export function identifyService(value) {
   return null;
 }
 
+const DURATION_MONTHS = [1, 2, 3, 6, 12];
+
+function numberFromToken(value) {
+  const normalized = normalizeMessage(value);
+  const direct = Number(normalized.match(/\b(?:1|2|3|6|12)\b/)?.[0] || 0);
+  if (DURATION_MONTHS.includes(direct)) return direct;
+  if (/(?:سنة|عام|year|annual|annuel|an\b)/i.test(normalized)) return 12;
+  if (/(?:ستة|سته|six)\s*(?:اشهر|أشهر|mois|months?)/i.test(normalized)) return 6;
+  if (/(?:ثلاثة|ثلاث|trois|three)\s*(?:اشهر|أشهر|mois|months?)/i.test(normalized)) return 3;
+  if (/(?:شهرين|شهران|deux mois|two months)/i.test(normalized)) return 2;
+  if (/(?:شهر واحد|un mois|one month)/i.test(normalized)) return 1;
+  return null;
+}
+
+function screenCountFromText(value) {
+  const normalized = normalizeMessage(value);
+  const numeric = normalized.match(/\b([1-5])\s*(?:شاش(?:ة|ات)?|بروفايل(?:ات)?|profils?|profiles?|screens?|ecrans?|écrans?)\b/i);
+  if (numeric) return Number(numeric[1]);
+  if (/(?:شاشتين|شاشتان|بروفايلين|بروفايلان|deux écrans|two screens)/i.test(normalized)) return 2;
+  if (/(?:ثلاث شاشات|ثلاثة شاشات|trois écrans|three screens)/i.test(normalized)) return 3;
+  if (/(?:اربع شاشات|أربع شاشات|quatre écrans|four screens)/i.test(normalized)) return 4;
+  if (/(?:خمس شاشات|خمسة شاشات|cinq écrans|five screens)/i.test(normalized)) return 5;
+  if (/(?:شاشة واحدة|بروفايل واحد|un écran|one screen)/i.test(normalized)) return 1;
+  return null;
+}
+
+export function mergeConversationMemory(previous = {}, value = "", payload = "") {
+  const next = { ...(previous && typeof previous === "object" ? previous : {}) };
+  const serviceId = identifyService(value);
+  const durationMonths = numberFromToken(value);
+  const screenCount = screenCountFromText(value);
+  const normalizedPayload = String(payload || "").toUpperCase();
+  if (serviceId) next.service_id = serviceId;
+  if (durationMonths) next.duration_months = durationMonths;
+  if (screenCount) {
+    next.quantity = screenCount;
+    next.type_index = Math.max(0, screenCount - 1);
+  }
+  if (normalizedPayload.startsWith("STRIVIO_CHAT_ORDER")) next.preferred_route = "chat";
+  if (normalizedPayload.startsWith("STRIVIO_HUMAN")) next.preferred_route = "human";
+  next.updated_at = new Date().toISOString();
+  return next;
+}
+
 export function identifyIntent(value) {
   const normalized = normalizeMessage(value);
   const serviceId = identifyService(value);
@@ -138,6 +182,29 @@ const BIO_INSTRUCTIONS = {
   fr: "Pour commander ou suivre votre commande, ouvrez le site Strivio depuis le lien dans la bio.",
   en: "To order or track your order, open the Strivio website from the link in our bio.",
   dz: "Bach تطلب ولا تتبع commande ta3ek، ادخل لموقع Strivio من الرابط لي في bio.",
+};
+
+const ACTION_LABELS = {
+  ar: {
+    website: "الطلب عبر الموقع",
+    chat: "إكمال الطلب هنا",
+    human: "موظف Strivio",
+  },
+  fr: {
+    website: "Commander en ligne",
+    chat: "Commander ici",
+    human: "Parler à l'équipe",
+  },
+  en: {
+    website: "Order on website",
+    chat: "Order in chat",
+    human: "Talk to the team",
+  },
+  dz: {
+    website: "الطلب عبر الموقع",
+    chat: "نكمل هنا",
+    human: "نهدر مع الموظف",
+  },
 };
 
 function serviceName(service, locale) {
@@ -221,9 +288,67 @@ export function socialSafeReply(value, locale = "fr") {
   return clean ? `${clean}\n\n${instruction}` : instruction;
 }
 
-export function deterministicReply({ text, locale, services = [], knowledge = [], bundleRules = [] }) {
+export function stabilizeBidiReply(value, locale = "fr") {
+  const clean = String(value || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (!clean) return "";
+  const rtl = locale === "ar" || (locale === "dz" && /[\u0600-\u06ff]/.test(clean));
+  const opener = rtl ? "\u2067" : "\u2066";
+  return clean
+    .split("\n")
+    .map((line) => line.trim() ? `${opener}${line.trim()}\u2069` : "")
+    .join("\n");
+}
+
+export function buildMetaActions({
+  locale = "fr",
+  serviceId = "",
+  websiteUrl = "https://www.striviodz.store",
+  includeWebsite = true,
+  includeChat = true,
+  includeHuman = true,
+} = {}) {
+  const labels = ACTION_LABELS[locale] || ACTION_LABELS.fr;
+  const actions = [];
+  if (includeWebsite) {
+    const url = new URL(websiteUrl);
+    if (serviceId) url.searchParams.set("service", serviceId);
+    actions.push({ type: "web_url", title: labels.website, url: url.toString() });
+  }
+  if (includeChat) {
+    actions.push({
+      type: "postback",
+      title: labels.chat,
+      payload: `STRIVIO_CHAT_ORDER:${String(serviceId || "general").slice(0, 60)}`,
+    });
+  }
+  if (includeHuman) {
+    actions.push({
+      type: "postback",
+      title: labels.human,
+      payload: "STRIVIO_HUMAN",
+    });
+  }
+  return actions.slice(0, 3);
+}
+
+export function deterministicReply({
+  text,
+  locale,
+  services = [],
+  knowledge = [],
+  bundleRules = [],
+  memory = {},
+}) {
   const detectedLocale = locale || detectLanguage(text);
-  const analysis = identifyIntent(text);
+  const rememberedService = String(memory?.service_id || "");
+  const effectiveText = !identifyService(text) && rememberedService
+    ? `${rememberedService} ${text}`
+    : text;
+  const analysis = identifyIntent(effectiveText);
   const service = analysis.serviceId
     ? services.find((item) => String(item?.id || "") === analysis.serviceId)
     : null;

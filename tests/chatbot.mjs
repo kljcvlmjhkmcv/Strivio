@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import {
+  buildMetaActions,
   detectLanguage,
   deterministicReply,
   identifyIntent,
+  mergeConversationMemory,
   normalizeMessage,
   redactSensitiveText,
   socialSafeReply,
+  stabilizeBidiReply,
 } from "../supabase/functions/meta-chatbot/chatbot-core.mjs";
 
 const services = [
@@ -132,5 +135,26 @@ assert.equal(
   redactSensitiveText("email me at user@example.com password: Secret123 phone 0555123456"),
   "email me at [email] [credential] phone [phone]",
 );
+
+const rememberedNetflix = mergeConversationMemory({}, "khsni netflix");
+const rememberedPlan = mergeConversationMemory(rememberedNetflix, "3 mois 2 écrans");
+assert.equal(rememberedPlan.service_id, "netflix");
+assert.equal(rememberedPlan.duration_months, 3);
+assert.equal(rememberedPlan.quantity, 2);
+
+const actions = buildMetaActions({
+  locale: "fr",
+  serviceId: rememberedPlan.service_id,
+  websiteUrl: "https://www.striviodz.store",
+});
+assert.equal(actions.length, 3);
+assert.equal(actions[0].type, "web_url");
+assert.match(actions[0].url, /\?service=netflix$/);
+assert.equal(actions[1].payload, "STRIVIO_CHAT_ORDER:netflix");
+assert.equal(actions[2].payload, "STRIVIO_HUMAN");
+
+const bidiReply = stabilizeBidiReply("السعر: 1,900 DZD\nالخدمة: Netflix", "ar");
+assert.match(bidiReply, /\u2067/);
+assert.match(bidiReply, /\u2069/);
 
 console.log("Chatbot language and safety checks passed.");

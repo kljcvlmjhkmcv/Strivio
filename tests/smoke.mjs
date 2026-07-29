@@ -145,6 +145,7 @@ if(fs.existsSync(bundleHelperPath)){
   check(bundles.validateDraft({source_service_id:'netflix',source_duration_idx:2,source_type_idx:null,gift_service_id:'prime',gift_duration_strategy:'fixed',gift_duration_idx:null,gift_quantity:1,quantity_mode:'fixed',allocation_policy:'shared_reusable',priority:100}).includes('gift_duration_idx'),'A fixed promotion can be saved without a gift duration');
 }
 const storefront=fs.readFileSync(path.join(root,'index.html'),'utf8');
+check(storefront.includes('function openRequestedService()')&&storefront.includes("get('service')"),'Storefront cannot open a service directly from a Meta button');
 check(storefront.includes('bundleOffersAt(curSvc, i, selType)'),'Duration cards do not match server-defined offers by package');
 check(storefront.includes('BUNDLE-COMPACT'),'Promotional gift copy is not rendered in the compact duration-note slot');
 check(!storefront.includes('class="BUNDLE-NOTE"'),'Promotional gift still adds a separate oversized duration-card row');
@@ -233,6 +234,9 @@ check(operations.includes('id="chatbot-test-input"')&&operations.includes('mode:
 const metaChatbot=fs.readFileSync(path.join(root,'supabase','functions','meta-chatbot','index.ts'),'utf8');
 check(metaChatbot.includes('isAdminReply')&&metaChatbot.includes('sender_role: "admin"'),'Meta chatbot cannot send and audit an admin reply');
 check(metaChatbot.includes('isConversationUpdate')&&metaChatbot.includes('conversation_mode'),'Meta chatbot cannot hand conversations back to automation');
+check(metaChatbot.includes('buildMetaActions')&&metaChatbot.includes('template_type: "button"'),'Meta chatbot does not send official interactive buttons');
+check(metaChatbot.includes('processFollowUps')&&metaChatbot.includes('META_CHATBOT_WORKER_SECRET'),'Meta chatbot follow-up worker is missing or unsecured');
+check(operations.includes('chatbot-follow-up-delay')&&operations.includes('saveChatbotAdvancedSettings'),'Operations cannot manage chatbot follow-up and safety settings');
 const socialChatbot=fs.readFileSync(path.join(root,'supabase','functions','social-chatbot','index.ts'),'utf8');
 check(socialChatbot.includes('/functions/v1/meta-chatbot')&&socialChatbot.includes('x-hub-signature-256')===false,'Neutral chatbot proxy is missing or rewrites signed requests');
 check(cartPage.includes('checkoutInFlight')&&cartPage.includes('setCheckoutBusy(true'),'Checkout can be submitted repeatedly while an order is being created');

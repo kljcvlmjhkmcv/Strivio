@@ -431,6 +431,42 @@
               </label>
             </div>
           </div>
+          <details class="rounded-2xl border border-white/10 bg-black/25 p-4 mt-5">
+            <summary class="cursor-pointer font-black text-sm text-[#39ff14]">إعدادات البيع والحماية والمتابعة</summary>
+            <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
+              <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
+                <span>أزرار Meta التفاعلية</span>
+                <input id="chatbot-structured" type="checkbox" class="accent-[#39ff14]" />
+              </label>
+              <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
+                <span>زر الطلب عبر الموقع</span>
+                <input id="chatbot-website-buttons" type="checkbox" class="accent-[#39ff14]" />
+              </label>
+              <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
+                <span>إكمال الطلب في المحادثة</span>
+                <input id="chatbot-manual-checkout" type="checkbox" class="accent-[#39ff14]" />
+              </label>
+              <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
+                <span>رسالة متابعة تلقائية واحدة</span>
+                <input id="chatbot-follow-up" type="checkbox" class="accent-[#39ff14]" />
+              </label>
+              <label class="text-xs muted">المتابعة بعد (دقيقة)
+                <input id="chatbot-follow-up-delay" class="input mt-2" type="number" min="30" max="1200" step="10" />
+              </label>
+              <label class="text-xs muted">حد رسائل العميل في الدقيقة
+                <input id="chatbot-burst-limit" class="input mt-2" type="number" min="3" max="20" />
+              </label>
+              <label class="text-xs muted">حد ردود الذكاء لكل محادثة/ساعة
+                <input id="chatbot-ai-hour-limit" class="input mt-2" type="number" min="4" max="60" />
+              </label>
+              <label class="text-xs muted">الحد اليومي للذكاء
+                <input id="chatbot-ai-daily-limit" class="input mt-2" type="number" min="20" max="3000" />
+              </label>
+            </div>
+            <div class="flex justify-end mt-4">
+              <button class="btn neon" type="button" onclick="saveChatbotAdvancedSettings(this)">حفظ إعدادات البوت</button>
+            </div>
+          </details>
           <div class="grid lg:grid-cols-[340px_minmax(0,1fr)] gap-4 mt-5">
             <div class="rounded-2xl border border-white/10 bg-black/25 overflow-hidden">
               <div class="p-3 border-b border-white/10">
@@ -3666,6 +3702,15 @@
               state.chatbotSettings.enabled &&
               state.chatbotSettings.auto_reply_enabled,
           );
+        var botSettings = state.chatbotSettings || {};
+        if ($("chatbot-structured")) $("chatbot-structured").checked = botSettings.structured_messages_enabled !== false;
+        if ($("chatbot-website-buttons")) $("chatbot-website-buttons").checked = botSettings.website_buttons_enabled !== false;
+        if ($("chatbot-manual-checkout")) $("chatbot-manual-checkout").checked = botSettings.manual_checkout_enabled !== false;
+        if ($("chatbot-follow-up")) $("chatbot-follow-up").checked = botSettings.follow_up_enabled !== false;
+        if ($("chatbot-follow-up-delay")) $("chatbot-follow-up-delay").value = Number(botSettings.follow_up_delay_minutes || 120);
+        if ($("chatbot-burst-limit")) $("chatbot-burst-limit").value = Number(botSettings.burst_limit_per_minute || 6);
+        if ($("chatbot-ai-hour-limit")) $("chatbot-ai-hour-limit").value = Number(botSettings.max_ai_replies_per_hour || 16);
+        if ($("chatbot-ai-daily-limit")) $("chatbot-ai-daily-limit").value = Number(botSettings.daily_ai_limit || 300);
         $("chatbot-conversations").innerHTML = !rows.length
           ? '<div class="p-6 text-center muted text-sm">لا توجد محادثات بعد.</div>'
           : rows
@@ -3716,6 +3761,15 @@
           return;
         }
         var messages = chatbotConversationMessages(conversation.id);
+        var memory = conversation.memory || (conversation.metadata && conversation.metadata.memory) || {};
+        var memoryChips = [
+          memory.service_id ? "الخدمة: " + memory.service_id : "",
+          memory.duration_months ? "المدة: " + memory.duration_months + " شهر" : "",
+          memory.quantity ? "الكمية: " + memory.quantity : "",
+          memory.preferred_route === "chat" ? "المسار: داخل المحادثة" : "",
+        ].filter(Boolean).map(function (value) {
+          return '<span class="badge b-gray">' + esc(value) + "</span>";
+        }).join("");
         $("chatbot-workspace").innerHTML =
           '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">' +
           '<div><h3 class="font-black">' +
@@ -3724,7 +3778,7 @@
           esc(chatbotChannelLabel(conversation.channel)) +
           " · " +
           esc(String(conversation.external_user_id || "")) +
-          "</p></div>" +
+          '</p><div class="flex flex-wrap gap-1 mt-2">' + memoryChips + "</div></div>" +
           '<div class="flex flex-wrap gap-2"><span class="badge b-gray">' +
           esc(chatbotModeLabel(conversation.mode)) +
           '</span><button class="btn" type="button" onclick="updateChatbotMode(\'bot\',this)">إعادة للبوت</button>' +
@@ -3754,7 +3808,7 @@
                     ) +
                     " · " +
                     esc(new Date(message.created_at).toLocaleString("ar-DZ")) +
-                    '</div><div class="text-sm whitespace-pre-wrap leading-7" dir="auto">' +
+                    '</div><div class="text-sm whitespace-pre-wrap leading-7" dir="auto" style="unicode-bidi:plaintext">' +
                     esc(message.message_text) +
                     "</div>" +
                     (message.delivery_status === "failed"
@@ -3888,6 +3942,41 @@
           input.disabled = false;
         }
       }
+      async function saveChatbotAdvancedSettings(button) {
+        var old = button.textContent;
+        button.disabled = true;
+        button.textContent = "جارٍ الحفظ…";
+        function bounded(id, fallback, minimum, maximum) {
+          var value = Number($(id)?.value || fallback);
+          return Math.max(minimum, Math.min(maximum, Math.round(value)));
+        }
+        try {
+          var result = await window.supabaseClient
+            .from("chatbot_settings")
+            .update({
+              structured_messages_enabled: Boolean($("chatbot-structured")?.checked),
+              website_buttons_enabled: Boolean($("chatbot-website-buttons")?.checked),
+              manual_checkout_enabled: Boolean($("chatbot-manual-checkout")?.checked),
+              follow_up_enabled: Boolean($("chatbot-follow-up")?.checked),
+              follow_up_delay_minutes: bounded("chatbot-follow-up-delay", 120, 30, 1200),
+              burst_limit_per_minute: bounded("chatbot-burst-limit", 6, 3, 20),
+              max_ai_replies_per_hour: bounded("chatbot-ai-hour-limit", 16, 4, 60),
+              daily_ai_limit: bounded("chatbot-ai-daily-limit", 300, 20, 3000),
+            })
+            .eq("id", 1)
+            .select("*")
+            .single();
+          if (result.error) throw result.error;
+          state.chatbotSettings = result.data;
+          toast("تم حفظ إعدادات البيع والمتابعة والحماية.");
+          renderChatbot();
+        } catch (error) {
+          toast("تعذر حفظ إعدادات البوت: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.textContent = old;
+        }
+      }
       async function testChatbotReply(button) {
         var input = $("chatbot-test-input"),
           output = $("chatbot-test-result"),
@@ -3916,9 +4005,16 @@
             '</span><span class="badge b-gray">' +
             esc(result.intent || "—") +
             "</span></div>" +
-            '<div class="whitespace-pre-wrap" dir="auto">' +
+            '<div class="whitespace-pre-wrap" dir="auto" style="unicode-bidi:plaintext">' +
             esc(result.reply || "لم يُرجع البوت ردًا.") +
             "</div>" +
+            (Array.isArray(result.actions) && result.actions.length
+              ? '<div class="flex flex-wrap gap-2 mt-3">' +
+                result.actions.map(function (action) {
+                  return '<span class="badge b-green">' + esc(action.title || action.type) + "</span>";
+                }).join("") +
+                "</div>"
+              : "") +
             (result.ai_diagnostic
               ? '<div class="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300" dir="ltr">' +
                 esc(result.ai_diagnostic) +
