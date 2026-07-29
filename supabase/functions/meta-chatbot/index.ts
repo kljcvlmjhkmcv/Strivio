@@ -6,6 +6,7 @@ import {
   identifyIntent,
   normalizeMessage,
   redactSensitiveText,
+  socialSafeReply,
 } from "./chatbot-core.mjs";
 
 const JSON_HEADERS = {
@@ -102,12 +103,16 @@ async function sendMetaReply(channel: string, accountId: string, recipientId: st
   const token = graphToken(channel);
   if (!token) throw new Error(`Missing access token for ${channel}`);
   const isInstagram = channel === "instagram";
+  const outboundText = isInstagram
+    ? socialSafeReply(text, detectLanguage(text))
+    : String(text || "").trim();
+  if (!outboundText) throw new Error("Reply is empty after safety filtering");
   const endpoint = isInstagram
     ? "https://graph.instagram.com/v25.0/me/messages"
     : `https://graph.facebook.com/v25.0/${encodeURIComponent(accountId)}/messages`;
   const body: Record<string, unknown> = {
     recipient: { id: recipientId },
-    message: { text: text.slice(0, 1900) },
+    message: { text: outboundText.slice(0, 1900) },
   };
   if (!isInstagram) body.messaging_type = "RESPONSE";
   const response = await fetch(endpoint, {
@@ -144,6 +149,7 @@ async function askGemini({
   locale,
   services,
   knowledge,
+  bundleRules,
   history,
   diagnostics,
 }: {
@@ -151,6 +157,7 @@ async function askGemini({
   locale: string;
   services: any[];
   knowledge: any[];
+  bundleRules: any[];
   history: any[];
   diagnostics?: { error?: string };
 }) {
@@ -165,13 +172,65 @@ async function askGemini({
     role: item.sender_role,
     text: redactSensitiveText(item.message_text).slice(0, 500),
   }));
-  const catalog = services.map((service) => ({
-    id: service.id,
-    names: service.n,
-    prices_dzd: service.p,
-    fulfillment_mode: service.fulfillment_mode,
-    unavailable: service.out_of_stock || null,
-  }));
+  const durationMonths = [1, 2, 3, 6, 12];
+  const catalog = services.map((service) => {
+    const typeLabels = service?.types || {};
+    const typePrices = Array.isArray(service?.type_prices) ? service.type_prices : [];
+    const plans = service?.show_types && typePrices.length
+      ? typePrices.map((prices: any[], typeIndex: number) => ({
+          type_index: typeIndex,
+          names: {
+            ar: typeLabels?.ar?.[typeIndex] || `الخيار ${typeIndex + 1}`,
+            fr: typeLabels?.fr?.[typeIndex] || `Option ${typeIndex + 1}`,
+            en: typeLabels?.en?.[typeIndex] || `Option ${typeIndex + 1}`,
+          },
+          durations: durationMonths
+            .map((months, durationIndex) => ({
+              months,
+              price_dzd: Number(prices?.[durationIndex] || 0),
+            }))
+            .filter((item) => item.price_dzd > 0),
+        })).filter((plan: any) => plan.durations.length)
+      : [{
+          type_index: 0,
+          names: { ar: "عادي", fr: "Standard", en: "Standard" },
+          durations: durationMonths
+            .map((months, durationIndex) => ({
+              months,
+              price_dzd: Number(service?.p?.[durationIndex] || 0),
+            }))
+            .filter((item) => item.price_dzd > 0),
+        }];
+    return {
+      id: service.id,
+      names: service.n,
+      plans,
+      delivery_mode: service.fulfillment_mode,
+      out_of_stock: service.out_of_stock?.all === true || service.out_of_stock === true,
+      duration_notes: service.dur_notes || service.promo?.dur_notes || [],
+    };
+  });
+  const now = Date.now();
+  const offers = (Array.isArray(bundleRules) ? bundleRules : [])
+    .filter((rule) => {
+      if (!rule?.active) return false;
+      const startsAt = rule.starts_at ? new Date(rule.starts_at).getTime() : 0;
+      const endsAt = rule.ends_at ? new Date(rule.ends_at).getTime() : 0;
+      return (!startsAt || startsAt <= now) && (!endsAt || endsAt > now);
+    })
+    .map((rule) => ({
+      source_service_id: rule.source_service_id,
+      source_duration_months: durationMonths[Number(rule.source_duration_idx)] || null,
+      source_type_index: rule.source_type_idx,
+      gift_service_id: rule.gift_service_id,
+      gift_duration: rule.gift_duration_strategy === "same"
+        ? "same_as_paid_plan"
+        : durationMonths[Number(rule.gift_duration_idx)] || null,
+      gift_quantity: Number(rule.gift_quantity || 1),
+      quantity_mode: rule.quantity_mode,
+      included_on_renewal: Boolean(rule.include_renewals),
+      labels: rule.label_i18n,
+    }));
   const facts = knowledge
     .filter((item) => item.active)
     .slice(0, 30)
@@ -183,16 +242,24 @@ async function askGemini({
   const prompt = [
     "You are Strivio's sales assistant for Instagram and Facebook messages.",
     "Understand Arabic, French, English, Algerian Darija, and Algerian Arabizi such as khsni, n7ab, ch7al, kifach, wa9tach.",
-    "Mirror the customer's language and script. Keep the reply friendly, concise, under 350 characters, and suitable for a direct message.",
+    "Mirror the customer's language and script. Keep the reply friendly, structured, accurate, and under 900 characters.",
     "When language is dz, answer in Algerian Darija/Arabizi that matches the customer's writing, not formal French.",
-    "Use only the catalog and facts below. Never invent a price, duration, stock state, policy, promotion, or order status.",
+    "Use only the catalog, active offers, operational rules, and knowledge below. Never invent a price, duration, stock state, policy, promotion, coupon, or order status.",
     "A numeric price of 0 means that duration is unavailable; never advertise it.",
+    "For typed products such as Netflix screens or IPTV packages, quote the exact matching plan. If screen count, package, or duration is missing, ask one short clarification instead of guessing.",
+    "Mention a free gift only when it exists in Active offers and the requested paid duration/type matches. State whether it is excluded from renewals.",
+    "If the customer asks for all prices, list only available prices and group them clearly by product type.",
+    "Never include a URL, domain name, clickable link, or protocol in any reply. Say 'use the link in our bio' in the customer's language.",
     "Never request or reveal a password, PIN, payment credential, or account credential.",
-    "Never disclose customer-specific order information in social messages. Direct order-status requests to https://www.striviodz.store/my-account.",
+    "Never disclose customer-specific order information in social messages. For order status, tell the customer to open Strivio from the bio, sign in using the order email, then open My Account and Purchases.",
+    "Buying flow: choose a service, duration and type/quantity; add to cart; enter name, email and phone; choose payment; confirm; then follow delivery from My Account.",
+    "Payment methods: CIB/Dahabia card through SATIM; BaridiMob; CCP; Wise in EUR with the current rate shown in cart; USDT with the current rate shown in cart; Flexy with a 19% service fee. Coupons are validated in cart.",
+    "Delivery modes: automatic_slot and automatic_account are delivered after payment confirmation when stock is ready; manual_activation asks the customer for their service login inside the protected order page and Strivio activates it; manual_delivery is prepared and delivered by the Strivio team.",
     "If the request is ambiguous, sensitive, angry, asks for a human, or cannot be answered from supplied facts, set handoff=true.",
     "Return only JSON matching: {reply:string, language:'ar'|'fr'|'en'|'dz', intent:string, confidence:number, handoff:boolean}.",
     `Preferred detected language: ${locale}`,
     `Catalog: ${JSON.stringify(catalog)}`,
+    `Active offers: ${JSON.stringify(offers)}`,
     `Knowledge: ${JSON.stringify(facts)}`,
     `Recent conversation: ${JSON.stringify(safeHistory)}`,
     `Customer message: ${safeText}`,
@@ -265,19 +332,24 @@ async function askGemini({
 }
 
 async function loadBotData(db: any) {
-  const [settingsResult, servicesResult, knowledgeResult] = await Promise.all([
+  const [settingsResult, servicesResult, knowledgeResult, bundleRulesResult] = await Promise.all([
     db.from("chatbot_settings").select("*").eq("id", 1).maybeSingle(),
     db.from("services")
-      .select("id,n,p,out_of_stock,fulfillment_mode,fulfillment_config,sort_order")
+      .select("id,n,p,dur_notes,show_types,types,type_prices,promo,out_of_stock,fulfillment_mode,sort_order")
       .order("sort_order", { ascending: true }),
     db.from("chatbot_knowledge")
       .select("knowledge_key,category,answers,keywords,priority,active")
+      .eq("active", true)
+      .order("priority", { ascending: true }),
+    db.from("service_bundle_rules")
+      .select("source_service_id,source_duration_idx,source_type_idx,gift_service_id,gift_duration_strategy,gift_duration_idx,gift_quantity,quantity_mode,include_renewals,label_i18n,active,starts_at,ends_at,priority")
       .eq("active", true)
       .order("priority", { ascending: true }),
   ]);
   if (settingsResult.error) throw settingsResult.error;
   if (servicesResult.error) throw servicesResult.error;
   if (knowledgeResult.error) throw knowledgeResult.error;
+  if (bundleRulesResult.error) throw bundleRulesResult.error;
   return {
     settings: settingsResult.data || {
       enabled: true,
@@ -288,6 +360,7 @@ async function loadBotData(db: any) {
     },
     services: servicesResult.data || [],
     knowledge: knowledgeResult.data || [],
+    bundleRules: bundleRulesResult.data || [],
   };
 }
 
@@ -415,14 +488,18 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     locale: event.locale,
     services: botData.services,
     knowledge: botData.knowledge,
+    bundleRules: botData.bundleRules,
   });
   const aiDiagnostics: { error?: string } = {};
-  if (!answer.reply && botData.settings.ai_enabled && botData.settings.provider === "gemini") {
+  const keepRuleAnswer = answer.handoff
+    || ["human_handoff", "order_status", "greeting"].includes(answer.intent);
+  if (!keepRuleAnswer && botData.settings.ai_enabled && botData.settings.provider === "gemini") {
     const ai = await askGemini({
       text: event.text,
       locale: event.locale,
       services: botData.services,
       knowledge: botData.knowledge,
+      bundleRules: botData.bundleRules,
       history: recent,
       diagnostics: aiDiagnostics,
     });
@@ -447,6 +524,10 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
       reason: "unknown_intent",
     });
   }
+
+  answer.reply = event.channel === "instagram"
+    ? socialSafeReply(answer.reply, answer.locale || event.locale)
+    : String(answer.reply || "").trim();
 
   if (answer.handoff) {
     await db.from("chatbot_conversations").update({
@@ -586,6 +667,12 @@ serve(async (req) => {
     if (!conversation || !["instagram", "messenger"].includes(conversation.channel)) {
       return json(req, { success: false, error: "Conversation not found" }, 404);
     }
+    const outboundText = conversation.channel === "instagram"
+      ? socialSafeReply(text, detectLanguage(text))
+      : text;
+    if (!outboundText) {
+      return json(req, { success: false, error: "Message is empty after link filtering" }, 400);
+    }
 
     let providerMessageId = "";
     try {
@@ -593,7 +680,7 @@ serve(async (req) => {
         conversation.channel,
         conversation.channel_account_id,
         conversation.external_user_id,
-        text,
+        outboundText,
       );
     } catch (error) {
       return json(req, {
@@ -607,9 +694,9 @@ serve(async (req) => {
       provider_message_id: providerMessageId || null,
       direction: "outbound",
       sender_role: "admin",
-      message_text: text,
-      normalized_text: normalizeMessage(text),
-      locale: detectLanguage(text),
+      message_text: outboundText,
+      normalized_text: normalizeMessage(outboundText),
+      locale: detectLanguage(outboundText),
       intent: "admin_reply",
       confidence: 1,
       reply_source: "admin",

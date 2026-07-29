@@ -5,6 +5,7 @@ import {
   identifyIntent,
   normalizeMessage,
   redactSensitiveText,
+  socialSafeReply,
 } from "../supabase/functions/meta-chatbot/chatbot-core.mjs";
 
 const services = [
@@ -12,11 +13,39 @@ const services = [
     id: "netflix",
     n: { ar: "نتفليكس بريميوم", fr: "Netflix Premium", en: "Netflix Premium" },
     p: [800, 1400, 1800, 3500, 5500],
+    show_types: true,
+    types: {
+      ar: ["شاشة واحدة", "شاشتان", "3 شاشات", "4 شاشات", "5 شاشات"],
+      fr: ["1 écran", "2 écrans", "3 écrans", "4 écrans", "5 écrans"],
+      en: ["1 screen", "2 screens", "3 screens", "4 screens", "5 screens"],
+    },
+    type_prices: [
+      [800, 1400, 1900, 3500, 5500],
+      [1400, 2500, 3500, 6000, 9900],
+      [2000, 3800, 5000, 9000, 12000],
+      [0, 0, 0, 0, 0],
+      [2800, 0, 8000, 14000, 16000],
+    ],
   },
   {
     id: "spotify",
     n: { ar: "سبوتيفاي بريميوم", fr: "Spotify Premium", en: "Spotify Premium" },
     p: [690, 1200, 1500, 2500, 3600],
+  },
+];
+
+const bundleRules = [
+  {
+    active: true,
+    source_service_id: "netflix",
+    source_duration_idx: 2,
+    starts_at: null,
+    ends_at: null,
+    label_i18n: {
+      ar: "بروفيل Prime Video مجاني لنفس المدة",
+      fr: "Un profil Prime Video gratuit pour la même durée",
+      en: "One free Prime Video profile for the same duration",
+    },
   },
 ];
 
@@ -52,12 +81,15 @@ const netflixReply = deterministicReply({
   locale: "dz",
   services,
   knowledge,
+  bundleRules,
 });
 assert.equal(netflixReply.intent, "price");
 assert.equal(netflixReply.serviceId, "netflix");
 assert.match(netflixReply.reply, /800/);
 assert.match(netflixReply.reply, /5[\s,.]?500/);
 assert.doesNotMatch(netflixReply.reply, /\b0 دج\b/);
+assert.match(netflixReply.reply, /Prime Video/);
+assert.doesNotMatch(netflixReply.reply, /4 شاشات/);
 
 const frenchSpotify = deterministicReply({
   text: "Combien coûte Spotify ?",
@@ -76,7 +108,25 @@ const privacyReply = deterministicReply({
   knowledge,
 });
 assert.equal(privacyReply.intent, "order_status");
-assert.match(privacyReply.reply, /my-account/);
+assert.match(privacyReply.reply, /البايو/);
+assert.doesNotMatch(privacyReply.reply, /https?:\/\/|www\./i);
+
+const safeInstagramReply = socialSafeReply(
+  "تابع طلبك هنا https://www.striviodz.store/my-account أو عبر striviodz.store",
+  "ar",
+);
+assert.doesNotMatch(safeInstagramReply, /https?:\/\/|www\.|striviodz\.store/i);
+assert.match(safeInstagramReply, /البايو/);
+
+const paymentReply = deterministicReply({
+  text: "kifach nkhalles",
+  locale: "dz",
+  services,
+  knowledge: [],
+});
+assert.match(paymentReply.reply, /SATIM/);
+assert.match(paymentReply.reply, /BaridiMob/);
+assert.match(paymentReply.reply, /USDT/);
 
 assert.equal(
   redactSensitiveText("email me at user@example.com password: Secret123 phone 0555123456"),

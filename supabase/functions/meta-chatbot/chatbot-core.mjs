@@ -133,14 +133,47 @@ const MONTH_LABELS = {
   dz: ["1 mois", "2 mois", "3 mois", "6 mois", "1 an"],
 };
 
+const BIO_INSTRUCTIONS = {
+  ar: "للطلب أو متابعة طلبك: ادخل إلى موقع Strivio من الرابط الموجود في البايو.",
+  fr: "Pour commander ou suivre votre commande, ouvrez le site Strivio depuis le lien dans la bio.",
+  en: "To order or track your order, open the Strivio website from the link in our bio.",
+  dz: "Bach تطلب ولا تتبع commande ta3ek، ادخل لموقع Strivio من الرابط لي في bio.",
+};
+
 function serviceName(service, locale) {
   const names = service?.n || {};
   return String(names[locale] || names[locale === "dz" ? "ar" : "fr"] || names.en || service?.id || "Service");
 }
 
+function durationLabels(locale) {
+  return MONTH_LABELS[locale] || MONTH_LABELS.fr;
+}
+
 export function formatServicePrices(service, locale = "fr") {
+  const labels = durationLabels(locale);
+  const typePrices = Array.isArray(service?.type_prices) ? service.type_prices : [];
+  const typeLabels = service?.types?.[locale]
+    || service?.types?.[locale === "dz" ? "ar" : "fr"]
+    || service?.types?.en
+    || [];
+  if (service?.show_types && typePrices.length) {
+    return typePrices
+      .map((prices, typeIndex) => {
+        const available = (Array.isArray(prices) ? prices : [])
+          .map((price, durationIndex) => ({
+            price: Number(price || 0),
+            label: labels[durationIndex] || `${durationIndex + 1}`,
+          }))
+          .filter((entry) => Number.isFinite(entry.price) && entry.price > 0)
+          .map((entry) => `${entry.label} ${entry.price.toLocaleString("fr-FR")} دج`);
+        if (!available.length) return "";
+        const type = String(typeLabels[typeIndex] || `Option ${typeIndex + 1}`);
+        return `${type}: ${available.join(" · ")}`;
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
   const prices = Array.isArray(service?.p) ? service.p : [];
-  const labels = MONTH_LABELS[locale] || MONTH_LABELS.fr;
   return prices
     .map((price, index) => ({ price: Number(price || 0), label: labels[index] || `${index + 1}` }))
     .filter((entry) => Number.isFinite(entry.price) && entry.price > 0)
@@ -152,13 +185,48 @@ function localized(locale, variants) {
   return variants[locale] || variants.fr;
 }
 
-export function deterministicReply({ text, locale, services = [], knowledge = [] }) {
+function activeOfferLines(serviceId, bundleRules, locale) {
+  const now = Date.now();
+  const labels = durationLabels(locale);
+  return (Array.isArray(bundleRules) ? bundleRules : [])
+    .filter((rule) => {
+      if (!rule?.active || rule.source_service_id !== serviceId) return false;
+      const startsAt = rule.starts_at ? new Date(rule.starts_at).getTime() : 0;
+      const endsAt = rule.ends_at ? new Date(rule.ends_at).getTime() : 0;
+      return (!startsAt || startsAt <= now) && (!endsAt || endsAt > now);
+    })
+    .map((rule) => {
+      const offer = rule?.label_i18n?.[locale]
+        || rule?.label_i18n?.[locale === "dz" ? "ar" : "fr"]
+        || rule?.label_i18n?.en
+        || "";
+      if (!offer) return "";
+      const duration = labels[Number(rule.source_duration_idx)] || "";
+      return duration ? `${duration}: ${offer}` : String(offer);
+    })
+    .filter(Boolean);
+}
+
+export function socialSafeReply(value, locale = "fr") {
+  const original = String(value || "");
+  const linkPattern = /(?:https?:\/\/|www\.)\S+|\b(?:[a-z0-9-]+\.)+(?:com|net|org|store|dz|io|app|co|me)(?:\/[^\s]*)?/gi;
+  const hadLink = new RegExp(linkPattern.source, "i").test(original);
+  const clean = original
+    .replace(linkPattern, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (!hadLink) return clean;
+  const instruction = BIO_INSTRUCTIONS[locale] || BIO_INSTRUCTIONS.fr;
+  return clean ? `${clean}\n\n${instruction}` : instruction;
+}
+
+export function deterministicReply({ text, locale, services = [], knowledge = [], bundleRules = [] }) {
   const detectedLocale = locale || detectLanguage(text);
   const analysis = identifyIntent(text);
   const service = analysis.serviceId
     ? services.find((item) => String(item?.id || "") === analysis.serviceId)
     : null;
-  const siteUrl = "https://www.striviodz.store";
 
   if (analysis.intent === "human_handoff") {
     return {
@@ -181,10 +249,40 @@ export function deterministicReply({ text, locale, services = [], knowledge = []
       locale: detectedLocale,
       handoff: false,
       reply: localized(detectedLocale, {
-        ar: `لحماية معلوماتك، تابع الطلب وافتح تفاصيله من حسابك في Strivio:\n${siteUrl}/my-account`,
-        fr: `Pour protéger vos informations, suivez votre commande depuis votre compte Strivio :\n${siteUrl}/my-account`,
-        en: `To protect your information, track and open the order from your Strivio account:\n${siteUrl}/my-account`,
-        dz: `Bach نحمي معلوماتك، شوف الطلب من compte Strivio:\n${siteUrl}/my-account`,
+        ar: "لحماية معلوماتك، ادخل إلى موقع Strivio من الرابط الموجود في البايو، وسجّل بنفس بريد الطلب ثم افتح «حسابي» و«مشترياتي».",
+        fr: "Pour protéger vos informations, ouvrez Strivio depuis le lien dans la bio, connectez-vous avec l’e-mail de la commande puis ouvrez « Mon compte » et « Mes achats ».",
+        en: "To protect your information, open Strivio from the link in our bio, sign in with the order email, then open My Account and Purchases.",
+        dz: "Bach نحمي معلوماتك، ادخل لموقع Strivio من الرابط لي في bio، سجل بنفس email ta3 commande ومن بعد افتح Mon compte ثم Mes achats.",
+      }),
+      source: "rules",
+    };
+  }
+
+  if (analysis.intent === "payment") {
+    return {
+      ...analysis,
+      locale: detectedLocale,
+      handoff: false,
+      reply: localized(detectedLocale, {
+        ar: "طرق الدفع المتاحة: بطاقة CIB أو الذهبية عبر SATIM، بريدي موب، CCP، Wise باليورو، USDT، وFlexy مع رسوم خدمة 19%. سعر تحويل Wise وUSDT الحالي يظهر داخل السلة، ويمكن إدخال الكوبون فيها قبل تأكيد الطلب.",
+        fr: "Paiements disponibles : carte CIB ou Edahabia via SATIM, BaridiMob, CCP, Wise en EUR, USDT et Flexy avec 19 % de frais. Le taux actuel Wise/USDT et le champ coupon s’affichent dans le panier avant confirmation.",
+        en: "Available payments: CIB or Edahabia card through SATIM, BaridiMob, CCP, Wise in EUR, USDT, and Flexy with a 19% fee. Current Wise/USDT rates and coupon validation appear in the cart before confirmation.",
+        dz: "T9der tkhalles b CIB wela Edahabia عبر SATIM، BaridiMob، CCP، Wise باليورو، USDT، ولا Flexy بزيادة 19%. Taux ta3 Wise وUSDT والكوبون يبانولك في السلة قبل التأكيد.",
+      }),
+      source: "rules",
+    };
+  }
+
+  if (analysis.intent === "delivery") {
+    return {
+      ...analysis,
+      locale: detectedLocale,
+      handoff: false,
+      reply: localized(detectedLocale, {
+        ar: "طريقة التسليم تعتمد على المنتج: المنتجات ذات المخزون تُسلَّم بعد تأكيد الدفع عندما يكون المخزون جاهزًا، وخدمات تفعيل الحساب تطلب بيانات الخدمة داخل صفحة الطلب المحمية، أما التسليم اليدوي فيجهزه فريق Strivio وتتابع حالته من حسابك.",
+        fr: "La livraison dépend du produit : les produits en stock sont livrés après confirmation du paiement, l’activation manuelle demande les identifiants du service dans la page de commande protégée, et la livraison manuelle est préparée par l’équipe Strivio. Le suivi reste disponible dans votre compte.",
+        en: "Delivery depends on the product: stocked products are delivered after payment confirmation, manual activation asks for the service login inside the protected order page, and manual delivery is prepared by the Strivio team. You can track progress in your account.",
+        dz: "Livraison تتبدل حسب produit: لي عندو stock يتسلم بعد تأكيد الدفع، manual activation تدخل معلومات الخدمة داخل صفحة الطلب المحمية، وmanual delivery يجهزها فريق Strivio. الحالة تقدر تتبعها من حسابك.",
       }),
       source: "rules",
     };
@@ -192,16 +290,25 @@ export function deterministicReply({ text, locale, services = [], knowledge = []
 
   if (service && ["price", "purchase", "service_interest"].includes(analysis.intent)) {
     const prices = formatServicePrices(service, detectedLocale);
+    const offers = activeOfferLines(service.id, bundleRules, detectedLocale);
+    const offersText = offers.length
+      ? localized(detectedLocale, {
+          ar: `\nالعروض الحالية:\n${offers.join("\n")}`,
+          fr: `\nOffres actuelles :\n${offers.join("\n")}`,
+          en: `\nCurrent offers:\n${offers.join("\n")}`,
+          dz: `\nLes offres لي كاينين:\n${offers.join("\n")}`,
+        })
+      : "";
     if (prices) {
       return {
         ...analysis,
         locale: detectedLocale,
         handoff: false,
         reply: localized(detectedLocale, {
-          ar: `${serviceName(service, "ar")} متوفر ✅\n${prices}\nللاختيار وإتمام الطلب:\n${siteUrl}`,
-          fr: `${serviceName(service, "fr")} est disponible ✅\n${prices}\nPour choisir et commander :\n${siteUrl}`,
-          en: `${serviceName(service, "en")} is available ✅\n${prices}\nChoose your plan and order here:\n${siteUrl}`,
-          dz: `${serviceName(service, "ar")} kayen ✅\n${prices}\nBach تختار وتكمل الطلب:\n${siteUrl}`,
+          ar: `${serviceName(service, "ar")} متوفر ✅\n${prices}${offersText}\nللطلب ادخل إلى موقع Strivio من الرابط الموجود في البايو.`,
+          fr: `${serviceName(service, "fr")} est disponible ✅\n${prices}${offersText}\nPour commander, ouvrez Strivio depuis le lien dans la bio.`,
+          en: `${serviceName(service, "en")} is available ✅\n${prices}${offersText}\nTo order, open Strivio from the link in our bio.`,
+          dz: `${serviceName(service, "ar")} kayen ✅\n${prices}${offersText}\nBach تطلب، ادخل لموقع Strivio من الرابط لي في bio.`,
         }),
         source: "rules",
       };
