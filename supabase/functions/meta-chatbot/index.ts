@@ -667,6 +667,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   }
   const aiDiagnostics: { error?: string } = {};
   const keepRuleAnswer = answer.handoff
+    || answer.precise === true
     || ["human_handoff", "order_status", "greeting"].includes(answer.intent);
   const aiAllowed = !keepRuleAnswer
     && botData.settings.ai_enabled

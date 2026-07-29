@@ -67,6 +67,7 @@ const knowledge = [
 ];
 
 assert.equal(detectLanguage("khsni netflix"), "dz");
+assert.equal(detectLanguage("khsni netflix 3 mois 2 screens"), "dz");
 assert.equal(detectLanguage("Combien coûte Spotify ?"), "fr");
 assert.equal(detectLanguage("I need Netflix"), "en");
 assert.equal(detectLanguage("أريد نتفلكس"), "ar");

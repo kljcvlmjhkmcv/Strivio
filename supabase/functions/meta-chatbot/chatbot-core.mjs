@@ -93,9 +93,9 @@ export function detectLanguage(value) {
   const raw = String(value || "");
   const normalized = normalizeMessage(raw);
   if (/[\u0600-\u06ff]/.test(raw)) return "ar";
+  if (/\b(?:khsni|khassni|khasni|n7ab|nheb|nhab|ch7al|chehal|kifach|wa9tach|nkhalles|nkhalas|kayen|makach)\b/i.test(raw)) return "dz";
   if (/\b(?:bonjour|bonsoir|prix|combien|comment|merci|livraison|acheter|mois|abonnement)\b/i.test(raw)) return "fr";
   if (/\b(?:hello|price|how|buy|need|want|delivery|month|subscription)\b/i.test(raw)) return "en";
-  if (/\b(?:khsni|khassni|n7ab|nheb|ch7al|chehal|kifach|wa9tach|nkhalles|kayen)\b/i.test(raw)) return "dz";
   if (/[\u0600-\u06ff]/.test(normalized)) return "dz";
   return "fr";
 }
@@ -201,15 +201,15 @@ const ACTION_LABELS = {
     human: "Talk to the team",
   },
   dz: {
-    website: "الطلب عبر الموقع",
-    chat: "نكمل هنا",
-    human: "نهدر مع الموظف",
+    website: "Commander sur le site",
+    chat: "Nkemlou hna",
+    human: "Parler à l'équipe",
   },
 };
 
 function serviceName(service, locale) {
   const names = service?.n || {};
-  return String(names[locale] || names[locale === "dz" ? "ar" : "fr"] || names.en || service?.id || "Service");
+  return String(names[locale] || names[locale === "dz" ? "fr" : "fr"] || names.en || service?.id || "Service");
 }
 
 function durationLabels(locale) {
@@ -271,7 +271,7 @@ function activeOfferLines(serviceId, bundleRules, locale, durationIndex = null, 
     })
     .map((rule) => {
       const offer = rule?.label_i18n?.[locale]
-        || rule?.label_i18n?.[locale === "dz" ? "ar" : "fr"]
+        || rule?.label_i18n?.[locale === "dz" ? "fr" : "fr"]
         || rule?.label_i18n?.en
         || "";
       if (!offer) return "";
@@ -434,7 +434,7 @@ export function deterministicReply({
       : 0;
     if (exactPrice > 0) {
       const typeNames = service?.types?.[detectedLocale]
-        || service?.types?.[detectedLocale === "dz" ? "ar" : "fr"]
+        || service?.types?.[detectedLocale === "dz" ? "fr" : "fr"]
         || service?.types?.en
         || [];
       const typeName = service?.show_types
@@ -454,7 +454,7 @@ export function deterministicReply({
             ar: `\nالهدية: ${offerLines.join(" · ")}`,
             fr: `\nCadeau : ${offerLines.join(" · ")}`,
             en: `\nGift: ${offerLines.join(" · ")}`,
-            dz: `\nالهدية: ${offerLines.join(" · ")}`,
+            dz: `\nCadeau: ${offerLines.join(" · ")}`,
           })
         : "";
       const threeMonthPrice = Number(priceSource?.[2] || 0);
@@ -466,18 +466,19 @@ export function deterministicReply({
             ar: `\nاقتراح أفضل: 3 أشهر بسعر ${threeMonthPrice.toLocaleString("fr-FR")} دج + ${threeMonthOffers.join(" · ")}`,
             fr: `\nMeilleure offre : 3 mois à ${threeMonthPrice.toLocaleString("fr-FR")} DZD + ${threeMonthOffers.join(" · ")}`,
             en: `\nBetter offer: 3 months for ${threeMonthPrice.toLocaleString("en-US")} DZD + ${threeMonthOffers.join(" · ")}`,
-            dz: `\nعرض أحسن: 3 أشهر بـ ${threeMonthPrice.toLocaleString("fr-FR")} دج + ${threeMonthOffers.join(" · ")}`,
+            dz: `\nOffre ahsen: 3 mois à ${threeMonthPrice.toLocaleString("fr-FR")} DZD + ${threeMonthOffers.join(" · ")}`,
           })
         : "";
       return {
         ...analysis,
         locale: detectedLocale,
         handoff: false,
+        precise: true,
         reply: localized(detectedLocale, {
           ar: `${serviceName(service, "ar")} متوفر ✅\n${typeName ? `الخطة: ${typeName}\n` : ""}المدة: ${durationName}\nالسعر: ${exactPrice.toLocaleString("fr-FR")} دج${exactOffer}${upsell}\nاختر الطلب عبر الموقع أو إكمال الطلب هنا.`,
           fr: `${serviceName(service, "fr")} est disponible ✅\n${typeName ? `Formule : ${typeName}\n` : ""}Durée : ${durationName}\nPrix : ${exactPrice.toLocaleString("fr-FR")} DZD${exactOffer}${upsell}\nChoisissez la commande en ligne ou continuez ici.`,
           en: `${serviceName(service, "en")} is available ✅\n${typeName ? `Plan: ${typeName}\n` : ""}Duration: ${durationName}\nPrice: ${exactPrice.toLocaleString("en-US")} DZD${exactOffer}${upsell}\nChoose website checkout or continue here.`,
-          dz: `${serviceName(service, "ar")} متوفر ✅\n${typeName ? `الخطة: ${typeName}\n` : ""}المدة: ${durationName}\nالسعر: ${exactPrice.toLocaleString("fr-FR")} دج${exactOffer}${upsell}\nاختار الطلب من الموقع ولا نكملو هنا.`,
+          dz: `${serviceName(service, "fr")} kayen ✅\n${typeName ? `Formule: ${typeName}\n` : ""}Durée: ${durationName}\nPrix: ${exactPrice.toLocaleString("fr-FR")} DZD${exactOffer}${upsell}\nKhayyer commander sur le site wela nkemlou hna.`,
         }),
         source: "rules",
       };
