@@ -141,6 +141,18 @@ const rememberedPlan = mergeConversationMemory(rememberedNetflix, "3 mois 2 écr
 assert.equal(rememberedPlan.service_id, "netflix");
 assert.equal(rememberedPlan.duration_months, 3);
 assert.equal(rememberedPlan.quantity, 2);
+const rememberedReply = deterministicReply({
+  text: "3 mois 2 écrans",
+  locale: "fr",
+  services,
+  knowledge,
+  bundleRules,
+  memory: rememberedPlan,
+});
+assert.match(rememberedReply.reply, /3 mois/);
+assert.match(rememberedReply.reply, /3[\s,.]?500/);
+assert.match(rememberedReply.reply, /Prime Video/);
+assert.doesNotMatch(rememberedReply.reply, /1 mois 1[\s,.]?400/);
 
 const actions = buildMetaActions({
   locale: "fr",

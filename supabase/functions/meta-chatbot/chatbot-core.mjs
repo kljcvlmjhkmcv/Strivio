@@ -252,12 +252,19 @@ function localized(locale, variants) {
   return variants[locale] || variants.fr;
 }
 
-function activeOfferLines(serviceId, bundleRules, locale) {
+function activeOfferLines(serviceId, bundleRules, locale, durationIndex = null, typeIndex = null) {
   const now = Date.now();
   const labels = durationLabels(locale);
   return (Array.isArray(bundleRules) ? bundleRules : [])
     .filter((rule) => {
       if (!rule?.active || rule.source_service_id !== serviceId) return false;
+      if (durationIndex !== null && Number(rule.source_duration_idx) !== Number(durationIndex)) return false;
+      if (
+        typeIndex !== null
+        && rule.source_type_idx !== null
+        && rule.source_type_idx !== undefined
+        && Number(rule.source_type_idx) !== Number(typeIndex)
+      ) return false;
       const startsAt = rule.starts_at ? new Date(rule.starts_at).getTime() : 0;
       const endsAt = rule.ends_at ? new Date(rule.ends_at).getTime() : 0;
       return (!startsAt || startsAt <= now) && (!endsAt || endsAt > now);
@@ -414,6 +421,67 @@ export function deterministicReply({
   }
 
   if (service && ["price", "purchase", "service_interest"].includes(analysis.intent)) {
+    const durationIndex = DURATION_MONTHS.indexOf(Number(memory?.duration_months || 0));
+    const requestedTypeIndex = Number.isInteger(Number(memory?.type_index))
+      ? Number(memory.type_index)
+      : 0;
+    const hasRequiredType = !service?.show_types || Boolean(memory?.quantity);
+    const priceSource = service?.show_types
+      ? service?.type_prices?.[requestedTypeIndex]
+      : service?.p;
+    const exactPrice = durationIndex >= 0 && hasRequiredType
+      ? Number(priceSource?.[durationIndex] || 0)
+      : 0;
+    if (exactPrice > 0) {
+      const typeNames = service?.types?.[detectedLocale]
+        || service?.types?.[detectedLocale === "dz" ? "ar" : "fr"]
+        || service?.types?.en
+        || [];
+      const typeName = service?.show_types
+        ? String(typeNames[requestedTypeIndex] || `Option ${requestedTypeIndex + 1}`)
+        : "";
+      const durationName = durationLabels(detectedLocale)[durationIndex]
+        || `${memory.duration_months} months`;
+      const offerLines = activeOfferLines(
+        service.id,
+        bundleRules,
+        detectedLocale,
+        durationIndex,
+        requestedTypeIndex,
+      );
+      const exactOffer = offerLines.length
+        ? localized(detectedLocale, {
+            ar: `\nالهدية: ${offerLines.join(" · ")}`,
+            fr: `\nCadeau : ${offerLines.join(" · ")}`,
+            en: `\nGift: ${offerLines.join(" · ")}`,
+            dz: `\nالهدية: ${offerLines.join(" · ")}`,
+          })
+        : "";
+      const threeMonthPrice = Number(priceSource?.[2] || 0);
+      const threeMonthOffers = durationIndex < 2 && threeMonthPrice > 0
+        ? activeOfferLines(service.id, bundleRules, detectedLocale, 2, requestedTypeIndex)
+        : [];
+      const upsell = threeMonthOffers.length
+        ? localized(detectedLocale, {
+            ar: `\nاقتراح أفضل: 3 أشهر بسعر ${threeMonthPrice.toLocaleString("fr-FR")} دج + ${threeMonthOffers.join(" · ")}`,
+            fr: `\nMeilleure offre : 3 mois à ${threeMonthPrice.toLocaleString("fr-FR")} DZD + ${threeMonthOffers.join(" · ")}`,
+            en: `\nBetter offer: 3 months for ${threeMonthPrice.toLocaleString("en-US")} DZD + ${threeMonthOffers.join(" · ")}`,
+            dz: `\nعرض أحسن: 3 أشهر بـ ${threeMonthPrice.toLocaleString("fr-FR")} دج + ${threeMonthOffers.join(" · ")}`,
+          })
+        : "";
+      return {
+        ...analysis,
+        locale: detectedLocale,
+        handoff: false,
+        reply: localized(detectedLocale, {
+          ar: `${serviceName(service, "ar")} متوفر ✅\n${typeName ? `الخطة: ${typeName}\n` : ""}المدة: ${durationName}\nالسعر: ${exactPrice.toLocaleString("fr-FR")} دج${exactOffer}${upsell}\nاختر الطلب عبر الموقع أو إكمال الطلب هنا.`,
+          fr: `${serviceName(service, "fr")} est disponible ✅\n${typeName ? `Formule : ${typeName}\n` : ""}Durée : ${durationName}\nPrix : ${exactPrice.toLocaleString("fr-FR")} DZD${exactOffer}${upsell}\nChoisissez la commande en ligne ou continuez ici.`,
+          en: `${serviceName(service, "en")} is available ✅\n${typeName ? `Plan: ${typeName}\n` : ""}Duration: ${durationName}\nPrice: ${exactPrice.toLocaleString("en-US")} DZD${exactOffer}${upsell}\nChoose website checkout or continue here.`,
+          dz: `${serviceName(service, "ar")} متوفر ✅\n${typeName ? `الخطة: ${typeName}\n` : ""}المدة: ${durationName}\nالسعر: ${exactPrice.toLocaleString("fr-FR")} دج${exactOffer}${upsell}\nاختار الطلب من الموقع ولا نكملو هنا.`,
+        }),
+        source: "rules",
+      };
+    }
     const prices = formatServicePrices(service, detectedLocale);
     const offers = activeOfferLines(service.id, bundleRules, detectedLocale);
     const offersText = offers.length
