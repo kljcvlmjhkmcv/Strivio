@@ -101,18 +101,22 @@ function graphToken(channel: string) {
 async function sendMetaReply(channel: string, accountId: string, recipientId: string, text: string) {
   const token = graphToken(channel);
   if (!token) throw new Error(`Missing access token for ${channel}`);
-  const endpoint = `https://graph.facebook.com/v25.0/${encodeURIComponent(accountId)}/messages`;
+  const isInstagram = channel === "instagram";
+  const endpoint = isInstagram
+    ? "https://graph.instagram.com/v25.0/me/messages"
+    : `https://graph.facebook.com/v25.0/${encodeURIComponent(accountId)}/messages`;
+  const body: Record<string, unknown> = {
+    recipient: { id: recipientId },
+    message: { text: text.slice(0, 1900) },
+  };
+  if (!isInstagram) body.messaging_type = "RESPONSE";
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      recipient: { id: recipientId },
-      message: { text: text.slice(0, 1900) },
-      messaging_type: "RESPONSE",
-    }),
+    body: JSON.stringify(body),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`Meta send failed (${response.status}): ${String(payload?.error?.message || "unknown")}`);
