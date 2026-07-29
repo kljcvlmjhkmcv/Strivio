@@ -139,6 +139,7 @@ async function postMetaSenderAction(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(1500),
   });
   // Instagram support for sender actions can vary by API surface. Treat an
   // unsupported action as a capability miss, never as a failed customer reply.
@@ -163,7 +164,11 @@ async function setMetaTyping(
 ) {
   try {
     if (enabled && channel === "messenger") {
-      await postMetaSenderAction(channel, accountId, recipientId, "mark_seen");
+      await Promise.all([
+        postMetaSenderAction(channel, accountId, recipientId, "mark_seen"),
+        postMetaSenderAction(channel, accountId, recipientId, "typing_on"),
+      ]);
+      return;
     }
     await postMetaSenderAction(
       channel,
@@ -437,7 +442,7 @@ async function askGemini({
     "Payment methods: CIB/Dahabia card through SATIM; BaridiMob; CCP; Wise in EUR with the current rate shown in cart; USDT with the current rate shown in cart; Flexy with a 19% service fee. Coupons are validated in cart.",
     "Delivery modes: automatic_slot and automatic_account use automatic delivery after payment confirmation; manual_activation asks the customer for their service login inside the protected order page and Strivio activates it; manual_delivery is prepared and delivered by the Strivio team.",
     "First understand the requested service, duration, type/quantity and missing needs. Ask at most ONE short clarification question in a reply.",
-    "Never ask more than two clarification turns in one conversation. When the supplied conversation state says the limit was reached, set handoff=true instead of asking another question.",
+    "Never hand the conversation to a human merely because a question is unclear. Keep the bot active and ask one shorter clarification. Set handoff=true only when the customer explicitly asks for a human/manual order, or when there is a real account, order, payment or warranty problem that requires staff action.",
     "Only when the purchase choice is sufficiently clear, explain briefly that the website supports CIB and Dahabia through SATIM, offers protected order tracking and account support, while manual chat ordering remains available.",
     "For sales variant A, emphasize secure CIB/Dahabia payment and protected tracking. For variant B, emphasize ease, current offers, and managing the subscription from My Account. Do not change any factual claim.",
     "When the customer is ready to buy, offer both choices: order securely on the website, or continue manually in this chat. Interactive buttons are added by the backend, so do not write button labels.",
@@ -1103,11 +1108,18 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   }
 
   if (!answer.reply) {
-    const variants = botData.settings.human_handoff_message || {};
+    const variants: Record<string, string> = {
+      ar: "حتى أساعدك بدقة، اكتب اسم الخدمة التي تريدها وسؤالك عنها باختصار.",
+      fr: "Pour vous répondre précisément, indiquez le service recherché et votre question en quelques mots.",
+      en: "To help you precisely, tell me the service you need and your question in a few words.",
+      dz: "باش نعاونك بدقة، اكتبلي اسم الخدمة لي تحتاجها والسؤال تاعك باختصار.",
+    };
     answer = {
       ...answer,
-      reply: String(variants[event.locale] || variants.fr || "L’équipe Strivio vous répondra bientôt."),
-      handoff: true,
+      reply: variants[event.locale] || variants.fr,
+      intent: "clarification",
+      handoff: false,
+      needsClarification: true,
       source: "rules",
       confidence: 0.2,
     };
@@ -1147,19 +1159,28 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   }
   if (answer.needsClarification && clarificationCount >= maximumClarifications) {
     const variants: Record<string, string> = {
-      ar: "أحتاج أن يتابع معك أحد أفراد فريق Strivio حتى نضمن اختيار الطلب الصحيح.",
-      fr: "Un membre de l’équipe Strivio va continuer avec vous afin de confirmer le bon choix.",
-      en: "A Strivio team member will continue with you to confirm the right choice.",
-      dz: "خلي فريق Strivio يكمل معاك باش نضمنولك الاختيار الصحيح.",
+      ar: "لنبدأ من جديد بشكل بسيط: ما اسم الخدمة التي تريدها؟",
+      fr: "Reprenons simplement : quel service recherchez-vous ?",
+      en: "Let’s start simply: which service are you looking for?",
+      dz: "نعاودوها ببساطة: واش اسم الخدمة لي تحتاجها؟",
     };
     answer = {
       ...answer,
       reply: variants[answer.locale || event.locale] || variants.fr,
-      intent: "human_handoff",
-      handoff: true,
-      needsClarification: false,
+      intent: "clarification",
+      handoff: false,
+      needsClarification: true,
       source: "rules",
     };
+  }
+  const allowedHandoffIntents = new Set([
+    "human_handoff",
+    "manual_checkout",
+    "support_issue",
+    "warranty_inquiry",
+  ]);
+  if (answer.handoff && !allowedHandoffIntents.has(String(answer.intent || ""))) {
+    answer.handoff = false;
   }
   answer.reply = limitReplyLength(
     compactDzdPrices(limitReplyToOneQuestion(answer.reply)),

@@ -222,9 +222,12 @@ const runtimeSource = readFileSync(
   "utf8",
 );
 assert.match(runtimeSource, /senderAction: "mark_seen" \| "typing_on" \| "typing_off"/);
+assert.match(runtimeSource, /signal: AbortSignal\.timeout\(1500\)/);
 assert.match(runtimeSource, /debounce_ms \|\| 2500/);
 assert.match(runtimeSource, /ten_minute_limit \|\| 60/);
 assert.match(runtimeSource, /sales_stage: stage/);
+assert.match(runtimeSource, /Never hand the conversation to a human merely because a question is unclear/);
+assert.match(runtimeSource, /intent: "clarification",\s+handoff: false/);
 assert.doesNotMatch(runtimeSource, /out_of_stock/);
 
 console.log("Chatbot language and safety checks passed.");
