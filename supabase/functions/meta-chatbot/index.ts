@@ -58,11 +58,23 @@ async function hmacHex(secret: string, body: string) {
 }
 
 async function verifyMetaSignature(req: Request, rawBody: string) {
-  const appSecret = Deno.env.get("META_APP_SECRET") || "";
   const provided = req.headers.get("x-hub-signature-256") || "";
-  if (!appSecret || !provided.startsWith("sha256=")) return false;
-  const expected = await hmacHex(appSecret, rawBody);
-  return constantTimeEqual(provided.slice(7), expected);
+  if (!provided.startsWith("sha256=")) return false;
+
+  // Messenger webhooks are signed with the Meta app secret, while the
+  // Instagram Login setup uses its own Instagram app secret.
+  const secrets = Array.from(new Set([
+    Deno.env.get("META_APP_SECRET") || "",
+    Deno.env.get("META_INSTAGRAM_APP_SECRET") || "",
+  ].filter(Boolean)));
+  if (!secrets.length) return false;
+
+  let valid = false;
+  for (const secret of secrets) {
+    const expected = await hmacHex(secret, rawBody);
+    valid = constantTimeEqual(provided.slice(7), expected) || valid;
+  }
+  return valid;
 }
 
 async function isAdminRequest(db: any, req: Request) {
