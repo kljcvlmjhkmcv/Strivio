@@ -431,6 +431,24 @@
               </label>
             </div>
           </div>
+          <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 mt-5">
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div class="muted text-[11px]">كل المحادثات</div>
+              <strong id="chatbot-stat-total" class="block text-2xl mt-1">0</strong>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div class="muted text-[11px]">تحتاج متابعة</div>
+              <strong id="chatbot-stat-attention" class="block text-2xl mt-1 text-yellow-300">0</strong>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div class="muted text-[11px]">جاهزة للشراء</div>
+              <strong id="chatbot-stat-ready" class="block text-2xl mt-1 text-sky-300">0</strong>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div class="muted text-[11px]">تم تحويلها لمبيعات</div>
+              <strong id="chatbot-stat-won" class="block text-2xl mt-1 text-[#39ff14]">0</strong>
+            </div>
+          </div>
           <details class="rounded-2xl border border-white/10 bg-black/25 p-4 mt-5">
             <summary class="cursor-pointer font-black text-sm text-[#39ff14]">إعدادات البيع والحماية والمتابعة</summary>
             <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
@@ -447,14 +465,49 @@
                 <input id="chatbot-manual-checkout" type="checkbox" class="accent-[#39ff14]" />
               </label>
               <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
-                <span>رسالة متابعة تلقائية واحدة</span>
+                <span>المتابعة التلقائية</span>
                 <input id="chatbot-follow-up" type="checkbox" class="accent-[#39ff14]" />
+              </label>
+              <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
+                <span>إظهار «جاري الكتابة»</span>
+                <input id="chatbot-typing-enabled" type="checkbox" class="accent-[#39ff14]" />
+              </label>
+              <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
+                <span>السماح بروابط Strivio</span>
+                <input id="chatbot-allow-links" type="checkbox" class="accent-[#39ff14]" />
+              </label>
+              <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
+                <span>تتبّع التحويلات</span>
+                <input id="chatbot-conversion-tracking" type="checkbox" class="accent-[#39ff14]" />
+              </label>
+              <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
+                <span>تتبّع الحملات الإعلانية</span>
+                <input id="chatbot-campaign-attribution" type="checkbox" class="accent-[#39ff14]" />
+              </label>
+              <label class="rounded-xl border border-white/10 p-3 text-xs flex items-center justify-between gap-3">
+                <span>اختبار صياغة دعوة الموقع</span>
+                <input id="chatbot-website-pitch-ab" type="checkbox" class="accent-[#39ff14]" />
               </label>
               <label class="text-xs muted">المتابعة بعد (دقيقة)
                 <input id="chatbot-follow-up-delay" class="input mt-2" type="number" min="30" max="1200" step="10" />
               </label>
+              <label class="text-xs muted">أقصى عدد للمتابعات
+                <input id="chatbot-max-followups" class="input mt-2" type="number" min="0" max="2" />
+              </label>
               <label class="text-xs muted">حد رسائل العميل في الدقيقة
-                <input id="chatbot-burst-limit" class="input mt-2" type="number" min="3" max="20" />
+                <input id="chatbot-burst-limit" class="input mt-2" type="number" min="3" max="60" />
+              </label>
+              <label class="text-xs muted">حد رسائل العميل خلال 10 دقائق
+                <input id="chatbot-ten-minute-limit" class="input mt-2" type="number" min="20" max="600" step="5" />
+              </label>
+              <label class="text-xs muted">مهلة تجميع الرسائل (مللي ثانية)
+                <input id="chatbot-debounce-ms" class="input mt-2" type="number" min="500" max="5000" step="100" />
+              </label>
+              <label class="text-xs muted">أقصى أسئلة توضيحية
+                <input id="chatbot-max-clarifying" class="input mt-2" type="number" min="0" max="5" />
+              </label>
+              <label class="text-xs muted">أقصى طول للرد (حرف)
+                <input id="chatbot-reply-char-limit" class="input mt-2" type="number" min="200" max="1900" step="50" />
               </label>
               <label class="text-xs muted">حد ردود الذكاء لكل محادثة/ساعة
                 <input id="chatbot-ai-hour-limit" class="input mt-2" type="number" min="4" max="60" />
@@ -469,8 +522,20 @@
           </details>
           <div class="grid lg:grid-cols-[340px_minmax(0,1fr)] gap-4 mt-5">
             <div class="rounded-2xl border border-white/10 bg-black/25 overflow-hidden">
-              <div class="p-3 border-b border-white/10">
+              <div class="p-3 border-b border-white/10 space-y-2">
                 <input id="chatbot-search" class="input" placeholder="ابحث في المحادثات…" oninput="renderChatbot()" />
+                <select id="chatbot-stage-filter" class="input" onchange="renderChatbot()">
+                  <option value="">كل مراحل البيع</option>
+                  <option value="exploring">استكشاف</option>
+                  <option value="qualifying">تحديد الاحتياج</option>
+                  <option value="offered">تم عرض السعر</option>
+                  <option value="ready_to_buy">جاهز للشراء</option>
+                  <option value="website">انتقل إلى الموقع</option>
+                  <option value="manual">طلب يدوي</option>
+                  <option value="handoff">محول للفريق</option>
+                  <option value="won">تم الشراء</option>
+                  <option value="lost">لم يكتمل</option>
+                </select>
               </div>
               <div id="chatbot-conversations" class="max-h-[620px] overflow-auto"></div>
             </div>
@@ -3664,12 +3729,103 @@
           return message.conversation_id === id;
         });
       }
+      function chatbotConversationMemory(conversation) {
+        return (
+          conversation.memory ||
+          (conversation.metadata && conversation.metadata.memory) ||
+          {}
+        );
+      }
+      function chatbotSalesStage(conversation) {
+        var memory = chatbotConversationMemory(conversation);
+        return String(
+          conversation.sales_stage ||
+            memory.sales_stage ||
+            (conversation.metadata && conversation.metadata.sales_stage) ||
+            "exploring",
+        );
+      }
+      function chatbotStageLabel(stage) {
+        return (
+          {
+            exploring: "استكشاف",
+            qualifying: "تحديد الاحتياج",
+            offered: "تم عرض السعر",
+            ready_to_buy: "جاهز للشراء",
+            website: "انتقل إلى الموقع",
+            manual: "طلب يدوي",
+            handoff: "محول للفريق",
+            won: "تم الشراء",
+            lost: "لم يكتمل",
+          }[String(stage || "exploring")] || stage
+        );
+      }
+      function chatbotStageOptions(selectedStage) {
+        return [
+          "exploring",
+          "qualifying",
+          "offered",
+          "ready_to_buy",
+          "website",
+          "manual",
+          "handoff",
+          "won",
+          "lost",
+        ]
+          .map(function (stage) {
+            return (
+              '<option value="' +
+              stage +
+              '"' +
+              (stage === selectedStage ? " selected" : "") +
+              ">" +
+              esc(chatbotStageLabel(stage)) +
+              "</option>"
+            );
+          })
+          .join("");
+      }
+      function chatbotAttribution(conversation) {
+        var memory = chatbotConversationMemory(conversation),
+          metadata = conversation.metadata || {},
+          campaign =
+            conversation.campaign_metadata ||
+            metadata.campaign_metadata ||
+            memory.campaign_metadata ||
+            {},
+          source =
+            conversation.lead_source ||
+            memory.lead_source ||
+            metadata.lead_source ||
+            metadata.source ||
+            campaign.source ||
+            "",
+          campaignName =
+            campaign.campaign_name ||
+            campaign.name ||
+            campaign.campaign ||
+            campaign.campaign_id ||
+            campaign.ad_id ||
+            memory.campaign_name ||
+            metadata.campaign_name ||
+            "";
+        return {
+          source: typeof source === "string" ? source : "",
+          campaign: typeof campaignName === "string" ? campaignName : "",
+        };
+      }
       function renderChatbot() {
         if (!$("chatbot-conversations") || !$("chatbot-workspace")) return;
         var search = String($("chatbot-search")?.value || "")
             .trim()
             .toLowerCase(),
+          stageFilter = String($("chatbot-stage-filter")?.value || ""),
           rows = state.chatbotConversations.filter(function (conversation) {
+            if (
+              stageFilter &&
+              chatbotSalesStage(conversation) !== stageFilter
+            )
+              return false;
             if (!search) return true;
             var messages = chatbotConversationMessages(conversation.id),
               last = messages[messages.length - 1];
@@ -3696,6 +3852,30 @@
           return sum + Number(row.unread_count || 0);
         }, 0);
         $("chatbot-unread-count").textContent = unread + " غير مقروءة";
+        if ($("chatbot-stat-total"))
+          $("chatbot-stat-total").textContent =
+            state.chatbotConversations.length;
+        if ($("chatbot-stat-attention"))
+          $("chatbot-stat-attention").textContent =
+            state.chatbotConversations.filter(function (row) {
+              return (
+                Number(row.unread_count || 0) > 0 ||
+                ["human", "paused"].includes(String(row.mode || "")) ||
+                chatbotSalesStage(row) === "handoff"
+              );
+            }).length;
+        if ($("chatbot-stat-ready"))
+          $("chatbot-stat-ready").textContent =
+            state.chatbotConversations.filter(function (row) {
+              return ["offered", "ready_to_buy"].includes(
+                chatbotSalesStage(row),
+              );
+            }).length;
+        if ($("chatbot-stat-won"))
+          $("chatbot-stat-won").textContent =
+            state.chatbotConversations.filter(function (row) {
+              return chatbotSalesStage(row) === "won" || Boolean(row.converted_at);
+            }).length;
         if ($("chatbot-enabled"))
           $("chatbot-enabled").checked = Boolean(
             state.chatbotSettings &&
@@ -3707,8 +3887,18 @@
         if ($("chatbot-website-buttons")) $("chatbot-website-buttons").checked = botSettings.website_buttons_enabled !== false;
         if ($("chatbot-manual-checkout")) $("chatbot-manual-checkout").checked = botSettings.manual_checkout_enabled !== false;
         if ($("chatbot-follow-up")) $("chatbot-follow-up").checked = botSettings.follow_up_enabled !== false;
+        if ($("chatbot-typing-enabled")) $("chatbot-typing-enabled").checked = botSettings.typing_enabled !== false;
+        if ($("chatbot-allow-links")) $("chatbot-allow-links").checked = botSettings.allow_strivio_links !== false;
+        if ($("chatbot-conversion-tracking")) $("chatbot-conversion-tracking").checked = botSettings.conversion_tracking_enabled !== false;
+        if ($("chatbot-campaign-attribution")) $("chatbot-campaign-attribution").checked = botSettings.campaign_attribution_enabled !== false;
+        if ($("chatbot-website-pitch-ab")) $("chatbot-website-pitch-ab").checked = botSettings.website_pitch_ab_enabled !== false;
         if ($("chatbot-follow-up-delay")) $("chatbot-follow-up-delay").value = Number(botSettings.follow_up_delay_minutes || 120);
-        if ($("chatbot-burst-limit")) $("chatbot-burst-limit").value = Number(botSettings.burst_limit_per_minute || 6);
+        if ($("chatbot-max-followups")) $("chatbot-max-followups").value = Number(botSettings.max_followups_per_conversation ?? 2);
+        if ($("chatbot-burst-limit")) $("chatbot-burst-limit").value = Number(botSettings.burst_limit_per_minute || 15);
+        if ($("chatbot-ten-minute-limit")) $("chatbot-ten-minute-limit").value = Number(botSettings.ten_minute_limit || 60);
+        if ($("chatbot-debounce-ms")) $("chatbot-debounce-ms").value = Number(botSettings.debounce_ms || 2500);
+        if ($("chatbot-max-clarifying")) $("chatbot-max-clarifying").value = Number(botSettings.max_clarifying_questions ?? 2);
+        if ($("chatbot-reply-char-limit")) $("chatbot-reply-char-limit").value = Number(botSettings.reply_char_limit || 650);
         if ($("chatbot-ai-hour-limit")) $("chatbot-ai-hour-limit").value = Number(botSettings.max_ai_replies_per_hour || 16);
         if ($("chatbot-ai-daily-limit")) $("chatbot-ai-daily-limit").value = Number(botSettings.daily_ai_limit || 300);
         $("chatbot-conversations").innerHTML = !rows.length
@@ -3723,7 +3913,11 @@
                     ? '<span class="badge b-yellow">' +
                       Number(conversation.unread_count) +
                       "</span>"
-                    : "";
+                    : "",
+                  stageBadge =
+                    '<span class="badge b-gray">' +
+                    esc(chatbotStageLabel(chatbotSalesStage(conversation))) +
+                    "</span>";
                 return (
                   '<button type="button" class="w-full text-right p-4 border-b border-white/10 transition hover:bg-white/5 ' +
                   (active ? "bg-[#39ff14]/10" : "") +
@@ -3739,6 +3933,7 @@
                   ) +
                   '</strong><span class="flex items-center gap-1">' +
                   unreadBadge +
+                  stageBadge +
                   statusBadge(conversation.mode) +
                   "</span></div>" +
                   '<div class="muted text-[11px] mt-1">' +
@@ -3761,12 +3956,31 @@
           return;
         }
         var messages = chatbotConversationMessages(conversation.id);
-        var memory = conversation.memory || (conversation.metadata && conversation.metadata.memory) || {};
+        var memory = chatbotConversationMemory(conversation);
+        var attribution = chatbotAttribution(conversation);
+        var salesStage = chatbotSalesStage(conversation);
+        var conversationSummary = String(
+          (conversation.metadata && conversation.metadata.summary) || "",
+        ).trim();
+        var unansweredForConversation = state.chatbotUnanswered.filter(
+          function (item) {
+            return (
+              item.conversation_id === conversation.id &&
+              item.resolved !== true
+            );
+          },
+        );
         var memoryChips = [
+          "المرحلة: " + chatbotStageLabel(salesStage),
           memory.service_id ? "الخدمة: " + memory.service_id : "",
           memory.duration_months ? "المدة: " + memory.duration_months + " شهر" : "",
           memory.quantity ? "الكمية: " + memory.quantity : "",
+          memory.budget_dzd ? "الميزانية: " + memory.budget_dzd + " دج" : "",
           memory.preferred_route === "chat" ? "المسار: داخل المحادثة" : "",
+          memory.preferred_route === "website" ? "المسار: الموقع" : "",
+          memory.preferred_route === "human" ? "المسار: الفريق" : "",
+          attribution.source ? "المصدر: " + attribution.source : "",
+          attribution.campaign ? "الحملة: " + attribution.campaign : "",
         ].filter(Boolean).map(function (value) {
           return '<span class="badge b-gray">' + esc(value) + "</span>";
         }).join("");
@@ -3779,11 +3993,39 @@
           " · " +
           esc(String(conversation.external_user_id || "")) +
           '</p><div class="flex flex-wrap gap-1 mt-2">' + memoryChips + "</div></div>" +
-          '<div class="flex flex-wrap gap-2"><span class="badge b-gray">' +
+          '<div class="flex flex-wrap gap-2"><select class="input !w-auto min-w-36 py-2 text-xs" aria-label="مرحلة البيع" onchange="updateChatbotSalesStage(this.value,this)">' +
+          chatbotStageOptions(salesStage) +
+          '</select><span class="badge b-gray">' +
           esc(chatbotModeLabel(conversation.mode)) +
           '</span><button class="btn" type="button" onclick="updateChatbotMode(\'bot\',this)">إعادة للبوت</button>' +
           '<button class="btn" type="button" onclick="updateChatbotMode(\'paused\',this)">إيقاف مؤقت</button>' +
           '<button class="btn danger" type="button" onclick="updateChatbotMode(\'closed\',this)">إغلاق</button></div></div>' +
+          (conversationSummary || unansweredForConversation.length
+            ? '<div class="grid md:grid-cols-2 gap-3 mt-4">' +
+              (conversationSummary
+                ? '<div class="rounded-xl border border-[#39ff14]/20 bg-[#39ff14]/5 p-3"><div class="text-[10px] font-black text-[#39ff14] mb-1">ملخص جاهز للفريق</div><p class="text-xs leading-6" dir="auto">' +
+                  esc(conversationSummary) +
+                  "</p></div>"
+                : "") +
+              (unansweredForConversation.length
+                ? '<div class="rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-3"><div class="text-[10px] font-black text-yellow-300 mb-1">أسئلة تحتاج تحسين المعرفة</div><p class="text-xs leading-6" dir="auto">' +
+                  esc(
+                    unansweredForConversation
+                      .slice(0, 3)
+                      .map(function (item) {
+                        return (
+                          (item.metadata && item.metadata.question) ||
+                          item.message_text ||
+                          ""
+                        );
+                      })
+                      .filter(Boolean)
+                      .join(" • "),
+                  ) +
+                  "</p></div>"
+                : "") +
+              "</div>"
+            : "") +
           '<div id="chatbot-thread" class="space-y-3 py-4 max-h-[430px] overflow-auto">' +
           (messages.length
             ? messages
@@ -3916,6 +4158,60 @@
           button.textContent = old;
         }
       }
+      async function updateChatbotSalesStage(stage, input) {
+        if (!activeChatbotConversationId) return;
+        var allowed = [
+          "exploring",
+          "qualifying",
+          "offered",
+          "ready_to_buy",
+          "website",
+          "manual",
+          "handoff",
+          "won",
+          "lost",
+        ];
+        if (!allowed.includes(stage)) {
+          toast("مرحلة البيع غير صالحة.", true);
+          return;
+        }
+        input.disabled = true;
+        try {
+          var currentConversation = state.chatbotConversations.find(function (
+              conversation,
+            ) {
+              return conversation.id === activeChatbotConversationId;
+            }),
+            update = { sales_stage: stage };
+          if (stage === "won")
+            update.converted_at =
+              (currentConversation && currentConversation.converted_at) ||
+              new Date().toISOString();
+          if (stage === "website" || stage === "manual")
+            update.conversion_route = stage;
+          var result = await window.supabaseClient
+            .from("chatbot_conversations")
+            .update(update)
+            .eq("id", activeChatbotConversationId)
+            .select("*")
+            .single();
+          if (result.error) throw result.error;
+          state.chatbotConversations = state.chatbotConversations.map(
+            function (conversation) {
+              return conversation.id === result.data.id
+                ? result.data
+                : conversation;
+            },
+          );
+          toast("تم تحديث مرحلة المحادثة.");
+          renderChatbot();
+        } catch (error) {
+          toast("تعذر تحديث مرحلة المحادثة: " + error.message, true);
+          renderChatbot();
+        } finally {
+          input.disabled = false;
+        }
+      }
       async function saveChatbotSettings(input) {
         input.disabled = true;
         try {
@@ -3958,8 +4254,18 @@
               website_buttons_enabled: Boolean($("chatbot-website-buttons")?.checked),
               manual_checkout_enabled: Boolean($("chatbot-manual-checkout")?.checked),
               follow_up_enabled: Boolean($("chatbot-follow-up")?.checked),
+              typing_enabled: Boolean($("chatbot-typing-enabled")?.checked),
+              allow_strivio_links: Boolean($("chatbot-allow-links")?.checked),
+              conversion_tracking_enabled: Boolean($("chatbot-conversion-tracking")?.checked),
+              campaign_attribution_enabled: Boolean($("chatbot-campaign-attribution")?.checked),
+              website_pitch_ab_enabled: Boolean($("chatbot-website-pitch-ab")?.checked),
               follow_up_delay_minutes: bounded("chatbot-follow-up-delay", 120, 30, 1200),
-              burst_limit_per_minute: bounded("chatbot-burst-limit", 6, 3, 20),
+              max_followups_per_conversation: bounded("chatbot-max-followups", 2, 0, 2),
+              burst_limit_per_minute: bounded("chatbot-burst-limit", 15, 3, 60),
+              ten_minute_limit: bounded("chatbot-ten-minute-limit", 60, 20, 600),
+              debounce_ms: bounded("chatbot-debounce-ms", 2500, 500, 5000),
+              max_clarifying_questions: bounded("chatbot-max-clarifying", 2, 0, 5),
+              reply_char_limit: bounded("chatbot-reply-char-limit", 650, 200, 1900),
               max_ai_replies_per_hour: bounded("chatbot-ai-hour-limit", 16, 4, 60),
               daily_ai_limit: bounded("chatbot-ai-daily-limit", 300, 20, 3000),
             })

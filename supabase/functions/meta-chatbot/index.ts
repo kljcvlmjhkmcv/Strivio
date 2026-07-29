@@ -10,7 +10,7 @@ import {
   redactSensitiveText,
   socialSafeReply,
   stabilizeBidiReply,
-} from "./chatbot-core.mjs";
+} from "./chatbot-core.ts";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -102,6 +102,10 @@ function graphToken(channel: string) {
   return Deno.env.get("META_PAGE_ACCESS_TOKEN") || "";
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 type MetaAction = {
   type: "web_url" | "postback";
   title: string;
@@ -113,6 +117,94 @@ function metaEndpoint(channel: string, accountId: string) {
   return channel === "instagram"
     ? "https://graph.instagram.com/v25.0/me/messages"
     : `https://graph.facebook.com/v25.0/${encodeURIComponent(accountId)}/messages`;
+}
+
+async function postMetaSenderAction(
+  channel: string,
+  accountId: string,
+  recipientId: string,
+  senderAction: "mark_seen" | "typing_on" | "typing_off",
+) {
+  const token = graphToken(channel);
+  if (!token) return false;
+  const body: Record<string, unknown> = {
+    recipient: { id: recipientId },
+    sender_action: senderAction,
+  };
+  if (channel !== "instagram") body.messaging_type = "RESPONSE";
+  const response = await fetch(metaEndpoint(channel, accountId), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  // Instagram support for sender actions can vary by API surface. Treat an
+  // unsupported action as a capability miss, never as a failed customer reply.
+  if (!response.ok) {
+    const payload = await response.text().catch(() => "");
+    console.info("Meta sender action unavailable", {
+      channel,
+      sender_action: senderAction,
+      status: response.status,
+      error: payload.slice(0, 240),
+    });
+    return false;
+  }
+  return true;
+}
+
+async function setMetaTyping(
+  channel: string,
+  accountId: string,
+  recipientId: string,
+  enabled: boolean,
+) {
+  try {
+    if (enabled && channel === "messenger") {
+      await postMetaSenderAction(channel, accountId, recipientId, "mark_seen");
+    }
+    await postMetaSenderAction(
+      channel,
+      accountId,
+      recipientId,
+      enabled ? "typing_on" : "typing_off",
+    );
+  } catch (error) {
+    console.info("Meta typing indicator skipped", {
+      channel,
+      error: String(error?.message || error).slice(0, 240),
+    });
+  }
+}
+
+function socialReplyWithOfficialLinks(
+  value: string,
+  locale = "fr",
+  allowStrivioLinks = true,
+) {
+  if (!allowStrivioLinks) {
+    return socialSafeReply(value, locale)
+      .replace(/(?:https?:\/\/|www\.)\S+|\b(?:[a-z0-9-]+\.)+(?:com|net|org|store|dz|io|app|co|me)(?:\/[^\s]*)?/gi, "")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim();
+  }
+  const officialLinks: string[] = [];
+  const protectedValue = String(value || "").replace(
+    /https?:\/\/(?:www\.)?striviodz\.store(?:\/[^\s]*)?/gi,
+    (url) => {
+      const token = `STRIVIOOFFICIALLINK${officialLinks.length}TOKEN`;
+      officialLinks.push(url);
+      return token;
+    },
+  );
+  let clean = socialSafeReply(protectedValue, locale);
+  officialLinks.forEach((url, index) => {
+    clean = clean.replace(`STRIVIOOFFICIALLINK${index}TOKEN`, url);
+  });
+  return clean;
 }
 
 async function postMetaMessage(
@@ -146,11 +238,11 @@ async function sendMetaReply(
   accountId: string,
   recipientId: string,
   text: string,
-  options: { actions?: MetaAction[]; locale?: string } = {},
+  options: { actions?: MetaAction[]; locale?: string; allowStrivioLinks?: boolean } = {},
 ) {
   const locale = options.locale || detectLanguage(text);
   const outboundText = channel === "instagram"
-    ? socialSafeReply(text, locale)
+    ? socialReplyWithOfficialLinks(text, locale, options.allowStrivioLinks !== false)
     : String(text || "").trim();
   if (!outboundText) throw new Error("Reply is empty after safety filtering");
   const actions = Array.isArray(options.actions) ? options.actions.slice(0, 3) : [];
@@ -189,7 +281,9 @@ async function sendMetaReply(
     return { messageId, template: true, fallback: false, error: "" };
   } catch (error) {
     const templateError = String(error?.message || error).slice(0, 500);
-    const fallbackText = socialSafeReply(outboundText, locale);
+    const fallbackText = channel === "instagram"
+      ? socialReplyWithOfficialLinks(outboundText, locale, options.allowStrivioLinks !== false)
+      : outboundText;
     const messageId = await postMetaMessage(
       channel,
       accountId,
@@ -224,6 +318,9 @@ async function askGemini({
   bundleRules,
   history,
   memory,
+  conversationState,
+  allowStrivioLinks,
+  replyCharLimit,
   diagnostics,
 }: {
   text: string;
@@ -233,6 +330,9 @@ async function askGemini({
   bundleRules: any[];
   history: any[];
   memory?: Record<string, unknown>;
+  conversationState?: Record<string, unknown>;
+  allowStrivioLinks?: boolean;
+  replyCharLimit?: number;
   diagnostics?: { error?: string };
 }) {
   const apiKey = (Deno.env.get("GEMINI_API_KEY") || "").replace(/[^A-Za-z0-9._-]/g, "");
@@ -242,9 +342,10 @@ async function askGemini({
   }
   const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
   const safeText = redactSensitiveText(text).slice(0, 1200);
-  const safeHistory = history.slice(-8).map((item) => ({
+  const safeHistory = history.slice(-16).map((item) => ({
     role: item.sender_role,
     text: redactSensitiveText(item.message_text).slice(0, 500),
+    intent: String(item.intent || "").slice(0, 80),
   }));
   const durationMonths = [1, 2, 3, 6, 12];
   const catalog = services.map((service) => {
@@ -280,7 +381,6 @@ async function askGemini({
       names: service.n,
       plans,
       delivery_mode: service.fulfillment_mode,
-      out_of_stock: service.out_of_stock?.all === true || service.out_of_stock === true,
       duration_notes: service.dur_notes || service.promo?.dur_notes || [],
       promotion: service.promo || null,
     };
@@ -317,30 +417,39 @@ async function askGemini({
   const prompt = [
     "You are Strivio's sales assistant for Instagram and Facebook messages.",
     "Understand Arabic, French, English, Algerian Darija, and Algerian Arabizi such as khsni, n7ab, ch7al, kifach, wa9tach.",
-    "Mirror the customer's language and script. Keep the reply friendly, structured, accurate, and under 560 characters.",
+    `Mirror the customer's language and script. Keep the reply friendly, structured, accurate, and under ${Math.max(240, Math.min(900, Number(replyCharLimit || 560)))} characters.`,
     "When language is dz, answer in Algerian Darija/Arabizi that matches the customer's writing, not formal French.",
     "For Arabic or Darija, avoid mixing Arabic and Latin words in one sentence. Put service names, numbers and Latin terms on separate short labeled lines when useful.",
-    "Prefer one fact per line. Never use Markdown tables. Do not use URLs in text.",
-    "Use only the catalog, active offers, operational rules, and knowledge below. Never invent a price, duration, stock state, policy, promotion, coupon, or order status.",
+    "Prefer one fact per line. Never use Markdown tables.",
+    "Format Algerian dinar prices without grouping spaces or separators: write 1200 DZD, never 1 200 DZD or 1,200 DZD.",
+    "Use only the catalog, active offers, operational rules, and knowledge below. Never invent a price, duration, policy, promotion, coupon, warranty term, or order status. Do not discuss stock availability.",
     "A numeric price of 0 means that duration is unavailable; never advertise it.",
     "For typed products such as Netflix screens or IPTV packages, quote the exact matching plan. If screen count, package, or duration is missing, ask one short clarification instead of guessing.",
     "If the customer asks for Netflix for 1 or 2 months and a matching 3-month active gift offer exists, first quote the exact requested price, then briefly suggest the exact 3-month price and its free gift. Never replace the requested choice.",
     "Mention a free gift only when it exists in Active offers and the requested paid duration/type matches. State whether it is excluded from renewals.",
     "If the customer asks for all prices, list only available prices and group them clearly by product type.",
-    "Never include a URL, domain name, clickable link, or protocol in any reply. Say 'use the link in our bio' in the customer's language.",
+    allowStrivioLinks
+      ? "You may include only an official https://www.striviodz.store URL when the customer explicitly asks for the link. Never include any other domain."
+      : "Never include a URL, domain name, clickable link, or protocol in any reply. Say 'use the link in our bio' in the customer's language.",
     "Never request or reveal a password, PIN, payment credential, or account credential.",
     "Never disclose customer-specific order information in social messages. For order status, tell the customer to open Strivio from the bio, sign in using the order email, then open My Account and Purchases.",
     "Buying flow: choose a service, duration and type/quantity; add to cart; enter name, email and phone; choose payment; confirm; then follow delivery from My Account.",
     "Payment methods: CIB/Dahabia card through SATIM; BaridiMob; CCP; Wise in EUR with the current rate shown in cart; USDT with the current rate shown in cart; Flexy with a 19% service fee. Coupons are validated in cart.",
-    "Delivery modes: automatic_slot and automatic_account are delivered after payment confirmation when stock is ready; manual_activation asks the customer for their service login inside the protected order page and Strivio activates it; manual_delivery is prepared and delivered by the Strivio team.",
-    "When the customer is ready to buy, offer both choices: order securely on the website, or continue manually in this chat. Interactive buttons are added by the backend, so do not write button labels or a link.",
+    "Delivery modes: automatic_slot and automatic_account use automatic delivery after payment confirmation; manual_activation asks the customer for their service login inside the protected order page and Strivio activates it; manual_delivery is prepared and delivered by the Strivio team.",
+    "First understand the requested service, duration, type/quantity and missing needs. Ask at most ONE short clarification question in a reply.",
+    "Never ask more than two clarification turns in one conversation. When the supplied conversation state says the limit was reached, set handoff=true instead of asking another question.",
+    "Only when the purchase choice is sufficiently clear, explain briefly that the website supports CIB and Dahabia through SATIM, offers protected order tracking and account support, while manual chat ordering remains available.",
+    "For sales variant A, emphasize secure CIB/Dahabia payment and protected tracking. For variant B, emphasize ease, current offers, and managing the subscription from My Account. Do not change any factual claim.",
+    "When the customer is ready to buy, offer both choices: order securely on the website, or continue manually in this chat. Interactive buttons are added by the backend, so do not write button labels.",
+    "Warranty: answer only from supplied Knowledge. If no warranty fact exists, hand off rather than inventing a promise.",
     "If the request is ambiguous, sensitive, angry, asks for a human, or cannot be answered from supplied facts, set handoff=true.",
-    "Return only JSON matching: {reply:string, language:'ar'|'fr'|'en'|'dz', intent:string, confidence:number, handoff:boolean}.",
+    "Return only JSON matching: {reply:string, language:'ar'|'fr'|'en'|'dz', intent:string, confidence:number, handoff:boolean, needs_clarification:boolean, summary:string, unknown_question:string}.",
     `Preferred detected language: ${locale}`,
     `Catalog: ${JSON.stringify(catalog)}`,
     `Active offers: ${JSON.stringify(offers)}`,
     `Knowledge: ${JSON.stringify(facts)}`,
     `Remembered conversation context (may be incomplete; never treat it as verified customer identity): ${JSON.stringify(memory || {})}`,
+    `Conversation sales state: ${JSON.stringify(conversationState || {})}`,
     `Recent conversation: ${JSON.stringify(safeHistory)}`,
     `Customer message: ${safeText}`,
   ].join("\n\n");
@@ -367,8 +476,20 @@ async function askGemini({
                 intent: { type: "STRING" },
                 confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
                 handoff: { type: "BOOLEAN" },
+                needs_clarification: { type: "BOOLEAN" },
+                summary: { type: "STRING" },
+                unknown_question: { type: "STRING" },
               },
-              required: ["reply", "language", "intent", "confidence", "handoff"],
+              required: [
+                "reply",
+                "language",
+                "intent",
+                "confidence",
+                "handoff",
+                "needs_clarification",
+                "summary",
+                "unknown_question",
+              ],
             },
           },
         }),
@@ -407,6 +528,9 @@ async function askGemini({
     intent: String(parsed.intent || "ai_answer").slice(0, 100),
     confidence: Math.max(0, Math.min(1, Number(parsed.confidence || 0.7))),
     handoff: Boolean(parsed.handoff),
+    needsClarification: Boolean(parsed.needs_clarification),
+    summary: String(parsed.summary || "").trim().slice(0, 500),
+    unknownQuestion: String(parsed.unknown_question || "").trim().slice(0, 500),
     source: "gemini",
   };
 }
@@ -415,7 +539,7 @@ async function loadBotData(db: any) {
   const [settingsResult, servicesResult, knowledgeResult, bundleRulesResult] = await Promise.all([
     db.from("chatbot_settings").select("*").eq("id", 1).maybeSingle(),
     db.from("services")
-      .select("id,n,p,dur_notes,show_types,types,type_prices,promo,out_of_stock,fulfillment_mode,sort_order")
+      .select("id,n,p,dur_notes,show_types,types,type_prices,promo,fulfillment_mode,sort_order")
       .order("sort_order", { ascending: true }),
     db.from("chatbot_knowledge")
       .select("knowledge_key,category,answers,keywords,priority,active")
@@ -444,7 +568,105 @@ async function loadBotData(db: any) {
   };
 }
 
-async function upsertConversation(db: any, event: any) {
+function stableSalesVariant(seed: string) {
+  let hash = 0;
+  for (const char of String(seed || "")) hash = ((hash * 31) + char.charCodeAt(0)) >>> 0;
+  return hash % 2 === 0 ? "A" : "B";
+}
+
+function isRejectionText(value: string) {
+  const text = normalizeMessage(value);
+  return /(?:لا شكرا|لست مهتم|ماني مهتم|مش مهتم|ما نيش مهتم|non merci|pas interesse|pas intéressé|not interested|stop|arrete|arrête)/i
+    .test(text);
+}
+
+function limitReplyToOneQuestion(value: string) {
+  let seenQuestion = false;
+  return String(value || "").replace(/[?؟]/g, (mark) => {
+    if (!seenQuestion) {
+      seenQuestion = true;
+      return mark;
+    }
+    return ".";
+  });
+}
+
+function compactDzdPrices(value: string) {
+  return String(value || "").replace(
+    /\b\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?=\s*(?:DZD|DA|دج))/giu,
+    (price) => price.replace(/[ \u00a0\u202f]/g, ""),
+  );
+}
+
+function limitReplyLength(value: string, maximum: number) {
+  const text = String(value || "").trim();
+  const limit = Math.max(240, Math.min(1200, Number(maximum || 560)));
+  if (text.length <= limit) return text;
+  const sliced = text.slice(0, Math.max(1, limit - 1));
+  const boundary = Math.max(sliced.lastIndexOf("\n"), sliced.lastIndexOf(" "));
+  return `${(boundary > limit * 0.7 ? sliced.slice(0, boundary) : sliced).trim()}…`;
+}
+
+function checkoutReadiness(memory: any, services: any[]) {
+  const serviceId = String(memory?.service_id || "").trim();
+  const duration = Number(memory?.duration_months || 0);
+  if (!serviceId || !duration) return false;
+  const service = services.find((item) => String(item?.id || "") === serviceId);
+  if (!service) return false;
+  if (service.show_types) {
+    return Number.isInteger(Number(memory?.type_index))
+      || Number(memory?.quantity || 0) > 0;
+  }
+  return true;
+}
+
+function stageForTurn({
+  answer,
+  memory,
+  services,
+  text,
+}: {
+  answer: any;
+  memory: any;
+  services: any[];
+  text: string;
+}) {
+  if (isRejectionText(text)) return "lost";
+  if (answer?.intent === "manual_checkout" || memory?.preferred_route === "chat") return "manual";
+  if (memory?.preferred_route === "website") return "website";
+  if (answer?.handoff || answer?.intent === "human_handoff") return "handoff";
+  if (checkoutReadiness(memory, services)) return "ready_to_buy";
+  if (answer?.intent === "price" && memory?.service_id) return "offered";
+  if (memory?.service_id) return "qualifying";
+  return "exploring";
+}
+
+function addAttributionToActions(
+  actions: MetaAction[],
+  event: any,
+  conversationMetadata: any,
+) {
+  return actions.map((action) => {
+    if (action.type !== "web_url" || !action.url) return action;
+    try {
+      const url = new URL(action.url);
+      if (!/(^|\.)striviodz\.store$/i.test(url.hostname)) return action;
+      url.searchParams.set("utm_source", event.channel === "instagram" ? "instagram" : "messenger");
+      url.searchParams.set("utm_medium", "social_chatbot");
+      url.searchParams.set(
+        "utm_campaign",
+        String(event.attribution?.campaign_id || event.attribution?.ref || "conversation").slice(0, 100),
+      );
+      const variant = String(conversationMetadata?.sales_variant || "");
+      if (variant) url.searchParams.set("utm_content", `chatbot_${variant.toLowerCase()}`);
+      return { ...action, url: url.toString() };
+    } catch {
+      return action;
+    }
+  });
+}
+
+async function upsertConversation(db: any, event: any, settings: any) {
   const now = new Date().toISOString();
   const existing = await db.from("chatbot_conversations")
     .select("*")
@@ -459,6 +681,23 @@ async function upsertConversation(db: any, event: any) {
       event.text,
       event.payload,
     );
+    const previousMetadata = existing.data.metadata || {};
+    const salesVariant = previousMetadata.sales_variant
+      || (settings.website_pitch_ab_enabled === true
+        ? stableSalesVariant(`${event.channel}:${event.senderId}`)
+        : null);
+    const attribution = settings.campaign_attribution_enabled === false
+      ? previousMetadata.attribution || {}
+      : {
+          ...(previousMetadata.attribution || {}),
+          ...(event.attribution || {}),
+        };
+    const leadSource = String(
+      attribution.source
+        || (attribution.ad_id ? "meta_ads" : "")
+        || existing.data.lead_source
+        || event.channel,
+    ).slice(0, 100);
     const updated = await db.from("chatbot_conversations")
       .update({
         locale: event.locale,
@@ -466,10 +705,21 @@ async function upsertConversation(db: any, event: any) {
         unread_count: Number(existing.data.unread_count || 0) + 1,
         memory,
         follow_up_due_at: null,
+        follow_up_count: 0,
+        follow_up_sent_at: null,
+        lead_source: leadSource,
+        campaign_metadata: attribution,
         metadata: {
-          ...(existing.data.metadata || {}),
+          ...previousMetadata,
           memory,
           last_event_type: event.eventType,
+          last_provider_message_id: event.providerMessageId,
+          reply_generation: event.replyGeneration,
+          reply_not_before: event.replyNotBefore,
+          last_inbound_timestamp: event.timestamp,
+          sales_variant: salesVariant,
+          attribution,
+          follow_up_stopped_reason: null,
         },
       })
       .eq("id", existing.data.id)
@@ -479,6 +729,15 @@ async function upsertConversation(db: any, event: any) {
     return updated.data;
   }
   const memory = mergeConversationMemory({}, event.text, event.payload);
+  const salesVariant = settings.website_pitch_ab_enabled === true
+    ? stableSalesVariant(`${event.channel}:${event.senderId}`)
+    : null;
+  const attribution = settings.campaign_attribution_enabled === false
+    ? {}
+    : event.attribution || {};
+  const leadSource = String(
+    attribution.source || (attribution.ad_id ? "meta_ads" : "") || event.channel,
+  ).slice(0, 100);
   const created = await db.from("chatbot_conversations").insert({
     channel: event.channel,
     channel_account_id: event.accountId,
@@ -488,9 +747,33 @@ async function upsertConversation(db: any, event: any) {
     last_inbound_at: now,
     unread_count: 1,
     memory,
-    metadata: { memory, last_event_type: event.eventType },
+    lead_source: leadSource,
+    campaign_metadata: attribution,
+    metadata: {
+      memory,
+      last_event_type: event.eventType,
+      last_provider_message_id: event.providerMessageId,
+      reply_generation: event.replyGeneration,
+      reply_not_before: event.replyNotBefore,
+      last_inbound_timestamp: event.timestamp,
+      sales_variant: salesVariant,
+      attribution,
+    },
   }).select("*").single();
-  if (created.error) throw created.error;
+  if (created.error) {
+    // Two webhook deliveries for the same new customer can race. The unique
+    // conversation key is the authority; retry through the update path.
+    if (String(created.error.code || "") === "23505") {
+      const winner = await db.from("chatbot_conversations")
+        .select("id")
+        .eq("channel", event.channel)
+        .eq("channel_account_id", event.accountId)
+        .eq("external_user_id", event.senderId)
+        .maybeSingle();
+      if (!winner.error && winner.data) return upsertConversation(db, event, settings);
+    }
+    throw created.error;
+  }
   return created.data;
 }
 
@@ -506,6 +789,7 @@ function extractMetaEvents(payload: any) {
       const senderId = String(item?.sender?.id || "").trim();
       const accountId = String(item?.recipient?.id || entry?.id || "").trim();
       if (!text || !senderId || !accountId) continue;
+      const referral = item?.referral || item?.message?.referral || {};
       events.push({
         channel,
         accountId,
@@ -517,6 +801,15 @@ function extractMetaEvents(payload: any) {
         locale: detectLanguage(text),
         eventType: item?.postback ? "postback" : "message",
         timestamp: Number(item?.timestamp || entry?.time || Date.now()),
+        attribution: {
+          ref: String(referral?.ref || "").slice(0, 200) || null,
+          source: String(referral?.source || "").slice(0, 100) || null,
+          type: String(referral?.type || "").slice(0, 100) || null,
+          ad_id: String(referral?.ad_id || referral?.ads_context_data?.ad_id || "").slice(0, 120) || null,
+          campaign_id: String(
+            referral?.campaign_id || referral?.ads_context_data?.campaign_id || "",
+          ).slice(0, 120) || null,
+        },
       });
     }
   }
@@ -527,18 +820,37 @@ function isSalesIntent(intent: string) {
   return ["price", "purchase", "service_interest", "payment", "delivery", "ai_answer"].includes(String(intent || ""));
 }
 
-function shouldAttachActions(answer: any, memory: any) {
-  return Boolean(memory?.service_id) || isSalesIntent(answer?.intent) || answer?.intent === "greeting";
+function shouldAttachActions(answer: any, memory: any, services: any[], stage: string) {
+  if (answer?.handoff || ["handoff", "lost", "manual"].includes(stage)) return false;
+  return ["ready_to_buy", "website"].includes(stage)
+    && checkoutReadiness(memory, services)
+    && Number(answer?.confidence || 0) >= 0.6;
 }
 
-function followUpText(locale: string, memory: any) {
+function followUpText(locale: string, memory: any, followUpCount = 0) {
   const service = String(memory?.service_id || "").trim();
-  const serviceLabel = service ? ` ${service}` : "";
+  const duration = Number(memory?.duration_months || 0);
+  const quantity = Number(memory?.quantity || 0);
+  const details = [
+    service,
+    duration ? `${duration} mois` : "",
+    quantity > 1 ? `x${quantity}` : "",
+  ].filter(Boolean).join(" · ");
+  const serviceLabel = details ? ` ${details}` : "";
+  const finalReminder = Number(followUpCount || 0) >= 1;
   const variants: Record<string, string> = {
-    ar: `هل ما زلت مهتمًا بطلب${serviceLabel}؟ يمكنك الطلب من الموقع أو إكماله هنا، وأنا أساعدك.`,
-    fr: `Êtes-vous toujours intéressé par${serviceLabel} ? Vous pouvez commander sur le site ou continuer ici.`,
-    en: `Are you still interested in${serviceLabel}? You can order on the website or continue here.`,
-    dz: `ما زلت مهتم بـ${serviceLabel}؟ تقدر تطلب من الموقع ولا نكملو هنا.`,
+    ar: finalReminder
+      ? `تذكير أخير بخصوص${serviceLabel}. يمكنك إكماله بأمان من الموقع أو المتابعة معنا هنا.`
+      : `جهزت لك اختيار${serviceLabel}. هل تريد إكماله بأمان من الموقع أم نكمل الطلب هنا؟`,
+    fr: finalReminder
+      ? `Dernier rappel pour${serviceLabel}. Finalisez en sécurité sur le site ou continuez ici.`
+      : `Votre choix${serviceLabel} est prêt. Voulez-vous finaliser sur le site ou continuer ici ?`,
+    en: finalReminder
+      ? `Final reminder for${serviceLabel}. Check out securely on the website or continue here.`
+      : `Your${serviceLabel} choice is ready. Would you like to check out on the website or continue here?`,
+    dz: finalReminder
+      ? `آخر تذكير على${serviceLabel}. تقدر تكمل بأمان من الموقع ولا نكملو هنا.`
+      : `وجدتلك اختيار${serviceLabel}. تحب تكمل بأمان من الموقع ولا نكملو الطلب هنا؟`,
   };
   return variants[locale] || variants.fr;
 }
@@ -566,6 +878,13 @@ async function canUseAi(db: any, conversationId: string, settings: any) {
 }
 
 async function handleInbound(db: any, event: any, botData: any, shouldSend: boolean) {
+  const isDiagnosticTest = event.eventType === "test";
+  const debounceMs = isDiagnosticTest
+    ? 0
+    : Math.max(500, Math.min(5000, Number(botData.settings.debounce_ms || 2500)));
+  event.replyGeneration = crypto.randomUUID();
+  event.replyNotBefore = new Date(Date.now() + debounceMs).toISOString();
+
   const duplicate = await db.from("chatbot_messages")
     .select("id")
     .eq("provider_message_id", event.providerMessageId)
@@ -573,8 +892,8 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   if (duplicate.error) throw duplicate.error;
   if (duplicate.data) return { duplicate: true };
 
-  const conversation = await upsertConversation(db, event);
-  const memory = conversation.memory || conversation.metadata?.memory || {};
+  const conversation = await upsertConversation(db, event, botData.settings);
+  let memory = conversation.memory || conversation.metadata?.memory || {};
   const payloadValue = String(event.payload || "");
   const isChatOrderPostback = payloadValue.startsWith("STRIVIO_CHAT_ORDER:");
   const isHumanPostback = payloadValue === "STRIVIO_HUMAN";
@@ -599,9 +918,18 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
       postback_payload: payloadValue || null,
     },
   }).select("id").single();
-  if (inbound.error) throw inbound.error;
+  let inboundMessageId = String(inbound.data?.id || "");
+  if (inbound.error) {
+    if (String(inbound.error.code || "") !== "23505") throw inbound.error;
+    const existingInbound = await db.from("chatbot_messages")
+      .select("id")
+      .eq("provider_message_id", event.providerMessageId)
+      .maybeSingle();
+    if (existingInbound.error) throw existingInbound.error;
+    inboundMessageId = String(existingInbound.data?.id || "");
+    if (!inboundMessageId) return { duplicate: true };
+  }
 
-  const isDiagnosticTest = event.eventType === "test";
   if (
     !botData.settings.enabled ||
     !botData.settings.auto_reply_enabled ||
@@ -610,29 +938,100 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     return { stored: true, replied: false, mode: conversation.mode };
   }
 
+  if (shouldSend && botData.settings.typing_enabled !== false) {
+    await setMetaTyping(event.channel, event.accountId, event.senderId, true);
+  }
+
+  if (debounceMs > 0) {
+    await sleep(debounceMs);
+    const currentResult = await db.from("chatbot_conversations")
+      .select("id,mode,memory,metadata,follow_up_count")
+      .eq("id", conversation.id)
+      .maybeSingle();
+    if (currentResult.error) throw currentResult.error;
+    const current = currentResult.data;
+    if (
+      !current
+      || current.mode !== "bot"
+      || current.metadata?.reply_generation !== event.replyGeneration
+      || current.metadata?.last_provider_message_id !== event.providerMessageId
+    ) {
+      return { stored: true, replied: false, superseded: true };
+    }
+    conversation.memory = current.memory || conversation.memory;
+    conversation.metadata = current.metadata || conversation.metadata;
+    conversation.follow_up_count = current.follow_up_count;
+    memory = conversation.memory || conversation.metadata?.memory || memory;
+  }
+
   const recentResult = await db.from("chatbot_messages")
-    .select("sender_role,message_text,created_at")
+    .select("sender_role,message_text,created_at,intent,metadata")
     .eq("conversation_id", conversation.id)
     .order("created_at", { ascending: false })
-    .limit(9);
+    .limit(24);
   if (recentResult.error) throw recentResult.error;
   const recent = (recentResult.data || []).reverse();
-
-  const oneMinuteAgo = Date.now() - 60_000;
-  const inboundBurst = recent.filter((item: any) =>
-    item.sender_role === "customer" && new Date(item.created_at).getTime() >= oneMinuteAgo
+  const pendingTurn: string[] = [];
+  for (let index = recent.length - 1; index >= 0; index -= 1) {
+    const item = recent[index];
+    if (item.sender_role !== "customer") break;
+    pendingTurn.unshift(String(item.message_text || "").trim());
+    if (pendingTurn.length >= 6) break;
+  }
+  const turnText = pendingTurn.filter(Boolean).join("\n").slice(0, 4000) || event.text;
+  const clarificationCount = recent.filter((item: any) =>
+    item.sender_role === "bot"
+    && (item.metadata?.needs_clarification === true || item.intent === "clarification")
   ).length;
-  const burstLimit = Math.max(3, Number(botData.settings.burst_limit_per_minute || 6));
-  if (inboundBurst > burstLimit) {
+
+  const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+  const [minuteUsage, tenMinuteUsage] = await Promise.all([
+    db.from("chatbot_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", conversation.id)
+      .eq("direction", "inbound")
+      .gte("created_at", oneMinuteAgo),
+    db.from("chatbot_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", conversation.id)
+      .eq("direction", "inbound")
+      .gte("created_at", tenMinutesAgo),
+  ]);
+  const burstLimit = Math.max(5, Number(botData.settings.burst_limit_per_minute || 15));
+  const tenMinuteLimit = Math.max(
+    burstLimit,
+    Number(botData.settings.ten_minute_limit || 60),
+  );
+  if (
+    (!minuteUsage.error && Number(minuteUsage.count || 0) > burstLimit)
+    || (!tenMinuteUsage.error && Number(tenMinuteUsage.count || 0) > tenMinuteLimit)
+  ) {
     await db.from("chatbot_conversations").update({
       mode: "human",
       handoff_reason: "rate_limit",
+      follow_up_due_at: null,
+      sales_stage: "handoff",
+      conversion_route: "human",
+      metadata: {
+        ...(conversation.metadata || {}),
+        stage: "handoff",
+        follow_up_stopped_reason: "rate_limit",
+        rate_limit: {
+          minute_count: Number(minuteUsage.count || 0),
+          ten_minute_count: Number(tenMinuteUsage.count || 0),
+          at: new Date().toISOString(),
+        },
+      },
     }).eq("id", conversation.id);
+    if (shouldSend && botData.settings.typing_enabled !== false) {
+      await setMetaTyping(event.channel, event.accountId, event.senderId, false);
+    }
     return { stored: true, replied: false, handoff: true, reason: "rate_limit" };
   }
 
   let answer = deterministicReply({
-    text: event.text,
+    text: turnText,
     locale: event.locale,
     services: botData.services,
     knowledge: botData.knowledge,
@@ -666,6 +1065,17 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     });
   }
   const aiDiagnostics: { error?: string } = {};
+  const maximumClarifications = Math.max(
+    0,
+    Math.min(5, Number(botData.settings.max_clarifying_questions ?? 2)),
+  );
+  const conversationState = {
+    stage: String(conversation.metadata?.stage || "new"),
+    clarification_count: clarificationCount,
+    maximum_clarifications: maximumClarifications,
+    sales_variant: conversation.metadata?.sales_variant || null,
+    attribution: conversation.metadata?.attribution || {},
+  };
   const keepRuleAnswer = answer.handoff
     || answer.precise === true
     || ["human_handoff", "order_status", "greeting"].includes(answer.intent);
@@ -675,13 +1085,16 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     && await canUseAi(db, conversation.id, botData.settings);
   if (aiAllowed) {
     const ai = await askGemini({
-      text: event.text,
+      text: turnText,
       locale: event.locale,
       services: botData.services,
       knowledge: botData.knowledge,
       bundleRules: botData.bundleRules,
       history: recent,
       memory,
+      conversationState,
+      allowStrivioLinks: botData.settings.allow_strivio_links !== false,
+      replyCharLimit: Number(botData.settings.reply_char_limit || 560),
       diagnostics: aiDiagnostics,
     });
     if (ai) answer = { ...answer, ...ai };
@@ -700,7 +1113,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     };
     await db.from("chatbot_unanswered").insert({
       conversation_id: conversation.id,
-      message_id: inbound.data.id,
+      message_id: inboundMessageId,
       message_text: event.text,
       normalized_text: normalizeMessage(event.text),
       locale: event.locale,
@@ -708,15 +1121,71 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     });
   }
 
+  if (answer.unknownQuestion) {
+    const unanswered = await db.from("chatbot_unanswered").insert({
+      conversation_id: conversation.id,
+      message_id: inboundMessageId || null,
+      message_text: event.text,
+      normalized_text: normalizeMessage(event.text),
+      locale: event.locale,
+      reason: "ai_unknown_question",
+      metadata: {
+        question: String(answer.unknownQuestion).slice(0, 500),
+        summary: String(answer.summary || "").slice(0, 500),
+      },
+    });
+    if (unanswered.error) {
+      console.warn("Could not store chatbot unknown question", {
+        error: String(unanswered.error.message || unanswered.error).slice(0, 300),
+      });
+    }
+  }
+
+  if (typeof answer.needsClarification !== "boolean") {
+    answer.needsClarification = /[?؟]/.test(String(answer.reply || ""))
+      && !checkoutReadiness(memory, botData.services);
+  }
+  if (answer.needsClarification && clarificationCount >= maximumClarifications) {
+    const variants: Record<string, string> = {
+      ar: "أحتاج أن يتابع معك أحد أفراد فريق Strivio حتى نضمن اختيار الطلب الصحيح.",
+      fr: "Un membre de l’équipe Strivio va continuer avec vous afin de confirmer le bon choix.",
+      en: "A Strivio team member will continue with you to confirm the right choice.",
+      dz: "خلي فريق Strivio يكمل معاك باش نضمنولك الاختيار الصحيح.",
+    };
+    answer = {
+      ...answer,
+      reply: variants[answer.locale || event.locale] || variants.fr,
+      intent: "human_handoff",
+      handoff: true,
+      needsClarification: false,
+      source: "rules",
+    };
+  }
+  answer.reply = limitReplyLength(
+    compactDzdPrices(limitReplyToOneQuestion(answer.reply)),
+    Number(botData.settings.reply_char_limit || 560),
+  );
+
   answer.reply = event.channel === "instagram"
-    ? socialSafeReply(answer.reply, answer.locale || event.locale)
+    ? socialReplyWithOfficialLinks(
+        answer.reply,
+        answer.locale || event.locale,
+        botData.settings.allow_strivio_links !== false,
+      )
     : String(answer.reply || "").trim();
   answer.reply = stabilizeBidiReply(answer.reply, answer.locale || event.locale);
+  const stage = stageForTurn({
+    answer,
+    memory,
+    services: botData.services,
+    text: turnText,
+  });
 
   if (answer.handoff) {
     await db.from("chatbot_conversations").update({
       mode: "human",
       handoff_reason: answer.intent || "requested",
+      follow_up_due_at: null,
     }).eq("id", conversation.id);
   }
 
@@ -725,7 +1194,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   let deliveryError = "";
   let usedTemplate = false;
   let usedFallback = false;
-  const actions = shouldAttachActions(answer, memory)
+  const baseActions = shouldAttachActions(answer, memory, botData.services, stage)
     ? buildMetaActions({
         locale: answer.locale || event.locale,
         serviceId: String(memory.service_id || answer.serviceId || ""),
@@ -734,19 +1203,43 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
           && botData.settings.website_buttons_enabled !== false,
         includeChat: botData.settings.structured_messages_enabled !== false
           && botData.settings.manual_checkout_enabled !== false
+          && stage !== "website"
           && !answer.handoff,
         includeHuman: botData.settings.structured_messages_enabled !== false
+          && stage !== "website"
           && !answer.handoff,
       })
     : [];
+  const actions = botData.settings.conversion_tracking_enabled === false
+    ? baseActions
+    : addAttributionToActions(baseActions, event, conversation.metadata || {});
   if (shouldSend) {
+    const sendLease = await db.from("chatbot_conversations")
+      .select("mode,metadata")
+      .eq("id", conversation.id)
+      .maybeSingle();
+    if (sendLease.error) throw sendLease.error;
+    if (
+      !sendLease.data
+      || (sendLease.data.mode !== "bot" && !(answer.handoff && sendLease.data.mode === "human"))
+      || sendLease.data.metadata?.reply_generation !== event.replyGeneration
+    ) {
+      return { stored: true, replied: false, superseded: true };
+    }
+    if (botData.settings.typing_enabled !== false) {
+      await setMetaTyping(event.channel, event.accountId, event.senderId, false);
+    }
     try {
       const sent = await sendMetaReply(
         event.channel,
         event.accountId,
         event.senderId,
         answer.reply,
-        { actions, locale: answer.locale || event.locale },
+        {
+          actions,
+          locale: answer.locale || event.locale,
+          allowStrivioLinks: botData.settings.allow_strivio_links !== false,
+        },
       );
       providerMessageId = sent.messageId;
       usedTemplate = sent.template;
@@ -777,24 +1270,72 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
       template: usedTemplate,
       template_fallback: usedFallback,
       memory_snapshot: memory,
+      needs_clarification: Boolean(answer.needsClarification),
+      conversation_stage: stage,
+      conversation_summary: String(answer.summary || "").slice(0, 500) || null,
+      aggregated_inbound_count: pendingTurn.length,
     },
   });
   if (outbound.error) throw outbound.error;
 
   const conversationChanges: Record<string, unknown> = {
     last_outbound_at: new Date().toISOString(),
+    sales_stage: stage,
+    lead_source: String(
+      conversation.lead_source
+        || conversation.metadata?.attribution?.source
+        || (conversation.metadata?.attribution?.ad_id ? "meta_ads" : "")
+        || event.channel,
+    ).slice(0, 100),
+    campaign_metadata: conversation.metadata?.attribution || {},
+    metadata: {
+      ...(conversation.metadata || {}),
+      memory,
+      stage,
+      summary: String(answer.summary || conversation.metadata?.summary || "").slice(0, 500),
+      clarification_count: clarificationCount + (answer.needsClarification ? 1 : 0),
+      unknown_questions: [
+        ...(Array.isArray(conversation.metadata?.unknown_questions)
+          ? conversation.metadata.unknown_questions
+          : []),
+        ...(answer.unknownQuestion ? [{
+          text: String(answer.unknownQuestion).slice(0, 500),
+          at: new Date().toISOString(),
+        }] : []),
+      ].slice(-20),
+      last_reply_source: answer.source,
+      last_reply_intent: answer.intent,
+      follow_up_stopped_reason: ["handoff", "manual", "website", "lost"].includes(stage)
+        ? stage
+        : null,
+    },
   };
+  if (stage === "website") conversationChanges.conversion_route = "website";
+  if (stage === "manual") conversationChanges.conversion_route = "manual";
+  if (stage === "handoff") conversationChanges.conversion_route = "human";
+  const maximumFollowUps = Math.min(
+    2,
+    Math.max(0, Number(botData.settings.max_followups_per_conversation ?? 2)),
+  );
   if (
     !answer.handoff
     && deliveryStatus === "sent"
     && botData.settings.follow_up_enabled !== false
     && isSalesIntent(answer.intent)
-    && Number(conversation.follow_up_count || 0) < Number(botData.settings.max_followups_per_conversation || 1)
+    && stage === "ready_to_buy"
+    && !isRejectionText(turnText)
+    && Number(conversation.follow_up_count || 0) < maximumFollowUps
   ) {
     const delay = Math.max(30, Number(botData.settings.follow_up_delay_minutes || 120));
     conversationChanges.follow_up_due_at = new Date(Date.now() + delay * 60_000).toISOString();
+  } else if (["handoff", "manual", "website", "lost"].includes(stage)) {
+    conversationChanges.follow_up_due_at = null;
   }
-  await db.from("chatbot_conversations").update(conversationChanges).eq("id", conversation.id);
+  const conversationUpdate = await db.from("chatbot_conversations")
+    .update(conversationChanges)
+    .eq("id", conversation.id)
+    .contains("metadata", { reply_generation: event.replyGeneration });
+  if (conversationUpdate.error) throw conversationUpdate.error;
 
   return {
     stored: true,
@@ -811,6 +1352,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     structured_message: usedTemplate,
     structured_fallback: usedFallback,
     memory,
+    sales_stage: stage,
     ai_diagnostic: event.eventType === "test" ? aiDiagnostics.error : undefined,
   };
 }
@@ -820,7 +1362,10 @@ async function processFollowUps(db: any, botData: any, limitValue: number) {
   const maximum = Math.min(50, Math.max(1, Number(limitValue || 20)));
   const nowIso = new Date().toISOString();
   const windowStart = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString();
-  const maximumFollowUps = Math.max(0, Number(botData.settings.max_followups_per_conversation || 1));
+  const maximumFollowUps = Math.min(
+    2,
+    Math.max(0, Number(botData.settings.max_followups_per_conversation ?? 2)),
+  );
   if (!maximumFollowUps) return { processed: 0, sent: 0, skipped: 0 };
 
   const dueResult = await db.from("chatbot_conversations")
@@ -839,9 +1384,18 @@ async function processFollowUps(db: any, botData: any, limitValue: number) {
   let skipped = 0;
   for (const conversation of dueResult.data || []) {
     const memory = conversation.memory || conversation.metadata?.memory || {};
+    const stage = String(conversation.sales_stage || conversation.metadata?.stage || "");
+    if (["handoff", "manual", "website", "lost", "won"].includes(stage)) {
+      await db.from("chatbot_conversations").update({
+        follow_up_due_at: null,
+      }).eq("id", conversation.id);
+      skipped += 1;
+      continue;
+    }
     const locale = String(conversation.locale || botData.settings.default_locale || "fr");
-    const text = stabilizeBidiReply(followUpText(locale, memory), locale);
-    const actions = buildMetaActions({
+    const followUpIndex = Number(conversation.follow_up_count || 0);
+    const text = stabilizeBidiReply(followUpText(locale, memory, followUpIndex), locale);
+    const baseActions = buildMetaActions({
       locale,
       serviceId: String(memory.service_id || ""),
       websiteUrl: String(botData.settings.website_url || "https://www.striviodz.store"),
@@ -849,13 +1403,23 @@ async function processFollowUps(db: any, botData: any, limitValue: number) {
       includeChat: botData.settings.manual_checkout_enabled !== false,
       includeHuman: true,
     });
+    const actions = botData.settings.conversion_tracking_enabled === false
+      ? baseActions
+      : addAttributionToActions(baseActions, {
+          channel: conversation.channel,
+          attribution: conversation.metadata?.attribution || {},
+        }, conversation.metadata || {});
     try {
       const sent = await sendMetaReply(
         conversation.channel,
         conversation.channel_account_id,
         conversation.external_user_id,
         text,
-        { actions, locale },
+        {
+          actions,
+          locale,
+          allowStrivioLinks: botData.settings.allow_strivio_links !== false,
+        },
       );
       const messageResult = await db.from("chatbot_messages").insert({
         conversation_id: conversation.id,
@@ -877,11 +1441,24 @@ async function processFollowUps(db: any, botData: any, limitValue: number) {
         },
       });
       if (messageResult.error) throw messageResult.error;
+      const nextFollowUpCount = followUpIndex + 1;
+      const secondDelay = Math.max(
+        60,
+        Number(botData.settings.second_follow_up_delay_minutes || 360),
+      );
+      const nextDueAt = nextFollowUpCount < maximumFollowUps
+        ? new Date(Date.now() + secondDelay * 60_000).toISOString()
+        : null;
       const updated = await db.from("chatbot_conversations").update({
-        follow_up_due_at: null,
+        follow_up_due_at: nextDueAt,
         follow_up_sent_at: nowIso,
-        follow_up_count: Number(conversation.follow_up_count || 0) + 1,
+        follow_up_count: nextFollowUpCount,
         last_outbound_at: nowIso,
+        metadata: {
+          ...(conversation.metadata || {}),
+          last_follow_up_number: nextFollowUpCount,
+          follow_up_completed: nextFollowUpCount >= maximumFollowUps,
+        },
       }).eq("id", conversation.id);
       if (updated.error) throw updated.error;
       sentCount += 1;
@@ -993,7 +1570,7 @@ serve(async (req) => {
       return json(req, { success: false, error: "Conversation not found" }, 404);
     }
     const outboundText = conversation.channel === "instagram"
-      ? socialSafeReply(text, detectLanguage(text))
+      ? socialReplyWithOfficialLinks(text, detectLanguage(text), true)
       : text;
     if (!outboundText) {
       return json(req, { success: false, error: "Message is empty after link filtering" }, 400);
@@ -1068,13 +1645,12 @@ serve(async (req) => {
   const events = extractMetaEvents(payload);
   if (!events.length) return json(req, { success: true, ignored: true });
   const botData = await loadBotData(db);
-  const results = [];
-  for (const event of events.slice(0, 20)) {
+  const results = await Promise.all(events.slice(0, 20).map(async (event) => {
     try {
-      results.push(await handleInbound(db, event, botData, true));
+      return await handleInbound(db, event, botData, true);
     } catch (error) {
-      results.push({ success: false, error: String(error?.message || error) });
+      return { success: false, error: String(error?.message || error) };
     }
-  }
+  }));
   return json(req, { success: true, results });
 });

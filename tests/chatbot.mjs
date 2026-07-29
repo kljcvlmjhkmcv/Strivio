@@ -1,15 +1,20 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   buildMetaActions,
+  compactDzdPrices,
   detectLanguage,
   deterministicReply,
+  formatDzdAmount,
+  getSalesReadiness,
   identifyIntent,
+  isReadyForCompletionActions,
   mergeConversationMemory,
   normalizeMessage,
   redactSensitiveText,
   socialSafeReply,
   stabilizeBidiReply,
-} from "../supabase/functions/meta-chatbot/chatbot-core.mjs";
+} from "../supabase/functions/meta-chatbot/chatbot-core.ts";
 
 const services = [
   {
@@ -76,6 +81,7 @@ assert.match(normalizeMessage("khsni netflix ch7al"), /احتاج netflix كم �
 assert.equal(identifyIntent("khsni netflix").intent, "purchase");
 assert.equal(identifyIntent("ch7al spotify").intent, "price");
 assert.equal(identifyIntent("kifach nkhalles").intent, "payment");
+assert.equal(identifyIntent("هل يوجد ضمان كامل؟").intent, "warranty");
 assert.equal(identifyIntent("I want a human agent").intent, "human_handoff");
 assert.equal(identifyIntent("I need a ChatGPT account").intent, "purchase");
 assert.equal(identifyIntent("Where is my order?").intent, "order_status");
@@ -90,7 +96,8 @@ const netflixReply = deterministicReply({
 assert.equal(netflixReply.intent, "price");
 assert.equal(netflixReply.serviceId, "netflix");
 assert.match(netflixReply.reply, /800/);
-assert.match(netflixReply.reply, /5[\s,.]?500/);
+assert.match(netflixReply.reply, /5500/);
+assert.doesNotMatch(netflixReply.reply, /5[\s\u00a0\u202f,.]500/);
 assert.doesNotMatch(netflixReply.reply, /\b0 دج\b/);
 assert.match(netflixReply.reply, /Prime Video/);
 assert.doesNotMatch(netflixReply.reply, /4 شاشات/);
@@ -119,8 +126,18 @@ const safeInstagramReply = socialSafeReply(
   "تابع طلبك هنا https://www.striviodz.store/my-account أو عبر striviodz.store",
   "ar",
 );
-assert.doesNotMatch(safeInstagramReply, /https?:\/\/|www\.|striviodz\.store/i);
-assert.match(safeInstagramReply, /البايو/);
+assert.match(safeInstagramReply, /https:\/\/www\.striviodz\.store\/my-account/i);
+assert.match(safeInstagramReply, /striviodz\.store/i);
+const externalLinkReply = socialSafeReply(
+  "افتح https://unknown-example.com ثم تواصل معنا",
+  "ar",
+);
+assert.doesNotMatch(externalLinkReply, /unknown-example\.com/i);
+assert.match(externalLinkReply, /striviodz\.store/i);
+
+assert.equal(formatDzdAmount(1200, "ar"), "1200 دج");
+assert.equal(formatDzdAmount(1200, "fr"), "1200 DZD");
+assert.equal(compactDzdPrices("Prix: 1\u202f200 DZD"), "Prix: 1200 DZD");
 
 const paymentReply = deterministicReply({
   text: "kifach nkhalles",
@@ -131,6 +148,18 @@ const paymentReply = deterministicReply({
 assert.match(paymentReply.reply, /SATIM/);
 assert.match(paymentReply.reply, /BaridiMob/);
 assert.match(paymentReply.reply, /USDT/);
+assert.match(paymentReply.reply, /CIB/);
+
+const warrantyReply = deterministicReply({
+  text: "هل كل المنتجات تحت ضمان؟",
+  locale: "ar",
+  services,
+  knowledge: [],
+});
+assert.equal(warrantyReply.intent, "warranty");
+assert.equal(warrantyReply.precise, true);
+assert.match(warrantyReply.reply, /مضمونة|ضمان/);
+assert.match(warrantyReply.reply, /الإصلاح|الاستبدال/);
 
 assert.equal(
   redactSensitiveText("email me at user@example.com password: Secret123 phone 0555123456"),
@@ -142,6 +171,13 @@ const rememberedPlan = mergeConversationMemory(rememberedNetflix, "3 mois 2 écr
 assert.equal(rememberedPlan.service_id, "netflix");
 assert.equal(rememberedPlan.duration_months, 3);
 assert.equal(rememberedPlan.quantity, 2);
+assert.equal(getSalesReadiness(rememberedPlan, services[0]).ready, true);
+assert.equal(isReadyForCompletionActions(rememberedPlan, services[0]), true);
+const switchedService = mergeConversationMemory(rememberedPlan, "spotify");
+assert.equal(switchedService.service_id, "spotify");
+assert.equal(switchedService.duration_months, undefined);
+assert.equal(switchedService.quantity, undefined);
+assert.equal(switchedService.type_index, undefined);
 const rememberedReply = deterministicReply({
   text: "3 mois 2 écrans",
   locale: "fr",
@@ -151,7 +187,8 @@ const rememberedReply = deterministicReply({
   memory: rememberedPlan,
 });
 assert.match(rememberedReply.reply, /3 mois/);
-assert.match(rememberedReply.reply, /3[\s,.]?500/);
+assert.match(rememberedReply.reply, /3500/);
+assert.doesNotMatch(rememberedReply.reply, /3[\s\u00a0\u202f,.]500/);
 assert.match(rememberedReply.reply, /Prime Video/);
 assert.doesNotMatch(rememberedReply.reply, /1 mois 1[\s,.]?400/);
 
@@ -169,5 +206,15 @@ assert.equal(actions[2].payload, "STRIVIO_HUMAN");
 const bidiReply = stabilizeBidiReply("السعر: 1,900 DZD\nالخدمة: Netflix", "ar");
 assert.match(bidiReply, /\u2067/);
 assert.match(bidiReply, /\u2069/);
+
+const runtimeSource = readFileSync(
+  new URL("../supabase/functions/meta-chatbot/index.ts", import.meta.url),
+  "utf8",
+);
+assert.match(runtimeSource, /senderAction: "mark_seen" \| "typing_on" \| "typing_off"/);
+assert.match(runtimeSource, /debounce_ms \|\| 2500/);
+assert.match(runtimeSource, /ten_minute_limit \|\| 60/);
+assert.match(runtimeSource, /sales_stage: stage/);
+assert.doesNotMatch(runtimeSource, /out_of_stock/);
 
 console.log("Chatbot language and safety checks passed.");
