@@ -740,6 +740,7 @@ export function deterministicReply({
   knowledge = [],
   bundleRules = [],
   memory = {},
+  memoryIsCurrent = false,
 }) {
   const detectedLocale = locale || detectLanguage(text);
   const rememberedService = String(memory?.service_id || "");
@@ -750,7 +751,7 @@ export function deterministicReply({
   const service = analysis.serviceId
     ? services.find((item) => String(item?.id || "") === analysis.serviceId)
     : null;
-  const effectiveMemory = mergeConversationMemory(memory, text);
+  const effectiveMemory = memoryIsCurrent ? memory : mergeConversationMemory(memory, text);
   const readiness = getSalesReadiness(effectiveMemory, service);
   const salesMeta = {
     readyForActions: readiness.ready,

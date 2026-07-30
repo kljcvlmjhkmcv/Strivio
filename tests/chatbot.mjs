@@ -238,6 +238,18 @@ const selectedTwoProfiles = mergeConversationMemory(
 assert.equal(selectedTwoProfiles.quantity, 2);
 assert.equal(selectedTwoProfiles.type_index, 1);
 assert.deepEqual(selectedTwoProfiles.missing_fields, ["duration_months"]);
+const typedBareTwo = mergeConversationMemory(rememberedNetflix, "2");
+const typedBareTwoReply = deterministicReply({
+  text: "2",
+  locale: "fr",
+  services,
+  knowledge,
+  memory: typedBareTwo,
+  memoryIsCurrent: true,
+});
+assert.equal(typedBareTwo.duration_months, undefined);
+assert.deepEqual(typedBareTwoReply.missingFields, ["duration_months"]);
+assert.match(typedBareTwoReply.reply, /durée/i);
 const netflixDurationActions = buildQualificationActions({
   locale: "fr",
   memory: selectedTwoProfiles,

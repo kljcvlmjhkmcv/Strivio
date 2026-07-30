@@ -1238,6 +1238,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     knowledge: botData.knowledge,
     bundleRules: botData.bundleRules,
     memory,
+    memoryIsCurrent: true,
   });
   if (isChatOrderPostback) {
     const variants: Record<string, string> = {
