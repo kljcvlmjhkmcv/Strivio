@@ -2,9 +2,11 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import {
   buildMetaActions,
+  buildQualificationActions,
   detectLanguage,
   deterministicReply,
   identifyIntent,
+  isSalesContinuation,
   mergeConversationMemory,
   normalizeMessage,
   redactSensitiveText,
@@ -107,7 +109,7 @@ function sleep(ms: number) {
 }
 
 type MetaAction = {
-  type: "web_url" | "postback";
+  type: "web_url" | "postback" | "quick_reply";
   title: string;
   url?: string;
   payload?: string;
@@ -250,7 +252,9 @@ async function sendMetaReply(
     ? socialReplyWithOfficialLinks(text, locale, options.allowStrivioLinks !== false)
     : String(text || "").trim();
   if (!outboundText) throw new Error("Reply is empty after safety filtering");
-  const actions = Array.isArray(options.actions) ? options.actions.slice(0, 3) : [];
+  const requestedActions = Array.isArray(options.actions) ? options.actions : [];
+  const hasQuickReplies = requestedActions.some((action) => action.type === "quick_reply");
+  const actions = requestedActions.slice(0, hasQuickReplies ? 13 : 3);
   if (!actions.length) {
     const messageId = await postMetaMessage(
       channel,
@@ -259,6 +263,36 @@ async function sendMetaReply(
       { text: outboundText.slice(0, 1900) },
     );
     return { messageId, template: false, fallback: false, error: "" };
+  }
+
+  if (hasQuickReplies) {
+    const quickReplies = actions
+      .filter((action) => action.type === "quick_reply")
+      .map((action) => ({
+        content_type: "text",
+        title: String(action.title || "").slice(0, 20),
+        payload: String(action.payload || "").slice(0, 1000),
+      }));
+    try {
+      const messageId = await postMetaMessage(channel, accountId, recipientId, {
+        text: outboundText.slice(0, 1900),
+        quick_replies: quickReplies,
+      });
+      return { messageId, template: true, fallback: false, error: "" };
+    } catch (error) {
+      const quickReplyError = String(error?.message || error).slice(0, 500);
+      const choices = quickReplies.map((action) => action.title).join(" · ");
+      const fallbackText = choices
+        ? `${outboundText}\n${choices}`.slice(0, 1900)
+        : outboundText.slice(0, 1900);
+      const messageId = await postMetaMessage(
+        channel,
+        accountId,
+        recipientId,
+        { text: fallbackText },
+      );
+      return { messageId, template: false, fallback: true, error: quickReplyError };
+    }
   }
 
   const buttons = actions.map((action) => action.type === "web_url"
@@ -655,6 +689,10 @@ function stageForTurn({
   if (answer?.intent === "manual_checkout" || memory?.preferred_route === "chat") return "manual";
   if (memory?.preferred_route === "website") return "website";
   if (answer?.handoff || answer?.intent === "human_handoff") return "handoff";
+  if (
+    ["greeting", "unknown", "clarification"].includes(String(answer?.intent || ""))
+    || !isSalesContinuation(text)
+  ) return "exploring";
   if (checkoutReadiness(memory, services)) return "ready_to_buy";
   if (answer?.intent === "price" && memory?.service_id) return "offered";
   if (memory?.service_id) return "qualifying";
@@ -811,10 +849,28 @@ function extractMetaEvents(payload: any) {
   const events: any[] = [];
   for (const entry of Array.isArray(payload?.entry) ? payload.entry : []) {
     for (const item of Array.isArray(entry?.messaging) ? entry.messaging : []) {
-      if (item?.message?.is_echo) continue;
       const payloadValue = String(item?.postback?.payload || item?.message?.quick_reply?.payload || "").trim();
       const text = String(item?.message?.text || item?.postback?.title || payloadValue || "").trim();
       const providerMessageId = String(item?.message?.mid || item?.postback?.mid || "").trim();
+      if (item?.message?.is_echo) {
+        const accountId = String(entry?.id || item?.sender?.id || "").trim();
+        const customerId = String(item?.recipient?.id || "").trim();
+        if (!text || !accountId || !customerId) continue;
+        events.push({
+          channel,
+          accountId,
+          senderId: customerId,
+          threadId: customerId,
+          providerMessageId: providerMessageId
+            || `${channel}:echo:${entry?.time || Date.now()}:${customerId}`,
+          text: text.slice(0, 4000),
+          payload: "",
+          locale: detectLanguage(text),
+          eventType: "admin_echo",
+          timestamp: Number(item?.timestamp || entry?.time || Date.now()),
+        });
+        continue;
+      }
       const senderId = String(item?.sender?.id || "").trim();
       const accountId = String(item?.recipient?.id || entry?.id || "").trim();
       if (!text || !senderId || !accountId) continue;
@@ -843,6 +899,82 @@ function extractMetaEvents(payload: any) {
     }
   }
   return events;
+}
+
+async function handleAdminEcho(db: any, event: any) {
+  // Meta also echoes messages sent through this function. Give the outbound
+  // insert a brief head start, then distinguish it from a native Inbox reply.
+  await sleep(900);
+  const providerMessageId = String(event.providerMessageId || "");
+  if (providerMessageId) {
+    const knownMessage = await db.from("chatbot_messages")
+      .select("id")
+      .eq("provider_message_id", providerMessageId)
+      .maybeSingle();
+    if (knownMessage.error) throw knownMessage.error;
+    if (knownMessage.data) return { ignored: true, reason: "known_outbound_echo" };
+  }
+
+  const conversationResult = await db.from("chatbot_conversations")
+    .select("*")
+    .eq("channel", event.channel)
+    .eq("channel_account_id", event.accountId)
+    .eq("external_user_id", event.senderId)
+    .maybeSingle();
+  if (conversationResult.error) throw conversationResult.error;
+  const conversation = conversationResult.data;
+  if (!conversation) return { ignored: true, reason: "conversation_not_found" };
+
+  const recentCutoff = new Date(Date.now() - 30_000).toISOString();
+  const sameOutbound = await db.from("chatbot_messages")
+    .select("id")
+    .eq("conversation_id", conversation.id)
+    .eq("direction", "outbound")
+    .eq("message_text", event.text)
+    .gte("created_at", recentCutoff)
+    .limit(1)
+    .maybeSingle();
+  if (sameOutbound.error) throw sameOutbound.error;
+  if (sameOutbound.data) return { ignored: true, reason: "matching_outbound_echo" };
+
+  const now = new Date().toISOString();
+  const metadata = {
+    ...(conversation.metadata || {}),
+    reply_generation: crypto.randomUUID(),
+    stage: "handoff",
+    follow_up_stopped_reason: "native_admin_reply",
+    native_admin_reply_at: now,
+  };
+  const takeover = await db.from("chatbot_conversations").update({
+    mode: "human",
+    handoff_reason: "native_admin_reply",
+    conversion_route: "human",
+    sales_stage: "handoff",
+    follow_up_due_at: null,
+    last_outbound_at: now,
+    metadata,
+  }).eq("id", conversation.id);
+  if (takeover.error) throw takeover.error;
+
+  const stored = await db.from("chatbot_messages").insert({
+    conversation_id: conversation.id,
+    provider_message_id: providerMessageId || null,
+    direction: "outbound",
+    sender_role: "admin",
+    message_text: event.text,
+    normalized_text: normalizeMessage(event.text),
+    locale: event.locale || conversation.locale || "fr",
+    intent: "native_admin_reply",
+    confidence: 1,
+    reply_source: "meta_inbox",
+    delivery_status: "sent",
+    metadata: {
+      event_type: "admin_echo",
+      timestamp: event.timestamp,
+    },
+  });
+  if (stored.error && String(stored.error.code || "") !== "23505") throw stored.error;
+  return { stored: true, replied: false, handoff: true, reason: "native_admin_reply" };
 }
 
 function isSalesIntent(intent: string) {
@@ -967,9 +1099,12 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   let memory = conversation.memory || conversation.metadata?.memory || {};
   const payloadValue = String(event.payload || "");
   const isChatOrderPostback = payloadValue.startsWith("STRIVIO_CHAT_ORDER:");
+  const isWebsitePostback = payloadValue.startsWith("STRIVIO_WEBSITE:");
   const isHumanPostback = payloadValue === "STRIVIO_HUMAN";
   const detected = isChatOrderPostback
     ? { intent: "manual_checkout", serviceId: memory.service_id || null, confidence: 1 }
+    : isWebsitePostback
+      ? { intent: "website_checkout_selected", serviceId: memory.service_id || null, confidence: 1 }
     : identifyIntent(event.text);
   const inbound = await db.from("chatbot_messages").insert({
     conversation_id: conversation.id,
@@ -1120,6 +1255,29 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
       handoff: true,
       source: "rules",
     };
+  } else if (isWebsitePostback) {
+    const serviceId = String(memory.service_id || "").trim();
+    const websiteUrl = new URL(String(botData.settings.website_url || "https://www.striviodz.store"));
+    if (serviceId) websiteUrl.searchParams.set("service", serviceId);
+    websiteUrl.searchParams.set("utm_source", event.channel === "instagram" ? "instagram" : "messenger");
+    websiteUrl.searchParams.set("utm_medium", "social_chatbot");
+    const link = websiteUrl.toString();
+    const variants: Record<string, string> = {
+      ar: `ممتاز. أكمل طلبك بأمان من الموقع عبر البطاقة الذهبية أو CIB:\n${link}\nتم تسليم المحادثة لفريق Strivio، ولن يرسل البوت رسائل أخرى.`,
+      fr: `Parfait. Finalisez votre commande en sécurité sur le site par carte Edahabia ou CIB :\n${link}\nLa conversation est maintenant confiée à l’équipe Strivio et le bot ne répondra plus.`,
+      en: `Great. Complete your order securely on the website with an Edahabia or CIB card:\n${link}\nThe Strivio team has taken over this conversation, so the bot will no longer reply.`,
+      dz: `مليح. كمل طلبك بأمان من الموقع بالبطاقة الذهبية ولا CIB:\n${link}\nالمحادثة درك عند فريق Strivio والبوت ما يزيدش يرد.`,
+    };
+    answer = {
+      ...answer,
+      reply: variants[event.locale] || variants.fr,
+      locale: event.locale,
+      intent: "website_checkout_selected",
+      confidence: 1,
+      handoff: true,
+      precise: true,
+      source: "rules",
+    };
   } else if (isHumanPostback) {
     answer = deterministicReply({
       text: event.locale === "fr" ? "conseiller" : event.locale === "en" ? "human agent" : "موظف",
@@ -1223,6 +1381,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   const allowedHandoffIntents = new Set([
     "human_handoff",
     "manual_checkout",
+    "website_checkout_selected",
     "support_issue",
     "warranty_inquiry",
   ]);
@@ -1277,7 +1436,23 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   let deliveryError = "";
   let usedTemplate = false;
   let usedFallback = false;
-  const baseActions = shouldAttachActions(answer, memory, botData.services, stage)
+  const selectedService = botData.services.find(
+    (service: any) => String(service?.id || "") === String(memory?.service_id || answer.serviceId || ""),
+  );
+  const qualificationActions = (
+    botData.settings.structured_messages_enabled !== false
+    && !answer.handoff
+    && stage === "qualifying"
+  )
+    ? buildQualificationActions({
+        locale: answer.locale || event.locale,
+        memory,
+        service: selectedService,
+      }) as MetaAction[]
+    : [];
+  const baseActions = qualificationActions.length
+    ? qualificationActions
+    : shouldAttachActions(answer, memory, botData.services, stage)
     ? buildMetaActions({
         locale: answer.locale || event.locale,
         serviceId: String(memory.service_id || answer.serviceId || ""),
@@ -1291,6 +1466,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
         includeHuman: botData.settings.structured_messages_enabled !== false
           && stage !== "website"
           && !answer.handoff,
+        websiteAsPostback: true,
       })
     : [];
   const actions = botData.settings.conversion_tracking_enabled === false
@@ -1496,6 +1672,7 @@ async function processFollowUps(db: any, botData: any, limitValue: number) {
       includeWebsite: botData.settings.website_buttons_enabled !== false,
       includeChat: botData.settings.manual_checkout_enabled !== false,
       includeHuman: true,
+      websiteAsPostback: true,
     });
     const actions = botData.settings.conversion_tracking_enabled === false
       ? baseActions
@@ -1796,6 +1973,7 @@ serve(async (req) => {
   const botData = await loadBotData(db);
   const results = await Promise.all(events.slice(0, 20).map(async (event) => {
     try {
+      if (event.eventType === "admin_echo") return await handleAdminEcho(db, event);
       return await handleInbound(db, event, botData, true);
     } catch (error) {
       return { success: false, error: String(error?.message || error) };

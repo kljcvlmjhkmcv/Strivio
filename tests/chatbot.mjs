@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   buildMetaActions,
+  buildQualificationActions,
   compactDzdPrices,
   detectLanguage,
   deterministicReply,
@@ -9,6 +10,7 @@ import {
   getSalesReadiness,
   identifyIntent,
   isReadyForCompletionActions,
+  isSalesContinuation,
   mergeConversationMemory,
   normalizeMessage,
   redactSensitiveText,
@@ -201,13 +203,78 @@ assert.equal(
 );
 
 const rememberedNetflix = mergeConversationMemory({}, "khsni netflix");
-const rememberedOneMonth = mergeConversationMemory(rememberedNetflix, "شهر");
+assert.deepEqual(rememberedNetflix.missing_fields, ["type", "duration_months"]);
+const rememberedOneProfileFirst = mergeConversationMemory(rememberedNetflix, "1");
+assert.equal(rememberedOneProfileFirst.quantity, 1);
+assert.deepEqual(rememberedOneProfileFirst.missing_fields, ["duration_months"]);
+const rememberedOneMonth = mergeConversationMemory(rememberedOneProfileFirst, "شهر");
 assert.equal(rememberedOneMonth.duration_months, 1);
-assert.deepEqual(rememberedOneMonth.missing_fields, ["type"]);
 const rememberedOneProfile = mergeConversationMemory(rememberedOneMonth, "1");
 assert.equal(rememberedOneProfile.duration_months, 1);
 assert.equal(rememberedOneProfile.quantity, 1);
 assert.equal(getSalesReadiness(rememberedOneProfile, services[0]).ready, true);
+const netflixTypeActions = buildQualificationActions({
+  locale: "fr",
+  memory: rememberedNetflix,
+  service: services[0],
+});
+assert.deepEqual(netflixTypeActions.map((action) => action.title), [
+  "1 écran",
+  "2 écrans",
+  "3 écrans",
+  "5 écrans",
+]);
+assert.deepEqual(netflixTypeActions.map((action) => action.type), [
+  "quick_reply",
+  "quick_reply",
+  "quick_reply",
+  "quick_reply",
+]);
+const selectedTwoProfiles = mergeConversationMemory(
+  rememberedNetflix,
+  "2 écrans",
+  "STRIVIO_SELECT_TYPE:netflix:1",
+);
+assert.equal(selectedTwoProfiles.quantity, 2);
+assert.equal(selectedTwoProfiles.type_index, 1);
+assert.deepEqual(selectedTwoProfiles.missing_fields, ["duration_months"]);
+const netflixDurationActions = buildQualificationActions({
+  locale: "fr",
+  memory: selectedTwoProfiles,
+  service: services[0],
+});
+assert.deepEqual(netflixDurationActions.map((action) => action.title), [
+  "1 mois",
+  "2 mois",
+  "3 mois",
+  "6 mois",
+  "1 an",
+]);
+const selectedNetflixDuration = mergeConversationMemory(
+  selectedTwoProfiles,
+  "3 mois",
+  "STRIVIO_SELECT_DURATION:netflix:3",
+);
+assert.equal(selectedNetflixDuration.duration_months, 3);
+assert.equal(getSalesReadiness(selectedNetflixDuration, services[0]).ready, true);
+const chatGptMemory = mergeConversationMemory({}, "chatgpt");
+const chatGptDurationActions = buildQualificationActions({
+  locale: "fr",
+  memory: chatGptMemory,
+  service: services[2],
+});
+assert.deepEqual(chatGptDurationActions.map((action) => action.title), ["1 mois"]);
+assert.equal(isSalesContinuation("سلام"), false);
+assert.equal(isSalesContinuation("شهر"), true);
+const abandonedTopicReply = deterministicReply({
+  text: "سلام",
+  locale: "ar",
+  services,
+  knowledge,
+  memory: rememberedNetflix,
+});
+assert.equal(abandonedTopicReply.intent, "greeting");
+assert.doesNotMatch(abandonedTopicReply.reply, /كم شاشة|المدة التي تحتاجها/);
 const offerReply = deterministicReply({
   text: "ارسلي كامل عروض نتفلكس",
   locale: "ar",
@@ -265,6 +332,13 @@ assert.equal(actions[0].type, "web_url");
 assert.match(actions[0].url, /\?service=netflix$/);
 assert.equal(actions[1].payload, "STRIVIO_CHAT_ORDER:netflix");
 assert.equal(actions[2].payload, "STRIVIO_HUMAN");
+const takeoverActions = buildMetaActions({
+  locale: "fr",
+  serviceId: "netflix",
+  websiteAsPostback: true,
+});
+assert.equal(takeoverActions[0].type, "postback");
+assert.equal(takeoverActions[0].payload, "STRIVIO_WEBSITE:netflix");
 
 const bidiReply = stabilizeBidiReply("السعر: 1,900 DZD\nالخدمة: Netflix", "ar");
 assert.match(bidiReply, /\u2067/);
@@ -294,6 +368,12 @@ assert.match(runtimeSource, /جميع العروض والأسعار: https:\/\/w
 assert.match(runtimeSource, /payload\?\.mode === "conversation_delete"/);
 assert.match(runtimeSource, /next_message_starts_fresh: true/);
 assert.match(runtimeSource, /db\.from\("chatbot_unanswered"\)\s*\.delete\(\)/);
+assert.match(runtimeSource, /quick_replies: quickReplies/);
+assert.match(runtimeSource, /requestedActions\.slice\(0, hasQuickReplies \? 13 : 3\)/);
+assert.match(runtimeSource, /isWebsitePostback/);
+assert.match(runtimeSource, /website_checkout_selected/);
+assert.match(runtimeSource, /event\.eventType === "admin_echo"/);
+assert.match(runtimeSource, /handoff_reason: "native_admin_reply"/);
 assert.doesNotMatch(runtimeSource, /عبر SATIM/);
 assert.doesNotMatch(runtimeSource, /maximumClarifications|max_clarifying_questions/);
 assert.doesNotMatch(runtimeSource, /out_of_stock/);

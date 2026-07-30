@@ -208,7 +208,6 @@ function budgetFromText(value) {
 function missingSalesFields(memory = {}, service = null) {
   const missing = [];
   if (!memory?.service_id) return ["service_id"];
-  if (!Number(memory?.duration_months || 0)) missing.push("duration_months");
   const requiresType = Boolean(service?.show_types) || memory?.service_id === "netflix";
   const hasType = (
     memory?.type_index !== null
@@ -218,6 +217,7 @@ function missingSalesFields(memory = {}, service = null) {
     || Number(memory?.quantity || 0) > 0
     || Boolean(memory?.plan_type);
   if (requiresType && !hasType) missing.push("type");
+  if (!Number(memory?.duration_months || 0)) missing.push("duration_months");
   return missing;
 }
 
@@ -240,7 +240,11 @@ export function isReadyForCompletionActions(memory = {}, service = null) {
 
 export function mergeConversationMemory(previous = {}, value = "", payload = "") {
   const next = { ...(previous && typeof previous === "object" ? previous : {}) };
-  const serviceId = identifyService(value);
+  const rawPayload = String(payload || "").trim();
+  const selectedType = rawPayload.match(/^STRIVIO_SELECT_TYPE:([^:]+):(\d+)$/i);
+  const selectedDuration = rawPayload.match(/^STRIVIO_SELECT_DURATION:([^:]+):(1|2|3|6|12)$/i);
+  const payloadServiceId = String(selectedType?.[1] || selectedDuration?.[1] || "").trim();
+  const serviceId = identifyService(value) || payloadServiceId || null;
   const normalizedValue = normalizeMessage(value);
   const bareChoice = normalizedValue.match(/^([1-5])$/);
   const expectsType = Array.isArray(next?.missing_fields)
@@ -266,6 +270,11 @@ export function mergeConversationMemory(previous = {}, value = "", payload = "")
     next.quantity = quantity;
     if (quantity <= 5) next.type_index = Math.max(0, quantity - 1);
   }
+  if (selectedType) {
+    next.type_index = Math.max(0, Number(selectedType[2] || 0));
+    if (serviceId === "netflix") next.quantity = next.type_index + 1;
+  }
+  if (selectedDuration) next.duration_months = Number(selectedDuration[2]);
   if (planType) next.plan_type = planType;
   if (budgetDzd) next.budget_dzd = budgetDzd;
   if (normalizedPayload.startsWith("STRIVIO_CHAT_ORDER")) {
@@ -289,6 +298,27 @@ export function mergeConversationMemory(previous = {}, value = "", payload = "")
   next.missing_fields = getSalesReadiness(next).missingFields;
   next.updated_at = new Date().toISOString();
   return next;
+}
+
+export function isSalesContinuation(value) {
+  const normalized = normalizeMessage(value);
+  if (!normalized) return false;
+  if (identifyService(value)) return true;
+  if (numberFromToken(value) || screenCountFromText(value) || quantityFromText(value)) return true;
+  if (planTypeFromText(value) || budgetFromText(value)) return true;
+  if (/^[1-5]$/.test(normalized)) return true;
+  if (
+    hasAny(normalized, [
+      ...PRICE_WORDS,
+      ...OFFER_WORDS,
+      ...BUY_WORDS,
+      ...PAYMENT_WORDS,
+      ...DELIVERY_WORDS,
+      ...WEBSITE_WORDS,
+      ...WARRANTY_WORDS,
+    ])
+  ) return true;
+  return /(?:اشترك|اشتراك|اطلب|طلب|طلبية|commander|abonner|subscribe|order)/iu.test(normalized);
 }
 
 export function identifyIntent(value) {
@@ -570,6 +600,7 @@ export function buildMetaActions({
   includeWebsite = true,
   includeChat = true,
   includeHuman = true,
+  websiteAsPostback = false,
   queryParams = {},
   attribution = null,
 } = {}) {
@@ -599,7 +630,13 @@ export function buildMetaActions({
         : "";
       if (variant) url.searchParams.set("variant", variant);
     }
-    actions.push({ type: "web_url", title: labels.website, url: url.toString() });
+    actions.push(websiteAsPostback
+      ? {
+          type: "postback",
+          title: labels.website,
+          payload: `STRIVIO_WEBSITE:${String(serviceId || "general").slice(0, 60)}`,
+        }
+      : { type: "web_url", title: labels.website, url: url.toString() });
   }
   if (includeChat) {
     actions.push({
@@ -616,6 +653,57 @@ export function buildMetaActions({
     });
   }
   return actions.slice(0, 3);
+}
+
+export function buildQualificationActions({
+  locale = "fr",
+  memory = {},
+  service = null,
+} = {}) {
+  if (!service || String(memory?.service_id || "") !== String(service?.id || "")) return [];
+  const missing = getSalesReadiness(memory, service).missingFields[0] || "";
+  if (missing === "type") {
+    const labels = service?.types?.[locale]
+      || service?.types?.[locale === "dz" ? "ar" : "fr"]
+      || service?.types?.en
+      || [];
+    const prices = Array.isArray(service?.type_prices) ? service.type_prices : [];
+    return prices
+      .map((durationPrices, typeIndex) => ({
+        type: "quick_reply",
+        title: String(labels[typeIndex] || `Option ${typeIndex + 1}`).slice(0, 20),
+        payload: `STRIVIO_SELECT_TYPE:${String(service.id).slice(0, 60)}:${typeIndex}`,
+        available: Array.isArray(durationPrices)
+          && durationPrices.some((price) => Number(price || 0) > 0),
+      }))
+      .filter((action) => action.available)
+      .map(({ available: _available, ...action }) => action)
+      .slice(0, 13);
+  }
+  if (missing === "duration_months") {
+    const typeIndex = (
+      memory?.type_index !== null
+      && memory?.type_index !== undefined
+      && Number.isInteger(Number(memory.type_index))
+    )
+      ? Number(memory.type_index)
+      : Math.max(0, Number(memory?.quantity || 1) - 1);
+    const prices = service?.show_types
+      ? service?.type_prices?.[typeIndex]
+      : service?.p;
+    const labels = durationLabels(locale);
+    return DURATION_MONTHS
+      .map((months, durationIndex) => ({
+        type: "quick_reply",
+        title: String(labels[durationIndex] || `${months} months`).slice(0, 20),
+        payload: `STRIVIO_SELECT_DURATION:${String(service.id).slice(0, 60)}:${months}`,
+        price: Number(prices?.[durationIndex] || 0),
+      }))
+      .filter((action) => action.price > 0)
+      .map(({ price: _price, ...action }) => action)
+      .slice(0, 13);
+  }
+  return [];
 }
 
 function qualificationQuestion(locale, missingFields, service) {
@@ -655,7 +743,7 @@ export function deterministicReply({
 }) {
   const detectedLocale = locale || detectLanguage(text);
   const rememberedService = String(memory?.service_id || "");
-  const effectiveText = !identifyService(text) && rememberedService
+  const effectiveText = !identifyService(text) && rememberedService && isSalesContinuation(text)
     ? `${rememberedService} ${text}`
     : text;
   const analysis = identifyIntent(effectiveText);
@@ -833,7 +921,15 @@ export function deterministicReply({
     )
       ? Number(effectiveMemory.type_index)
       : 0;
-    const hasRequiredType = !service?.show_types || Boolean(effectiveMemory?.quantity || effectiveMemory?.plan_type);
+    const hasRequiredType = !service?.show_types || Boolean(
+      effectiveMemory?.quantity
+      || effectiveMemory?.plan_type
+      || (
+        effectiveMemory?.type_index !== null
+        && effectiveMemory?.type_index !== undefined
+        && Number.isInteger(Number(effectiveMemory.type_index))
+      ),
+    );
     const priceSource = service?.show_types
       ? service?.type_prices?.[requestedTypeIndex]
       : service?.p;
