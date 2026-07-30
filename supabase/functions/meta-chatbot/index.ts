@@ -439,15 +439,15 @@ async function askGemini({
     "Never request or reveal a password, PIN, payment credential, or account credential.",
     "Never disclose customer-specific order information in social messages. For order status, tell the customer to open Strivio from the bio, sign in using the order email, then open My Account and Purchases.",
     "Buying flow: choose a service, duration and type/quantity; add to cart; enter name, email and phone; choose payment; confirm; then follow delivery from My Account.",
-    "Payment methods: CIB/Dahabia card through SATIM; BaridiMob; CCP; Wise in EUR with the current rate shown in cart; USDT with the current rate shown in cart; Flexy with a 19% service fee. Coupons are validated in cart.",
+    "There are exactly two customer-friendly order routes. Route 1: order on the website and pay directly by Edahabia or CIB card, then track delivery and support from My Account. Route 2: continue manually in the conversation and pay by BaridiMob, CCP, Wise, USDT, or Flexy; Flexy adds a 19% service fee. Explain these routes simply and never mention implementation details or payment gateway names.",
     "Delivery modes: automatic_slot and automatic_account use automatic delivery after payment confirmation; manual_activation asks the customer for their service login inside the protected order page and Strivio activates it; manual_delivery is prepared and delivered by the Strivio team.",
-    "First understand the requested service, duration, type/quantity and missing needs. Ask at most ONE short clarification question in a reply.",
+    "First understand the requested service, duration, type/quantity and missing needs. Ask only one short, relevant clarification in each reply, but keep helping for as many turns as the customer needs.",
     "Never hand the conversation to a human merely because a question is unclear. Keep the bot active and ask one shorter clarification. Set handoff=true only when the customer explicitly asks for a human/manual order, or when there is a real account, order, payment or warranty problem that requires staff action.",
-    "Only when the purchase choice is sufficiently clear, explain briefly that the website supports CIB and Dahabia through SATIM, offers protected order tracking and account support, while manual chat ordering remains available.",
+    "Only when the purchase choice is sufficiently clear, explain briefly that the website supports CIB and Edahabia card payment plus protected tracking and account support, while manual chat ordering supports BaridiMob and the other listed manual methods.",
     "For sales variant A, emphasize secure CIB/Dahabia payment and protected tracking. For variant B, emphasize ease, current offers, and managing the subscription from My Account. Do not change any factual claim.",
     "When the customer is ready to buy, offer both choices: order securely on the website, or continue manually in this chat. Interactive buttons are added by the backend, so do not write button labels.",
     "Warranty: answer only from supplied Knowledge. If no warranty fact exists, hand off rather than inventing a promise.",
-    "If the request is ambiguous, sensitive, angry, asks for a human, or cannot be answered from supplied facts, set handoff=true.",
+    "If a request is broad, answer all parts that are supported by the supplied facts. If it is ambiguous, ask one useful clarification and keep the bot active. Set handoff=true only when the customer explicitly asks for a person/manual handling, or reports a customer-specific account, order, payment, or warranty problem that needs staff action.",
     "Return only JSON matching: {reply:string, language:'ar'|'fr'|'en'|'dz', intent:string, confidence:number, handoff:boolean, needs_clarification:boolean, summary:string, unknown_question:string}.",
     `Preferred detected language: ${locale}`,
     `Catalog: ${JSON.stringify(catalog)}`,
@@ -825,6 +825,20 @@ function isSalesIntent(intent: string) {
   return ["price", "purchase", "service_interest", "payment", "delivery", "ai_answer"].includes(String(intent || ""));
 }
 
+function hasMultipleInformationTopics(value: string) {
+  const text = normalizeMessage(value);
+  const topicPatterns = [
+    /(?:سعر|اسعار|ثمن|prix|tarif|price|combien|ch7al|chehal)/i,
+    /(?:دفع|نخلص|بطاق|ذهبي|baridimob|flexy|wise|usdt|ccp|cib|paiement|payer|payment)/i,
+    /(?:تسليم|استلم|يوصل|livraison|delivery|deliver)/i,
+    /(?:ضمان|تعويض|garantie|warranty|guarantee|replacement)/i,
+    /(?:عرض|عروض|هدية|مجاني|offre|promo|gift|free)/i,
+    /(?:تجديد|تمديد|renouvel|renew|extend)/i,
+    /(?:الموقع|المحادثة|يدوي|site|website|chat|manuel|manual)/i,
+  ];
+  return topicPatterns.filter((pattern) => pattern.test(text)).length > 1;
+}
+
 function shouldAttachActions(answer: any, memory: any, services: any[], stage: string) {
   if (answer?.handoff || ["handoff", "lost", "manual"].includes(stage)) return false;
   return ["ready_to_buy", "website"].includes(stage)
@@ -984,11 +998,6 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     if (pendingTurn.length >= 6) break;
   }
   const turnText = pendingTurn.filter(Boolean).join("\n").slice(0, 4000) || event.text;
-  const clarificationCount = recent.filter((item: any) =>
-    item.sender_role === "bot"
-    && (item.metadata?.needs_clarification === true || item.intent === "clarification")
-  ).length;
-
   const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
   const tenMinutesAgo = new Date(Date.now() - 10 * 60_000).toISOString();
   const [minuteUsage, tenMinuteUsage] = await Promise.all([
@@ -1070,20 +1079,15 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     });
   }
   const aiDiagnostics: { error?: string } = {};
-  const maximumClarifications = Math.max(
-    0,
-    Math.min(5, Number(botData.settings.max_clarifying_questions ?? 2)),
-  );
   const conversationState = {
     stage: String(conversation.metadata?.stage || "new"),
-    clarification_count: clarificationCount,
-    maximum_clarifications: maximumClarifications,
     sales_variant: conversation.metadata?.sales_variant || null,
     attribution: conversation.metadata?.attribution || {},
   };
+  const isComprehensiveQuestion = hasMultipleInformationTopics(turnText);
   const keepRuleAnswer = answer.handoff
-    || answer.precise === true
-    || ["human_handoff", "order_status", "greeting"].includes(answer.intent);
+    || ["human_handoff", "order_status", "greeting"].includes(answer.intent)
+    || (answer.precise === true && !isComprehensiveQuestion);
   const aiAllowed = !keepRuleAnswer
     && botData.settings.ai_enabled
     && botData.settings.provider === "gemini"
@@ -1156,22 +1160,6 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   if (typeof answer.needsClarification !== "boolean") {
     answer.needsClarification = /[?؟]/.test(String(answer.reply || ""))
       && !checkoutReadiness(memory, botData.services);
-  }
-  if (answer.needsClarification && clarificationCount >= maximumClarifications) {
-    const variants: Record<string, string> = {
-      ar: "لنبدأ من جديد بشكل بسيط: ما اسم الخدمة التي تريدها؟",
-      fr: "Reprenons simplement : quel service recherchez-vous ?",
-      en: "Let’s start simply: which service are you looking for?",
-      dz: "نعاودوها ببساطة: واش اسم الخدمة لي تحتاجها؟",
-    };
-    answer = {
-      ...answer,
-      reply: variants[answer.locale || event.locale] || variants.fr,
-      intent: "clarification",
-      handoff: false,
-      needsClarification: true,
-      source: "rules",
-    };
   }
   const allowedHandoffIntents = new Set([
     "human_handoff",
@@ -1250,6 +1238,18 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     if (botData.settings.typing_enabled !== false) {
       await setMetaTyping(event.channel, event.accountId, event.senderId, false);
     }
+    const finalLease = await db.from("chatbot_conversations")
+      .select("mode,metadata")
+      .eq("id", conversation.id)
+      .maybeSingle();
+    if (finalLease.error) throw finalLease.error;
+    if (
+      !finalLease.data
+      || (finalLease.data.mode !== "bot" && !(answer.handoff && finalLease.data.mode === "human"))
+      || finalLease.data.metadata?.reply_generation !== event.replyGeneration
+    ) {
+      return { stored: true, replied: false, superseded: true, reason: "manual_takeover" };
+    }
     try {
       const sent = await sendMetaReply(
         event.channel,
@@ -1314,7 +1314,6 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
       memory,
       stage,
       summary: String(answer.summary || conversation.metadata?.summary || "").slice(0, 500),
-      clarification_count: clarificationCount + (answer.needsClarification ? 1 : 0),
       unknown_questions: [
         ...(Array.isArray(conversation.metadata?.unknown_questions)
           ? conversation.metadata.unknown_questions
@@ -1590,6 +1589,22 @@ serve(async (req) => {
     if (!conversation || !["instagram", "messenger"].includes(conversation.channel)) {
       return json(req, { success: false, error: "Conversation not found" }, 404);
     }
+    const manualTakeoverAt = new Date().toISOString();
+    const takeover = await db.from("chatbot_conversations").update({
+      mode: "human",
+      handoff_reason: "admin_reply_pending",
+      follow_up_due_at: null,
+      metadata: {
+        ...(conversation.metadata || {}),
+        reply_generation: `admin:${crypto.randomUUID()}`,
+        follow_up_stopped_reason: "admin_reply",
+        manual_takeover_at: manualTakeoverAt,
+      },
+    }).eq("id", conversation.id).select("id").maybeSingle();
+    if (takeover.error) throw takeover.error;
+    if (!takeover.data) {
+      return json(req, { success: false, error: "Conversation not found" }, 404);
+    }
     const outboundText = conversation.channel === "instagram"
       ? socialReplyWithOfficialLinks(text, detectLanguage(text), true)
       : text;
@@ -1631,7 +1646,7 @@ serve(async (req) => {
     const updated = await db.from("chatbot_conversations").update({
       mode: "human",
       unread_count: 0,
-      last_outbound_at: new Date().toISOString(),
+      last_outbound_at: manualTakeoverAt,
       handoff_reason: "admin_reply",
     }).eq("id", conversation.id);
     if (updated.error) throw updated.error;

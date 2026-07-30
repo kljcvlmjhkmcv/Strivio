@@ -503,9 +503,6 @@
               <label class="text-xs muted">مهلة تجميع الرسائل (مللي ثانية)
                 <input id="chatbot-debounce-ms" class="input mt-2" type="number" min="500" max="5000" step="100" />
               </label>
-              <label class="text-xs muted">أقصى أسئلة توضيحية
-                <input id="chatbot-max-clarifying" class="input mt-2" type="number" min="0" max="5" />
-              </label>
               <label class="text-xs muted">أقصى طول للرد (حرف)
                 <input id="chatbot-reply-char-limit" class="input mt-2" type="number" min="200" max="1900" step="50" />
               </label>
@@ -3897,7 +3894,6 @@
         if ($("chatbot-burst-limit")) $("chatbot-burst-limit").value = Number(botSettings.burst_limit_per_minute || 15);
         if ($("chatbot-ten-minute-limit")) $("chatbot-ten-minute-limit").value = Number(botSettings.ten_minute_limit || 60);
         if ($("chatbot-debounce-ms")) $("chatbot-debounce-ms").value = Number(botSettings.debounce_ms || 2500);
-        if ($("chatbot-max-clarifying")) $("chatbot-max-clarifying").value = Number(botSettings.max_clarifying_questions ?? 2);
         if ($("chatbot-reply-char-limit")) $("chatbot-reply-char-limit").value = Number(botSettings.reply_char_limit || 650);
         if ($("chatbot-ai-hour-limit")) $("chatbot-ai-hour-limit").value = Number(botSettings.max_ai_replies_per_hour || 16);
         if ($("chatbot-ai-daily-limit")) $("chatbot-ai-daily-limit").value = Number(botSettings.daily_ai_limit || 300);
@@ -4264,7 +4260,6 @@
               burst_limit_per_minute: bounded("chatbot-burst-limit", 15, 3, 60),
               ten_minute_limit: bounded("chatbot-ten-minute-limit", 60, 20, 600),
               debounce_ms: bounded("chatbot-debounce-ms", 2500, 500, 5000),
-              max_clarifying_questions: bounded("chatbot-max-clarifying", 2, 0, 5),
               reply_char_limit: bounded("chatbot-reply-char-limit", 650, 200, 1900),
               max_ai_replies_per_hour: bounded("chatbot-ai-hour-limit", 16, 4, 60),
               daily_ai_limit: bounded("chatbot-ai-daily-limit", 300, 20, 3000),

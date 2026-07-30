@@ -2,7 +2,15 @@
 const SERVICE_ALIASES = {
   netflix: ["netflix", "net flix", "نتفلكس", "نتفليكس"],
   spotify: ["spotify", "spotifay", "سبوتيفاي", "سبوتيفي"],
-  chatgpt: ["chatgpt", "chat gpt", "gpt", "شات جي بي تي", "شاتجيبيتي"],
+  chatgpt: [
+    "chatgpt",
+    "chat gpt",
+    "gpt",
+    "شات جي بي تي",
+    "شات جيبيتي",
+    "شاتجيبيتي",
+    "شات جبيتي",
+  ],
   gemini: ["gemini", "جيميني", "جمني"],
   snapchat: ["snapchat", "snap", "سناب", "سنابشات"],
   crunchyroll: ["crunchyroll", "crunchy", "كرانشي رول", "كرانشيرول"],
@@ -148,7 +156,8 @@ function numberFromToken(value) {
   if (/(?:ستة|سته|six)\s*(?:اشهر|شهور|mois|months?)/i.test(normalized)) return 6;
   if (/(?:ثلاثة|ثلاث|trois|three)\s*(?:اشهر|شهور|mois|months?)/i.test(normalized)) return 3;
   if (/(?:شهرين|شهران|deux mois|two months)/i.test(normalized)) return 2;
-  if (/(?:شهر واحد|un mois|one month)/i.test(normalized)) return 1;
+  if (/^(?:شهر|الشهر|mois|month)$/i.test(normalized)) return 1;
+  if (/(?:شهر واحد|واحد شهر|un mois|one month)/i.test(normalized)) return 1;
   return null;
 }
 
@@ -228,8 +237,13 @@ export function isReadyForCompletionActions(memory = {}, service = null) {
 export function mergeConversationMemory(previous = {}, value = "", payload = "") {
   const next = { ...(previous && typeof previous === "object" ? previous : {}) };
   const serviceId = identifyService(value);
-  const durationMonths = numberFromToken(value);
-  const quantity = quantityFromText(value);
+  const normalizedValue = normalizeMessage(value);
+  const bareChoice = normalizedValue.match(/^([1-5])$/);
+  const expectsType = Array.isArray(next?.missing_fields)
+    && next.missing_fields.includes("type");
+  const durationMonths = expectsType && bareChoice ? null : numberFromToken(value);
+  const quantity = quantityFromText(value)
+    || (expectsType && bareChoice ? Number(bareChoice[1]) : null);
   const planType = planTypeFromText(value);
   const budgetDzd = budgetFromText(value);
   const normalizedPayload = String(payload || "").toUpperCase();
@@ -699,10 +713,10 @@ export function deterministicReply({
       handoff: false,
       precise: true,
       reply: localized(detectedLocale, {
-        ar: "الدفع الآمن عبر الموقع متاح بـ:\n• البطاقة الذهبية أو CIB عبر SATIM\n• BaridiMob أو CCP\n• Wise أو USDT\n• Flexy مع رسوم خدمة 19%\nالشراء من الموقع يتيح لك الكوبونات والعروض، تتبع الطلب، واستلام تفاصيله من حسابك.\nيمكنك الشراء من الموقع مباشرة أو إكمال الطلب هنا.",
-        fr: "Paiement sécurisé sur le site :\n• Carte Edahabia ou CIB via SATIM\n• BaridiMob ou CCP\n• Wise ou USDT\n• Flexy avec 19 % de frais\nLe site permet aussi d’utiliser les coupons, voir les offres, suivre la commande et retrouver ses détails.\nVous pouvez commander sur le site ou continuer ici.",
-        en: "Secure website payment supports:\n• Edahabia or CIB card through SATIM\n• BaridiMob or CCP\n• Wise or USDT\n• Flexy with a 19% service fee\nThe website also gives you coupons, current offers, order tracking, and access to order details.\nYou can order on the website or continue here.",
-        dz: "الدفع الآمن في الموقع متوفر بـ:\n• Edahabia ولا CIB عبر SATIM\n• BaridiMob ولا CCP\n• Wise ولا USDT\n• Flexy بزيادة 19%\nفي الموقع تقدر تستعمل الكوبون، تشوف العروض، وتتبع طلبك من حسابك.\nتقدر تشري من الموقع مباشرة ولا نكملو هنا.",
+        ar: "لديك طريقتان لإكمال الطلب:\n1) عبر الموقع: تختار المنتج وتدفع مباشرة بالبطاقة الذهبية أو CIB، ثم تتابع الطلب والتسليم من حسابك.\n2) هنا في المحادثة: نكمل طلبك يدويًا، ويمكنك الدفع عبر BaridiMob أو CCP أو Wise أو USDT أو Flexy. عند الدفع بـ Flexy تضاف رسوم 19%.\nأي طريقة تفضل؟",
+        fr: "Vous avez deux façons de commander :\n1) Sur le site : choisissez le produit, payez directement par carte Edahabia ou CIB, puis suivez la commande et la livraison depuis votre compte.\n2) Ici dans la conversation : nous préparons la commande manuellement. Paiement disponible par BaridiMob, CCP, Wise, USDT ou Flexy. Flexy ajoute 19 % de frais.\nQuelle méthode préférez-vous ?",
+        en: "You have two ways to order:\n1) On the website: choose the product, pay directly by Edahabia or CIB card, then track the order and delivery from your account.\n2) Here in the conversation: we prepare the order manually. You can pay with BaridiMob, CCP, Wise, USDT, or Flexy. Flexy adds a 19% service fee.\nWhich option do you prefer?",
+        dz: "عندك زوج طرق باش تكمل الطلب:\n1) من الموقع: تختار المنتج وتخلص مباشرة بالبطاقة الذهبية ولا CIB، ومن حسابك تتابع الطلب والتسليم.\n2) هنا في المحادثة: نكملولك الطلب يدويًا، وتقدر تخلص بـ BaridiMob ولا CCP ولا Wise ولا USDT ولا Flexy. في Flexy كاينة زيادة 19%.\nواش من طريقة تفضل؟",
       }),
       source: "rules",
     };
@@ -716,10 +730,10 @@ export function deterministicReply({
       handoff: false,
       precise: true,
       reply: localized(detectedLocale, {
-        ar: "الشراء من موقع Strivio هو الخيار الأسرع والأسهل.\nيدعم البطاقة الذهبية وCIB بأمان عبر SATIM.\nستجد العروض والكوبونات، وتتبع الطلب، والتجديد، والدعم من حسابك.\nوإذا فضلت، يمكننا أيضًا إكمال الطلب معك هنا.",
-        fr: "Commander sur le site Strivio est le choix le plus rapide et le plus simple.\nLe paiement par carte Edahabia ou CIB est sécurisé via SATIM.\nVous profitez aussi des offres, coupons, suivi, renouvellement et support depuis votre compte.\nSi vous préférez, nous pouvons également continuer ici.",
-        en: "Ordering on the Strivio website is the fastest and easiest option.\nEdahabia and CIB card payments are secured through SATIM.\nYou also get offers, coupons, tracking, renewal, and support from your account.\nIf you prefer, we can continue here too.",
-        dz: "الشراء من موقع Strivio هو الأسرع والأسهل.\nتقدر تخلص بـ Edahabia ولا CIB بأمان عبر SATIM.\nتلقى العروض والكوبونات، تتبع الطلب، التجديد، والدعم كامل من حسابك.\nوإذا تحب نقدروا نكملوا الطلب هنا.",
+        ar: "الطلب عبر موقع Strivio هو الخيار الأسرع: تختار المنتج وتدفع بالبطاقة الذهبية أو CIB، ثم تتابع الطلب والتسليم والتجديد والدعم من حسابك.\nوإذا كنت تفضل الدفع عبر BaridiMob أو CCP أو Wise أو USDT أو Flexy، يمكننا إكمال الطلب معك هنا في المحادثة.",
+        fr: "Commander sur le site Strivio est le choix le plus rapide : choisissez le produit, payez par carte Edahabia ou CIB, puis suivez la commande, la livraison, le renouvellement et le support depuis votre compte.\nPour payer par BaridiMob, CCP, Wise, USDT ou Flexy, nous pouvons continuer ici dans la conversation.",
+        en: "Ordering on the Strivio website is the fastest option: choose the product, pay by Edahabia or CIB card, then manage tracking, delivery, renewal, and support from your account.\nFor BaridiMob, CCP, Wise, USDT, or Flexy, we can complete the order here in the conversation.",
+        dz: "الطلب من موقع Strivio هو الأسرع: تختار المنتج وتخلص بالبطاقة الذهبية ولا CIB، ومن حسابك تتابع الطلب والتسليم والتجديد والدعم.\nإذا تحب تخلص بـ BaridiMob ولا CCP ولا Wise ولا USDT ولا Flexy، نقدروا نكملوا الطلب هنا في المحادثة.",
       }),
       source: "rules",
     };

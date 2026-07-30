@@ -85,6 +85,7 @@ assert.equal(identifyIntent("kifach nkhalles").intent, "payment");
 assert.equal(identifyIntent("هل يوجد ضمان كامل؟").intent, "warranty");
 assert.equal(identifyIntent("I want a human agent").intent, "human_handoff");
 assert.equal(identifyIntent("I need a ChatGPT account").intent, "purchase");
+assert.equal(identifyIntent("نحتاج شات جيبيتي").serviceId, "chatgpt");
 assert.equal(identifyIntent("Where is my order?").intent, "order_status");
 
 const netflixReply = deterministicReply({
@@ -146,8 +147,11 @@ const paymentReply = deterministicReply({
   services,
   knowledge: [],
 });
-assert.match(paymentReply.reply, /SATIM/);
 assert.match(paymentReply.reply, /BaridiMob/);
+assert.match(paymentReply.reply, /طريقتان|زوج طرق/);
+assert.match(paymentReply.reply, /CIB/);
+assert.match(paymentReply.reply, /Flexy/);
+assert.doesNotMatch(paymentReply.reply, /SATIM/i);
 assert.match(paymentReply.reply, /USDT/);
 assert.match(paymentReply.reply, /CIB/);
 
@@ -168,6 +172,13 @@ assert.equal(
 );
 
 const rememberedNetflix = mergeConversationMemory({}, "khsni netflix");
+const rememberedOneMonth = mergeConversationMemory(rememberedNetflix, "شهر");
+assert.equal(rememberedOneMonth.duration_months, 1);
+assert.deepEqual(rememberedOneMonth.missing_fields, ["type"]);
+const rememberedOneProfile = mergeConversationMemory(rememberedOneMonth, "1");
+assert.equal(rememberedOneProfile.duration_months, 1);
+assert.equal(rememberedOneProfile.quantity, 1);
+assert.equal(getSalesReadiness(rememberedOneProfile, services[0]).ready, true);
 const rememberedArabicPlan = mergeConversationMemory(
   rememberedNetflix,
   "ثلاثة أشهر، ثلاث شاشات",
@@ -228,6 +239,9 @@ assert.match(runtimeSource, /ten_minute_limit \|\| 60/);
 assert.match(runtimeSource, /sales_stage: stage/);
 assert.match(runtimeSource, /Never hand the conversation to a human merely because a question is unclear/);
 assert.match(runtimeSource, /intent: "clarification",\s+handoff: false/);
+assert.match(runtimeSource, /handoff_reason: "admin_reply_pending"/);
+assert.match(runtimeSource, /reason: "manual_takeover"/);
+assert.doesNotMatch(runtimeSource, /maximumClarifications|max_clarifying_questions/);
 assert.doesNotMatch(runtimeSource, /out_of_stock/);
 
 console.log("Chatbot language and safety checks passed.");
