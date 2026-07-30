@@ -241,6 +241,7 @@ assert.match(runtimeSource, /Never hand the conversation to a human merely becau
 assert.match(runtimeSource, /intent: "clarification",\s+handoff: false/);
 assert.match(runtimeSource, /handoff_reason: "admin_reply_pending"/);
 assert.match(runtimeSource, /reason: "manual_takeover"/);
+assert.match(runtimeSource, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
 assert.doesNotMatch(runtimeSource, /maximumClarifications|max_clarifying_questions/);
 assert.doesNotMatch(runtimeSource, /out_of_stock/);
 

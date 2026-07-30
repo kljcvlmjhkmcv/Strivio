@@ -458,59 +458,73 @@ async function askGemini({
     `Recent conversation: ${JSON.stringify(safeHistory)}`,
     `Customer message: ${safeText}`,
   ].join("\n\n");
-  let response: Response;
-  try {
-    response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "x-goog-api-key": apiKey,
-          "Content-Type": "application/json",
+  const requestBody = JSON.stringify({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      maxOutputTokens: 1400,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          reply: { type: "STRING" },
+          language: { type: "STRING", enum: ["ar", "fr", "en", "dz"] },
+          intent: { type: "STRING" },
+          confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
+          handoff: { type: "BOOLEAN" },
+          needs_clarification: { type: "BOOLEAN" },
+          summary: { type: "STRING" },
+          unknown_question: { type: "STRING" },
         },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            maxOutputTokens: 1400,
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "OBJECT",
-              properties: {
-                reply: { type: "STRING" },
-                language: { type: "STRING", enum: ["ar", "fr", "en", "dz"] },
-                intent: { type: "STRING" },
-                confidence: { type: "NUMBER", minimum: 0, maximum: 1 },
-                handoff: { type: "BOOLEAN" },
-                needs_clarification: { type: "BOOLEAN" },
-                summary: { type: "STRING" },
-                unknown_question: { type: "STRING" },
-              },
-              required: [
-                "reply",
-                "language",
-                "intent",
-                "confidence",
-                "handoff",
-                "needs_clarification",
-                "summary",
-                "unknown_question",
-              ],
-            },
-          },
-        }),
+        required: [
+          "reply",
+          "language",
+          "intent",
+          "confidence",
+          "handoff",
+          "needs_clarification",
+          "summary",
+          "unknown_question",
+        ],
       },
-    );
-  } catch (error) {
-    const message = String(error?.message || error).slice(0, 500);
-    if (diagnostics) diagnostics.error = `Gemini network error: ${message}`;
-    console.warn("Gemini request could not be sent", { model, error: message });
-    return null;
+    },
+  });
+  let response: Response | null = null;
+  let responseText = "";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "x-goog-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: requestBody,
+        },
+      );
+      responseText = await response.text();
+      if (response.ok) break;
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt === 2) break;
+    } catch (error) {
+      const message = String(error?.message || error).slice(0, 500);
+      if (attempt === 2) {
+        if (diagnostics) diagnostics.error = `Gemini network error: ${message}`;
+        console.warn("Gemini request could not be sent", { model, error: message });
+        return null;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 450 * (attempt + 1)));
   }
-  const responseText = await response.text();
-  if (!response.ok) {
-    if (diagnostics) diagnostics.error = `Gemini HTTP ${response.status}: ${responseText.slice(0, 500)}`;
+  if (!response?.ok) {
+    if (diagnostics) {
+      diagnostics.error = response
+        ? `Gemini HTTP ${response.status}: ${responseText.slice(0, 500)}`
+        : "Gemini request failed without a response";
+    }
     console.warn("Gemini request failed", {
-      status: response.status,
+      status: response?.status || 0,
       body: responseText.slice(0, 800),
       model,
     });
