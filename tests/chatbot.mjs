@@ -40,6 +40,11 @@ const services = [
     n: { ar: "سبوتيفاي بريميوم", fr: "Spotify Premium", en: "Spotify Premium" },
     p: [690, 1200, 1500, 2500, 3600],
   },
+  {
+    id: "chatgpt",
+    n: { ar: "شات جي بي تي بلس", fr: "ChatGPT Plus", en: "ChatGPT Plus" },
+    p: [1900, 0, 0, 0, 0],
+  },
 ];
 
 const bundleRules = [
@@ -76,6 +81,7 @@ assert.equal(detectLanguage("khsni netflix 3 mois 2 screens"), "dz");
 assert.equal(detectLanguage("Combien coûte Spotify ?"), "fr");
 assert.equal(detectLanguage("I need Netflix"), "en");
 assert.equal(detectLanguage("أريد نتفلكس"), "ar");
+assert.equal(detectLanguage("Slm"), "dz");
 
 assert.match(normalizeMessage("khsni netflix ch7al"), /احتاج netflix كم السعر/);
 assert.equal(normalizeMessage("ثلاثة أشهر"), "ثلاثة اشهر");
@@ -87,6 +93,9 @@ assert.equal(identifyIntent("I want a human agent").intent, "human_handoff");
 assert.equal(identifyIntent("I need a ChatGPT account").intent, "purchase");
 assert.equal(identifyIntent("نحتاج شات جيبيتي").serviceId, "chatgpt");
 assert.equal(identifyIntent("Where is my order?").intent, "order_status");
+assert.equal(identifyIntent("ارسلي كامل عروض نتفلكس").intent, "offer");
+assert.equal(identifyIntent("كيفاه ندير طلبية").intent, "purchase_instructions");
+assert.equal(identifyIntent("How to subscribe").intent, "purchase_instructions");
 
 const netflixReply = deterministicReply({
   text: "khsni netflix ch7al",
@@ -166,6 +175,26 @@ assert.equal(warrantyReply.precise, true);
 assert.match(warrantyReply.reply, /مضمونة|ضمان/);
 assert.match(warrantyReply.reply, /الإصلاح|الاستبدال/);
 
+const subscribeReply = deterministicReply({
+  text: "كيفاه ندير طلبية",
+  locale: "ar",
+  services,
+  knowledge: [],
+});
+assert.equal(subscribeReply.intent, "purchase_instructions");
+assert.match(subscribeReply.reply, /بطريقتين/);
+assert.match(subscribeReply.reply, /BaridiMob/);
+assert.match(subscribeReply.reply, /https:\/\/www\.striviodz\.store/);
+
+const unavailableChatGpt = deterministicReply({
+  text: "شات جيبيتي ثلاث اشهر",
+  locale: "ar",
+  services,
+  knowledge: [],
+});
+assert.match(unavailableChatGpt.reply, /غير متوفرة/);
+assert.match(unavailableChatGpt.reply, /1900/);
+
 assert.equal(
   redactSensitiveText("email me at user@example.com password: Secret123 phone 0555123456"),
   "email me at [email] [credential] phone [phone]",
@@ -179,6 +208,19 @@ const rememberedOneProfile = mergeConversationMemory(rememberedOneMonth, "1");
 assert.equal(rememberedOneProfile.duration_months, 1);
 assert.equal(rememberedOneProfile.quantity, 1);
 assert.equal(getSalesReadiness(rememberedOneProfile, services[0]).ready, true);
+const offerReply = deterministicReply({
+  text: "ارسلي كامل عروض نتفلكس",
+  locale: "ar",
+  services,
+  knowledge: [],
+  bundleRules,
+  memory: rememberedOneProfile,
+});
+assert.equal(offerReply.intent, "offer");
+assert.match(offerReply.reply, /3 أشهر/);
+assert.match(offerReply.reply, /Prime Video/);
+assert.match(offerReply.reply, /https:\/\/www\.striviodz\.store/);
+assert.doesNotMatch(offerReply.reply, /الخطة: شاشة واحدة/);
 const rememberedArabicPlan = mergeConversationMemory(
   rememberedNetflix,
   "ثلاثة أشهر، ثلاث شاشات",
@@ -245,6 +287,10 @@ assert.match(runtimeSource, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)
 assert.match(runtimeSource, /AbortSignal\.timeout\(9000\)/);
 assert.match(runtimeSource, /comprehensiveFallbackAnswer/);
 assert.match(runtimeSource, /البطاقة الذهبية أو CIB/);
+assert.match(runtimeSource, /localeForInbound\(event\.text, event\.locale, existing\.data\.locale\)/);
+assert.match(runtimeSource, /event\.locale = String\(conversation\.locale/);
+assert.match(runtimeSource, /\["offer", "price"\]\.includes/);
+assert.match(runtimeSource, /جميع العروض والأسعار: https:\/\/www\.striviodz\.store/);
 assert.doesNotMatch(runtimeSource, /عبر SATIM/);
 assert.doesNotMatch(runtimeSource, /maximumClarifications|max_clarifying_questions/);
 assert.doesNotMatch(runtimeSource, /out_of_stock/);

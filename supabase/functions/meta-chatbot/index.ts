@@ -686,6 +686,14 @@ function addAttributionToActions(
   });
 }
 
+function localeForInbound(text: string, detectedLocale: string, previousLocale = "") {
+  const hasLetters = /[\p{L}]/u.test(String(text || ""));
+  if (!hasLetters && ["ar", "fr", "en", "dz"].includes(previousLocale)) {
+    return previousLocale;
+  }
+  return detectedLocale;
+}
+
 async function upsertConversation(db: any, event: any, settings: any) {
   const now = new Date().toISOString();
   const existing = await db.from("chatbot_conversations")
@@ -696,6 +704,7 @@ async function upsertConversation(db: any, event: any, settings: any) {
     .maybeSingle();
   if (existing.error) throw existing.error;
   if (existing.data) {
+    const resolvedLocale = localeForInbound(event.text, event.locale, existing.data.locale);
     const memory = mergeConversationMemory(
       existing.data.memory || existing.data.metadata?.memory || {},
       event.text,
@@ -720,7 +729,7 @@ async function upsertConversation(db: any, event: any, settings: any) {
     ).slice(0, 100);
     const updated = await db.from("chatbot_conversations")
       .update({
-        locale: event.locale,
+        locale: resolvedLocale,
         last_inbound_at: now,
         unread_count: Number(existing.data.unread_count || 0) + 1,
         memory,
@@ -954,6 +963,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   if (duplicate.data) return { duplicate: true };
 
   const conversation = await upsertConversation(db, event, botData.settings);
+  event.locale = String(conversation.locale || event.locale || botData.settings.default_locale || "fr");
   let memory = conversation.memory || conversation.metadata?.memory || {};
   const payloadValue = String(event.payload || "");
   const isChatOrderPostback = payloadValue.startsWith("STRIVIO_CHAT_ORDER:");
@@ -1219,10 +1229,25 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   if (answer.handoff && !allowedHandoffIntents.has(String(answer.intent || ""))) {
     answer.handoff = false;
   }
+  const replyCharacterLimit = Number(botData.settings.reply_char_limit || 560);
   answer.reply = limitReplyLength(
     compactDzdPrices(limitReplyToOneQuestion(answer.reply)),
-    Number(botData.settings.reply_char_limit || 560),
+    replyCharacterLimit,
   );
+  if (
+    botData.settings.allow_strivio_links !== false
+    && ["offer", "price"].includes(String(answer.intent || ""))
+    && !/https:\/\/www\.striviodz\.store/i.test(String(answer.reply || ""))
+  ) {
+    const catalogFooter: Record<string, string> = {
+      ar: "جميع العروض والأسعار: https://www.striviodz.store",
+      fr: "Toutes les offres et tous les prix : https://www.striviodz.store",
+      en: "All offers and prices: https://www.striviodz.store",
+      dz: "كامل العروض والأسعار: https://www.striviodz.store",
+    };
+    const footer = catalogFooter[answer.locale || event.locale] || catalogFooter.fr;
+    answer.reply = `${limitReplyLength(answer.reply, replyCharacterLimit - footer.length - 1)}\n${footer}`;
+  }
 
   answer.reply = event.channel === "instagram"
     ? socialReplyWithOfficialLinks(

@@ -52,6 +52,10 @@ const PRICE_WORDS = [
   "سعر", "الاسعار", "السعر", "كم", "ثمن", "prix", "tarif", "price",
   "how much", "how much is", "cost", "combien", "coute", "coûte", "ch7al", "chehal",
 ];
+const OFFER_WORDS = [
+  "عرض", "عروض", "العروض", "هدية", "هدايا", "مجاني",
+  "offre", "offres", "promo", "promotion", "gift", "gifts", "free deal",
+];
 const BUY_WORDS = [
   "اريد", "احتاج", "شراء", "نشتري", "نحب", "خصني", "ابي", "أبي",
   "buy", "need", "want", "acheter", "besoin", "khsni", "khassni", "n7ab", "nheb",
@@ -123,7 +127,7 @@ export function detectLanguage(value) {
   const raw = String(value || "");
   const normalized = normalizeMessage(raw);
   if (/[\u0600-\u06ff]/.test(raw)) return "ar";
-  if (/\b(?:khsni|khassni|khasni|n7ab|nheb|nhab|ch7al|chehal|kifach|wa9tach|nkhalles|nkhalas|kayen|makach)\b/i.test(raw)) return "dz";
+  if (/\b(?:khsni|khassni|khasni|n7ab|nheb|nhab|ch7al|chehal|kifach|wa9tach|nkhalles|nkhalas|kayen|makach|slm|salam|slt)\b/i.test(raw)) return "dz";
   if (/\b(?:bonjour|bonsoir|prix|combien|comment|merci|livraison|acheter|mois|abonnement)\b/i.test(raw)) return "fr";
   if (/\b(?:hello|price|how|buy|need|want|delivery|month|subscription)\b/i.test(raw)) return "en";
   if (/[\u0600-\u06ff]/.test(normalized)) return "dz";
@@ -291,11 +295,19 @@ export function identifyIntent(value) {
   const normalized = normalizeMessage(value);
   const serviceId = identifyService(value);
   if (hasAny(normalized, HUMAN_WORDS)) return { intent: "human_handoff", serviceId, confidence: 0.99 };
+  if (
+    /(?:كيفية|كيف|كيفاه|كيفاش).*(?:اشترك|اشتراك|اطلب|طلب|طلبية|كوموند)/iu.test(normalized)
+    || /\bhow\s+to\s+(?:subscribe|order)\b/i.test(normalized)
+    || /\bcomment\s+(?:s['’ ]?abonner|commander)\b/i.test(normalized)
+  ) {
+    return { intent: "purchase_instructions", serviceId, confidence: 0.98 };
+  }
   if (hasAny(normalized, ORDER_WORDS)) return { intent: "order_status", serviceId, confidence: 0.92 };
   if (hasAny(normalized, WARRANTY_WORDS)) return { intent: "warranty", serviceId, confidence: 0.97 };
   if (hasAny(normalized, PAYMENT_WORDS)) return { intent: "payment", serviceId, confidence: 0.91 };
   if (hasAny(normalized, DELIVERY_WORDS)) return { intent: "delivery", serviceId, confidence: 0.88 };
   if (hasAny(normalized, WEBSITE_WORDS)) return { intent: "website_checkout", serviceId, confidence: 0.86 };
+  if (hasAny(normalized, OFFER_WORDS)) return { intent: "offer", serviceId, confidence: 0.96 };
   if (serviceId && hasAny(normalized, PRICE_WORDS)) return { intent: "price", serviceId, confidence: 0.98 };
   if (serviceId && hasAny(normalized, BUY_WORDS)) return { intent: "purchase", serviceId, confidence: 0.95 };
   if (serviceId) return { intent: "service_interest", serviceId, confidence: 0.82 };
@@ -657,6 +669,12 @@ export function deterministicReply({
     missingFields: readiness.missingFields,
     salesStage: readiness.stage,
   };
+  const catalogCta = localized(detectedLocale, {
+    ar: "للاطلاع على جميع العروض والأسعار:\nhttps://www.striviodz.store",
+    fr: "Pour voir toutes les offres et tous les prix :\nhttps://www.striviodz.store",
+    en: "View every offer and price here:\nhttps://www.striviodz.store",
+    dz: "باش تشوف كامل العروض والأسعار:\nhttps://www.striviodz.store",
+  });
 
   if (analysis.intent === "human_handoff") {
     return {
@@ -685,6 +703,23 @@ export function deterministicReply({
         fr: "Tous les produits Strivio sont entièrement garantis pendant la durée payée.\nEn cas de problème, nous réparons ou remplaçons d’abord le service.\nSi cela est impossible, la durée restante est compensée par un service équivalent.\nLa garantie exclut les problèmes causés par une violation des conditions d’utilisation.",
         en: "Every Strivio product is fully covered for the paid subscription period.\nIf an issue occurs, we first repair or replace the service.\nIf that is not possible, we compensate the remaining period with an equivalent service.\nThe warranty excludes issues caused by violating the usage terms.",
         dz: "Ga3 les produits Strivio مضمونين طول مدة الاشتراك المدفوعة.\nإذا صرات مشكلة نصلحوها أو نعوضو الخدمة أولًا.\nإذا ما قدرناش، نعوضولك المدة الباقية بخدمة مكافئة.\nالضمان ما يشملش المشاكل الناتجة عن مخالفة شروط الاستعمال.",
+      }),
+      source: "rules",
+    };
+  }
+
+  if (analysis.intent === "purchase_instructions") {
+    return {
+      ...analysis,
+      ...salesMeta,
+      locale: detectedLocale,
+      handoff: false,
+      precise: true,
+      reply: localized(detectedLocale, {
+        ar: "يمكنك الاشتراك بطريقتين:\n1) عبر الموقع: اختر المنتج والمدة، أضفه للسلة، أدخل معلوماتك وادفع بالبطاقة الذهبية أو CIB. تتابع الطلب والتسليم من حسابك.\n2) هنا في المحادثة: أخبرني بالخدمة والمدة والكمية، ونكمل الطلب يدويًا عبر BaridiMob أو CCP أو Wise أو USDT أو Flexy.\nhttps://www.striviodz.store",
+        fr: "Vous pouvez commander de deux façons :\n1) Sur le site : choisissez le produit et la durée, ajoutez-le au panier, saisissez vos informations puis payez par carte Edahabia ou CIB. Le suivi se fait depuis votre compte.\n2) Ici : indiquez le service, la durée et la quantité, puis nous continuons manuellement par BaridiMob, CCP, Wise, USDT ou Flexy.\nhttps://www.striviodz.store",
+        en: "You can subscribe in two ways:\n1) On the website: choose the product and duration, add it to cart, enter your details, then pay by Edahabia or CIB card. Track delivery from your account.\n2) Here: tell me the service, duration, and quantity, then continue manually with BaridiMob, CCP, Wise, USDT, or Flexy.\nhttps://www.striviodz.store",
+        dz: "تقدر تدير الطلب بزوج طرق:\n1) من الموقع: تختار المنتج والمدة، تزيده للسلة، تدخل معلوماتك وتخلص بالذهبية ولا CIB. ومن حسابك تتابع الطلب والتسليم.\n2) هنا: تقولّي الخدمة والمدة والكمية، ونكملوه يدويًا بـ BaridiMob ولا CCP ولا Wise ولا USDT ولا Flexy.\nhttps://www.striviodz.store",
       }),
       source: "rules",
     };
@@ -752,6 +787,39 @@ export function deterministicReply({
         en: "Delivery depends on the product type.\nSome products are delivered automatically after payment confirmation.\nActivation services request the required details inside the protected order page.\nManual orders are prepared by the Strivio team.\nYou can track status and details from your account.",
         dz: "التسليم يتبدل حسب نوع المنتج.\nكاين منتجات تتسلم تلقائيًا بعد تأكيد الدفع.\nخدمات التفعيل تدخل معلوماتها في صفحة الطلب المحمية.\nوالطلبات اليدوية يجهزها فريق Strivio.\nتقدر تتبع الحالة والتفاصيل من حسابك.",
       }),
+      source: "rules",
+    };
+  }
+
+  if (analysis.intent === "offer") {
+    const offers = service ? activeOfferLines(service.id, bundleRules, detectedLocale) : [];
+    return {
+      ...analysis,
+      ...salesMeta,
+      locale: detectedLocale,
+      handoff: false,
+      precise: true,
+      reply: service
+        ? localized(detectedLocale, {
+            ar: offers.length
+              ? `${serviceName(service, "ar")} — العروض الحالية:\n${offers.join("\n")}\n${catalogCta}`
+              : `لا يوجد عرض هدية مفعّل حاليًا على ${serviceName(service, "ar")}، لكن الأسعار والخطط متاحة في الموقع.\n${catalogCta}`,
+            fr: offers.length
+              ? `${serviceName(service, "fr")} — offres actuelles :\n${offers.join("\n")}\n${catalogCta}`
+              : `Aucun cadeau promotionnel n’est actif actuellement pour ${serviceName(service, "fr")}. Les prix et formules restent disponibles sur le site.\n${catalogCta}`,
+            en: offers.length
+              ? `${serviceName(service, "en")} — current offers:\n${offers.join("\n")}\n${catalogCta}`
+              : `There is no active gift offer for ${serviceName(service, "en")} right now. Current plans and prices are available on the website.\n${catalogCta}`,
+            dz: offers.length
+              ? `${serviceName(service, "ar")} — العروض لي كاينين درك:\n${offers.join("\n")}\n${catalogCta}`
+              : `ما كاش هدية مفعلة درك مع ${serviceName(service, "ar")}، بصح تلقى الخطط والأسعار الحالية في الموقع.\n${catalogCta}`,
+          })
+        : localized(detectedLocale, {
+            ar: `ستجد جميع العروض والأسعار الحالية في الموقع. وإذا أخبرتني باسم الخدمة، أشرح لك عرضها مباشرة.\n${catalogCta}`,
+            fr: `Toutes les offres et tous les prix actuels sont disponibles sur le site. Indiquez-moi le service et je vous explique son offre.\n${catalogCta}`,
+            en: `All current offers and prices are available on the website. Tell me the service name and I will explain its offer.\n${catalogCta}`,
+            dz: `تلقى كامل العروض والأسعار الحالية في الموقع. قولّي غير اسم الخدمة ونشرحلك العرض تاعها.\n${catalogCta}`,
+          }),
       source: "rules",
     };
   }
@@ -825,10 +893,10 @@ export function deterministicReply({
         handoff: false,
         precise: true,
         reply: localized(detectedLocale, {
-          ar: `${serviceName(service, "ar")} متوفر ✅\n${typeName ? `الخطة: ${typeName}\n` : ""}المدة: ${durationName}\nالسعر: ${formatDzdAmount(exactPrice, "ar")}${exactOffer}${upsell}\nيمكنك الآن اختيار طريقة إكمال الطلب.`,
-          fr: `${serviceName(service, "fr")} est disponible ✅\n${typeName ? `Formule : ${typeName}\n` : ""}Durée : ${durationName}\nPrix : ${formatDzdAmount(exactPrice, "fr")}${exactOffer}${upsell}\nVous pouvez maintenant choisir comment terminer la commande.`,
-          en: `${serviceName(service, "en")} is available ✅\n${typeName ? `Plan: ${typeName}\n` : ""}Duration: ${durationName}\nPrice: ${formatDzdAmount(exactPrice, "en")}${exactOffer}${upsell}\nYou can now choose how to complete the order.`,
-          dz: `${serviceName(service, "fr")} kayen ✅\n${typeName ? `Formule: ${typeName}\n` : ""}Durée: ${durationName}\nPrix: ${formatDzdAmount(exactPrice, "dz")}${exactOffer}${upsell}\nدرك تقدر تختار كيف تكمل الطلب.`,
+          ar: `${serviceName(service, "ar")} متوفر ✅\n${typeName ? `الخطة: ${typeName}\n` : ""}المدة: ${durationName}\nالسعر: ${formatDzdAmount(exactPrice, "ar")}${exactOffer}${upsell}\nيمكنك الآن اختيار طريقة إكمال الطلب.${analysis.intent === "price" ? `\n${catalogCta}` : ""}`,
+          fr: `${serviceName(service, "fr")} est disponible ✅\n${typeName ? `Formule : ${typeName}\n` : ""}Durée : ${durationName}\nPrix : ${formatDzdAmount(exactPrice, "fr")}${exactOffer}${upsell}\nVous pouvez maintenant choisir comment terminer la commande.${analysis.intent === "price" ? `\n${catalogCta}` : ""}`,
+          en: `${serviceName(service, "en")} is available ✅\n${typeName ? `Plan: ${typeName}\n` : ""}Duration: ${durationName}\nPrice: ${formatDzdAmount(exactPrice, "en")}${exactOffer}${upsell}\nYou can now choose how to complete the order.${analysis.intent === "price" ? `\n${catalogCta}` : ""}`,
+          dz: `${serviceName(service, "fr")} kayen ✅\n${typeName ? `Formule: ${typeName}\n` : ""}Durée: ${durationName}\nPrix: ${formatDzdAmount(exactPrice, "dz")}${exactOffer}${upsell}\nدرك تقدر تختار كيف تكمل الطلب.${analysis.intent === "price" ? `\n${catalogCta}` : ""}`,
         }),
         source: "rules",
       };
@@ -850,6 +918,17 @@ export function deterministicReply({
       };
     }
     const prices = formatServicePrices(service, detectedLocale);
+    const unavailableDuration = durationIndex >= 0 && hasRequiredType && exactPrice <= 0
+      ? durationLabels(detectedLocale)[durationIndex] || ""
+      : "";
+    const unavailableText = unavailableDuration
+      ? localized(detectedLocale, {
+          ar: `مدة ${unavailableDuration} غير متوفرة حاليًا لهذه الخدمة.\nالمتاح الآن:\n`,
+          fr: `La durée ${unavailableDuration} n’est pas disponible actuellement pour ce service.\nDisponible maintenant :\n`,
+          en: `${unavailableDuration} is not currently available for this service.\nAvailable now:\n`,
+          dz: `مدة ${unavailableDuration} ما هيش متوفرة درك لهاد الخدمة.\nالمتاح درك:\n`,
+        })
+      : "";
     const offers = activeOfferLines(service.id, bundleRules, detectedLocale);
     const offersText = offers.length
       ? localized(detectedLocale, {
@@ -875,10 +954,10 @@ export function deterministicReply({
         handoff: false,
         precise: true,
         reply: localized(detectedLocale, {
-          ar: `${serviceName(service, "ar")} متوفر ✅\n${prices}${offersText}\n${nextQuestion}`,
-          fr: `${serviceName(service, "fr")} est disponible ✅\n${prices}${offersText}\n${nextQuestion}`,
-          en: `${serviceName(service, "en")} is available ✅\n${prices}${offersText}\n${nextQuestion}`,
-          dz: `${serviceName(service, "ar")} kayen ✅\n${prices}${offersText}\n${nextQuestion}`,
+          ar: `${serviceName(service, "ar")} متوفر ✅\n${unavailableText}${prices}${offersText}\n${nextQuestion}${analysis.intent === "price" ? `\n${catalogCta}` : ""}`,
+          fr: `${serviceName(service, "fr")} est disponible ✅\n${unavailableText}${prices}${offersText}\n${nextQuestion}${analysis.intent === "price" ? `\n${catalogCta}` : ""}`,
+          en: `${serviceName(service, "en")} is available ✅\n${unavailableText}${prices}${offersText}\n${nextQuestion}${analysis.intent === "price" ? `\n${catalogCta}` : ""}`,
+          dz: `${serviceName(service, "ar")} kayen ✅\n${unavailableText}${prices}${offersText}\n${nextQuestion}${analysis.intent === "price" ? `\n${catalogCta}` : ""}`,
         }),
         source: "rules",
       };
