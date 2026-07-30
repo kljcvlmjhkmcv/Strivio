@@ -3995,7 +3995,8 @@
           esc(chatbotModeLabel(conversation.mode)) +
           '</span><button class="btn" type="button" onclick="updateChatbotMode(\'bot\',this)">إعادة للبوت</button>' +
           '<button class="btn" type="button" onclick="updateChatbotMode(\'paused\',this)">إيقاف مؤقت</button>' +
-          '<button class="btn danger" type="button" onclick="updateChatbotMode(\'closed\',this)">إغلاق</button></div></div>' +
+          '<button class="btn danger" type="button" onclick="updateChatbotMode(\'closed\',this)">إغلاق</button>' +
+          '<button class="btn danger" type="button" onclick="deleteChatbotConversation(this)">حذف وبدء جديد</button></div></div>' +
           (conversationSummary || unansweredForConversation.length
             ? '<div class="grid md:grid-cols-2 gap-3 mt-4">' +
               (conversationSummary
@@ -4151,6 +4152,56 @@
           toast("تعذر تحديث المحادثة: " + error.message, true);
         } finally {
           button.disabled = false;
+          button.textContent = old;
+        }
+      }
+      async function deleteChatbotConversation(button) {
+        if (!activeChatbotConversationId || !button) return;
+        if (button.dataset.confirmDelete !== "1") {
+          button.dataset.confirmDelete = "1";
+          button.dataset.originalText = button.textContent;
+          button.textContent = "اضغط مرة أخرى للتأكيد";
+          toast("سيُحذف سجل الرسائل والذاكرة. اضغط الزر مرة أخرى للتأكيد.");
+          setTimeout(function () {
+            if (button && button.dataset.confirmDelete === "1") {
+              button.dataset.confirmDelete = "0";
+              button.textContent = button.dataset.originalText || "حذف وبدء جديد";
+            }
+          }, 6000);
+          return;
+        }
+        var conversationId = activeChatbotConversationId,
+          old = button.dataset.originalText || "حذف وبدء جديد";
+        button.disabled = true;
+        button.textContent = "جارٍ الحذف…";
+        try {
+          await chatbotAdminCall({
+            mode: "conversation_delete",
+            conversation_id: conversationId,
+          });
+          activeChatbotConversationId = "";
+          state.chatbotConversations = state.chatbotConversations.filter(
+            function (conversation) {
+              return conversation.id !== conversationId;
+            },
+          );
+          state.chatbotMessages = state.chatbotMessages.filter(
+            function (message) {
+              return message.conversation_id !== conversationId;
+            },
+          );
+          state.chatbotUnanswered = state.chatbotUnanswered.filter(
+            function (item) {
+              return item.conversation_id !== conversationId;
+            },
+          );
+          toast("تم حذف المحادثة. رسالة العميل التالية ستبدأ محادثة جديدة.");
+          renderChatbot();
+          await loadAll();
+        } catch (error) {
+          toast("تعذر حذف المحادثة: " + error.message, true);
+          button.disabled = false;
+          button.dataset.confirmDelete = "0";
           button.textContent = old;
         }
       }

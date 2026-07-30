@@ -291,8 +291,19 @@ assert.match(runtimeSource, /localeForInbound\(event\.text, event\.locale, exist
 assert.match(runtimeSource, /event\.locale = String\(conversation\.locale/);
 assert.match(runtimeSource, /\["offer", "price"\]\.includes/);
 assert.match(runtimeSource, /جميع العروض والأسعار: https:\/\/www\.striviodz\.store/);
+assert.match(runtimeSource, /payload\?\.mode === "conversation_delete"/);
+assert.match(runtimeSource, /next_message_starts_fresh: true/);
+assert.match(runtimeSource, /db\.from\("chatbot_unanswered"\)\s*\.delete\(\)/);
 assert.doesNotMatch(runtimeSource, /عبر SATIM/);
 assert.doesNotMatch(runtimeSource, /maximumClarifications|max_clarifying_questions/);
 assert.doesNotMatch(runtimeSource, /out_of_stock/);
+
+const operationsSource = readFileSync(
+  new URL("../operations.html", import.meta.url),
+  "utf8",
+);
+assert.match(operationsSource, /deleteChatbotConversation\(this\)/);
+assert.match(operationsSource, /اضغط مرة أخرى للتأكيد/);
+assert.match(operationsSource, /mode: "conversation_delete"/);
 
 console.log("Chatbot language and safety checks passed.");

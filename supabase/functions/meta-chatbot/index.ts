@@ -1614,6 +1614,7 @@ serve(async (req) => {
   const isTest = payload?.mode === "test";
   const isAdminReply = payload?.mode === "admin_reply";
   const isConversationUpdate = payload?.mode === "conversation_update";
+  const isConversationDelete = payload?.mode === "conversation_delete";
   const isFollowUpWorker = payload?.mode === "process_followups";
   if (isFollowUpWorker) {
     const expectedWorkerSecret = Deno.env.get("META_CHATBOT_WORKER_SECRET") || "";
@@ -1625,7 +1626,7 @@ serve(async (req) => {
     const result = await processFollowUps(db, botData, Number(payload?.limit || 20));
     return json(req, { success: true, result });
   }
-  if (isTest || isAdminReply || isConversationUpdate) {
+  if (isTest || isAdminReply || isConversationUpdate || isConversationDelete) {
     if (!(await isAdminRequest(db, req))) return json(req, { success: false, error: "Admin only" }, 401);
   }
 
@@ -1746,6 +1747,44 @@ serve(async (req) => {
     if (updated.error) throw updated.error;
     if (!updated.data) return json(req, { success: false, error: "Conversation not found" }, 404);
     return json(req, { success: true, conversation: updated.data });
+  }
+
+  if (isConversationDelete) {
+    const conversationId = String(payload?.conversation_id || "").trim();
+    if (!/^[0-9a-f-]{36}$/i.test(conversationId)) {
+      return json(req, { success: false, error: "Invalid conversation" }, 400);
+    }
+    const invalidated = await db.from("chatbot_conversations").update({
+      mode: "closed",
+      follow_up_due_at: null,
+      handoff_reason: "admin_deleted",
+      metadata: {
+        reply_generation: `deleted:${crypto.randomUUID()}`,
+        deleted_by_admin_at: new Date().toISOString(),
+      },
+    }).eq("id", conversationId).select("id").maybeSingle();
+    if (invalidated.error) throw invalidated.error;
+    if (!invalidated.data) {
+      return json(req, { success: false, error: "Conversation not found" }, 404);
+    }
+    const unanswered = await db.from("chatbot_unanswered")
+      .delete()
+      .eq("conversation_id", conversationId);
+    if (unanswered.error) throw unanswered.error;
+    const deleted = await db.from("chatbot_conversations")
+      .delete()
+      .eq("id", conversationId)
+      .select("id")
+      .maybeSingle();
+    if (deleted.error) throw deleted.error;
+    if (!deleted.data) {
+      return json(req, { success: false, error: "Conversation not found" }, 404);
+    }
+    return json(req, {
+      success: true,
+      deleted_conversation_id: conversationId,
+      next_message_starts_fresh: true,
+    });
   }
 
   if (!(await verifyMetaSignature(req, rawBody))) {
