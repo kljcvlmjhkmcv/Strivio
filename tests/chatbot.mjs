@@ -242,6 +242,10 @@ assert.match(runtimeSource, /intent: "clarification",\s+handoff: false/);
 assert.match(runtimeSource, /handoff_reason: "admin_reply_pending"/);
 assert.match(runtimeSource, /reason: "manual_takeover"/);
 assert.match(runtimeSource, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
+assert.match(runtimeSource, /AbortSignal\.timeout\(9000\)/);
+assert.match(runtimeSource, /comprehensiveFallbackAnswer/);
+assert.match(runtimeSource, /البطاقة الذهبية أو CIB/);
+assert.doesNotMatch(runtimeSource, /عبر SATIM/);
 assert.doesNotMatch(runtimeSource, /maximumClarifications|max_clarifying_questions/);
 assert.doesNotMatch(runtimeSource, /out_of_stock/);
 

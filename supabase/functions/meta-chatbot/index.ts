@@ -501,6 +501,7 @@ async function askGemini({
             "Content-Type": "application/json",
           },
           body: requestBody,
+          signal: AbortSignal.timeout(9000),
         },
       );
       responseText = await response.text();
@@ -853,6 +854,33 @@ function hasMultipleInformationTopics(value: string) {
   return topicPatterns.filter((pattern) => pattern.test(text)).length > 1;
 }
 
+function comprehensiveFallbackAnswer(locale: string, memory: any, services: any[]) {
+  const service = services.find((item) => String(item?.id || "") === String(memory?.service_id || ""));
+  const serviceName = String(
+    service?.n?.[locale]
+    || service?.n?.[locale === "dz" ? "ar" : "fr"]
+    || service?.n?.fr
+    || service?.n?.en
+    || "",
+  ).trim();
+  const variants: Record<string, string> = {
+    ar: `${serviceName ? `${serviceName} متوفر.\n` : ""}• السعر والعروض: يعتمدان على المدة والخطة، وسأعطيك السعر والعرض المطابق بعد اختيارك.\n• الطلب والدفع: إما من الموقع بالبطاقة الذهبية أو CIB مع التتبع من حسابك، أو هنا في المحادثة عبر BaridiMob أو CCP أو Wise أو USDT أو Flexy. تضاف 19% عند Flexy.\n• التسليم: تلقائي بعد الدفع للخدمات الجاهزة، أو تفعيل/تسليم من الفريق حسب نوع المنتج.\n• الضمان: كامل طوال المدة المدفوعة، مع الإصلاح أو الاستبدال عند وجود مشكلة مشمولة.\nما المدة والخطة أو الكمية التي تريدها؟`,
+    fr: `${serviceName ? `${serviceName} est disponible.\n` : ""}• Prix et offres : ils dépendent de la durée et de la formule choisies.\n• Commande et paiement : soit sur le site par carte Edahabia ou CIB avec suivi depuis votre compte, soit ici par BaridiMob, CCP, Wise, USDT ou Flexy. Flexy ajoute 19 %.\n• Livraison : automatique après paiement pour les services prêts, ou activation/livraison par l’équipe selon le produit.\n• Garantie : complète pendant toute la durée payée, avec correction ou remplacement si le problème est couvert.\nQuelle durée et quelle formule ou quantité souhaitez-vous ?`,
+    en: `${serviceName ? `${serviceName} is available.\n` : ""}• Prices and offers depend on the selected duration and plan.\n• Ordering and payment: use the website with an Edahabia or CIB card and track it from your account, or continue here with BaridiMob, CCP, Wise, USDT, or Flexy. Flexy adds 19%.\n• Delivery: automatic after payment for ready services, or team activation/delivery depending on the product.\n• Warranty: full coverage throughout the paid period, with a fix or replacement for covered issues.\nWhich duration and plan or quantity do you need?`,
+    dz: `${serviceName ? `${serviceName} كاين.\n` : ""}• السعر والعروض: يتبدلوا حسب المدة والخطة، ونعطيك السعر والعرض الصحيح كي تختار.\n• الطلب والدفع: يا من الموقع بالذهبية ولا CIB وتتابع الطلب من حسابك، يا هنا في المحادثة بـ BaridiMob ولا CCP ولا Wise ولا USDT ولا Flexy. في Flexy كاينة زيادة 19%.\n• التسليم: آلي بعد الدفع للخدمات الجاهزة، ولا يفعله ويسلمه الفريق حسب نوع المنتج.\n• الضمان: كامل طول المدة لي خلصتها، مع الإصلاح ولا الاستبدال إذا المشكل داخل الضمان.\nقولّي المدة والخطة ولا الكمية لي تحتاجها؟`,
+  };
+  return {
+    reply: variants[locale] || variants.fr,
+    locale,
+    intent: "service_information",
+    confidence: 0.9,
+    handoff: false,
+    needsClarification: true,
+    precise: true,
+    source: "rules",
+  };
+}
+
 function shouldAttachActions(answer: any, memory: any, services: any[], stage: string) {
   if (answer?.handoff || ["handoff", "lost", "manual"].includes(stage)) return false;
   return ["ready_to_buy", "website"].includes(stage)
@@ -1120,7 +1148,14 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
       replyCharLimit: Number(botData.settings.reply_char_limit || 560),
       diagnostics: aiDiagnostics,
     });
-    if (ai) answer = { ...answer, ...ai };
+    if (ai) {
+      answer = { ...answer, ...ai };
+    } else if (isComprehensiveQuestion) {
+      answer = {
+        ...answer,
+        ...comprehensiveFallbackAnswer(event.locale, memory, botData.services),
+      };
+    }
   } else if (!keepRuleAnswer && botData.settings.ai_enabled) {
     aiDiagnostics.error = "AI usage limit reached; deterministic reply used";
   }
