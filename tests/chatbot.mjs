@@ -277,6 +277,8 @@ const chatGptDurationActions = buildQualificationActions({
 });
 assert.deepEqual(chatGptDurationActions.map((action) => action.title), ["1 mois"]);
 assert.equal(isSalesContinuation("سلام"), false);
+assert.equal(isSalesContinuation("السلام عليكم"), false);
+assert.equal(isSalesContinuation("كيف حالكم"), false);
 assert.equal(isSalesContinuation("شهر"), true);
 const abandonedTopicReply = deterministicReply({
   text: "سلام",

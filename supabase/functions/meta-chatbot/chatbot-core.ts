@@ -138,6 +138,14 @@ function hasAny(text, values) {
   return values.some((value) => text.includes(normalizeMessage(value)));
 }
 
+function hasWholeAny(text, values) {
+  const padded = ` ${normalizeMessage(text)} `;
+  return values.some((value) => {
+    const phrase = normalizeMessage(value);
+    return phrase && padded.includes(` ${phrase} `);
+  });
+}
+
 export function identifyService(value) {
   const normalized = normalizeMessage(value);
   for (const [serviceId, aliases] of Object.entries(SERVICE_ALIASES)) {
@@ -308,7 +316,7 @@ export function isSalesContinuation(value) {
   if (planTypeFromText(value) || budgetFromText(value)) return true;
   if (/^[1-5]$/.test(normalized)) return true;
   if (
-    hasAny(normalized, [
+    hasWholeAny(normalized, [
       ...PRICE_WORDS,
       ...OFFER_WORDS,
       ...BUY_WORDS,
