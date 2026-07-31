@@ -1,8 +1,12 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import {
+  applyCampaignOfferMemory,
+  buildCampaignOfferActions,
   buildMetaActions,
   buildQualificationActions,
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+  detectCampaignOffer,
   detectLanguage,
   deterministicReply,
   identifyIntent,
@@ -745,10 +749,13 @@ async function upsertConversation(db: any, event: any, settings: any) {
   if (existing.error) throw existing.error;
   if (existing.data) {
     const resolvedLocale = localeForInbound(event.text, event.locale, existing.data.locale);
-    const memory = mergeConversationMemory(
-      existing.data.memory || existing.data.metadata?.memory || {},
-      event.text,
-      event.payload,
+    const memory = applyCampaignOfferMemory(
+      mergeConversationMemory(
+        existing.data.memory || existing.data.metadata?.memory || {},
+        event.text,
+        event.payload,
+      ),
+      event.campaignOfferId,
     );
     const previousMetadata = existing.data.metadata || {};
     const salesVariant = previousMetadata.sales_variant
@@ -797,7 +804,10 @@ async function upsertConversation(db: any, event: any, settings: any) {
     if (updated.error) throw updated.error;
     return updated.data;
   }
-  const memory = mergeConversationMemory({}, event.text, event.payload);
+  const memory = applyCampaignOfferMemory(
+    mergeConversationMemory({}, event.text, event.payload),
+    event.campaignOfferId,
+  );
   const salesVariant = settings.website_pitch_ab_enabled === true
     ? stableSalesVariant(`${event.channel}:${event.senderId}`)
     : null;
@@ -1088,6 +1098,19 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     : Math.max(500, Math.min(5000, Number(botData.settings.debounce_ms || 2500)));
   event.replyGeneration = crypto.randomUUID();
   event.replyNotBefore = new Date(Date.now() + debounceMs).toISOString();
+  event.campaignOfferId = detectCampaignOffer({
+    text: event.text,
+    payload: event.payload,
+    attribution: event.attribution || {},
+  });
+  if (event.campaignOfferId) {
+    event.attribution = {
+      ...(event.attribution || {}),
+      source: event.attribution?.source || "meta_ads",
+      campaign_key: CHATGPT_MONTHLY_CAMPAIGN_ID,
+      offer_id: CHATGPT_MONTHLY_CAMPAIGN_ID,
+    };
+  }
 
   const duplicate = await db.from("chatbot_messages")
     .select("id")
@@ -1103,6 +1126,17 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   const isChatOrderPostback = payloadValue.startsWith("STRIVIO_CHAT_ORDER:");
   const isWebsitePostback = payloadValue.startsWith("STRIVIO_WEBSITE:");
   const isHumanPostback = payloadValue === "STRIVIO_HUMAN";
+  const isCampaignOrderPostback = payloadValue.startsWith("STRIVIO_CAMPAIGN_ORDER:");
+  const isCampaignPaymentPostback = payloadValue.startsWith("STRIVIO_CAMPAIGN_PAYMENT:");
+  const isCampaignQuestionPostback = payloadValue.startsWith("STRIVIO_CAMPAIGN_QUESTION:");
+  const campaignPaymentMethod = String(
+    payloadValue.match(/^STRIVIO_PAYMENT_METHOD:([^:]+):/i)?.[1] || "",
+  ).toLowerCase();
+  const isCampaignEntry = event.campaignOfferId === CHATGPT_MONTHLY_CAMPAIGN_ID
+    && !isCampaignOrderPostback
+    && !isCampaignPaymentPostback
+    && !isCampaignQuestionPostback
+    && !campaignPaymentMethod;
   const detected = isChatOrderPostback
     ? { intent: "manual_checkout", serviceId: memory.service_id || null, confidence: 1 }
     : isWebsitePostback
@@ -1242,7 +1276,114 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     memory,
     memoryIsCurrent: true,
   });
-  if (isChatOrderPostback) {
+  let campaignActions: MetaAction[] = [];
+  if (isCampaignEntry) {
+    const variants: Record<string, string> = {
+      ar: "مرحبًا بك في Strivio 👋\nوصلت من عرض ChatGPT Plus.\n✅ حساب خاص غير مشترك\n📅 المدة: شهر واحد\n💚 السعر: 1900 دج\n🛡️ ضمان طوال مدة الاشتراك\nهل تريد إكمال الطلب أم لديك سؤال قبل الشراء؟",
+      fr: "Bienvenue chez Strivio 👋\nVous venez de l’offre ChatGPT Plus.\n✅ Compte privé non partagé\n📅 Durée : 1 mois\n💚 Prix : 1900 DZD\n🛡️ Garantie pendant toute la durée\nSouhaitez-vous commander ou poser une question ?",
+      en: "Welcome to Strivio 👋\nYou came from our ChatGPT Plus offer.\n✅ Private, non-shared account\n📅 Duration: 1 month\n💚 Price: 1900 DZD\n🛡️ Covered for the full subscription\nWould you like to order or ask a question?",
+      dz: "مرحبا بيك في Strivio 👋\nجيت من عرض ChatGPT Plus.\n✅ حساب خاص وماهوش مشترك\n📅 المدة: شهر واحد\n💚 السعر: 1900 دج\n🛡️ ضمان طول مدة الاشتراك\nتحب نكملولك الطلب ولا عندك سؤال؟",
+    };
+    answer = {
+      ...answer,
+      reply: variants[event.locale] || variants.ar,
+      locale: event.locale,
+      intent: "campaign_offer",
+      confidence: 1,
+      handoff: false,
+      precise: true,
+      needsClarification: true,
+      source: "rules",
+    };
+    campaignActions = buildCampaignOfferActions(event.locale, "offer") as MetaAction[];
+  } else if (isCampaignOrderPostback || isCampaignPaymentPostback) {
+    const variants: Record<string, string> = {
+      ar: "اختر طريقة الدفع المناسبة. الدفع بالذهبية أو CIB يتم بأمان عبر الموقع، وباقي الطرق نكملها معك هنا في المحادثة.",
+      fr: "Choisissez votre moyen de paiement. Le paiement par Edahabia ou CIB se fait en sécurité sur le site ; pour les autres moyens, nous continuons ici.",
+      en: "Choose a payment method. Edahabia or CIB card payment is completed securely on the website; other methods continue here in chat.",
+      dz: "اختار طريقة الدفع لي تناسبك. بالذهبية ولا CIB تخلص بأمان من الموقع، وباقي الطرق نكملوهم معاك هنا.",
+    };
+    answer = {
+      ...answer,
+      reply: variants[event.locale] || variants.ar,
+      locale: event.locale,
+      intent: "campaign_payment_options",
+      confidence: 1,
+      handoff: false,
+      precise: true,
+      needsClarification: true,
+      source: "rules",
+    };
+    memory.stage = "payment_options";
+    campaignActions = buildCampaignOfferActions(event.locale, "payment") as MetaAction[];
+  } else if (isCampaignQuestionPostback) {
+    const variants: Record<string, string> = {
+      ar: "تفضل، اكتب سؤالك عن الحساب أو الدفع أو التسليم أو الضمان وسأجيبك بدقة.",
+      fr: "Écrivez votre question sur le compte, le paiement, la livraison ou la garantie, et je vous répondrai précisément.",
+      en: "Ask your question about the account, payment, delivery, or warranty and I’ll answer precisely.",
+      dz: "تفضل، اكتب سؤالك على الحساب ولا الدفع ولا التسليم ولا الضمان ونرد عليك بدقة.",
+    };
+    answer = {
+      ...answer,
+      reply: variants[event.locale] || variants.ar,
+      locale: event.locale,
+      intent: "campaign_question_prompt",
+      confidence: 1,
+      handoff: false,
+      precise: true,
+      needsClarification: true,
+      source: "rules",
+    };
+    memory.stage = "campaign_question";
+  } else if (campaignPaymentMethod) {
+    const methodLabels: Record<string, string> = {
+      baridimob: "BaridiMob",
+      ccp: "CCP",
+      flexy: "Flexy (+19%)",
+      wise: "Wise",
+      usdt: "USDT",
+      card: "Edahabia / CIB",
+    };
+    const selectedMethod = methodLabels[campaignPaymentMethod] || campaignPaymentMethod;
+    const isCard = campaignPaymentMethod === "card";
+    const websiteUrl = new URL(String(botData.settings.website_url || "https://www.striviodz.store"));
+    websiteUrl.searchParams.set("service", "chatgpt");
+    websiteUrl.searchParams.set("utm_source", event.channel === "instagram" ? "instagram" : "messenger");
+    websiteUrl.searchParams.set("utm_medium", "paid_social_chatbot");
+    websiteUrl.searchParams.set("utm_campaign", CHATGPT_MONTHLY_CAMPAIGN_ID);
+    const variants: Record<string, string> = isCard ? {
+      ar: "ممتاز. أكمل طلب ChatGPT Plus الشهري بـ1900 دج بأمان من الموقع باستخدام البطاقة الذهبية أو CIB. سلّمت المحادثة لفريق Strivio لمساعدتك عند الحاجة.",
+      fr: "Parfait. Finalisez l’offre ChatGPT Plus d’un mois à 1900 DZD sur le site avec une carte Edahabia ou CIB. L’équipe Strivio a pris le relais si vous avez besoin d’aide.",
+      en: "Great. Complete the one-month ChatGPT Plus offer for 1900 DZD on the website using an Edahabia or CIB card. The Strivio team has taken over if you need help.",
+      dz: "مليح. كمل عرض ChatGPT Plus شهر بـ1900 دج من الموقع بالذهبية ولا CIB. المحادثة راهي عند فريق Strivio إذا تحتاج مساعدة.",
+    } : {
+      ar: `اخترت ${selectedMethod}. تم تحويل المحادثة إلى فريق Strivio لتأكيد معلومات الدفع وإكمال طلب ChatGPT Plus بـ1900 دج.`,
+      fr: `Vous avez choisi ${selectedMethod}. La conversation est transmise à l’équipe Strivio pour confirmer le paiement et finaliser l’offre ChatGPT Plus à 1900 DZD.`,
+      en: `You selected ${selectedMethod}. The Strivio team will continue here to confirm payment and complete the 1900 DZD ChatGPT Plus order.`,
+      dz: `اخترت ${selectedMethod}. حولت المحادثة لفريق Strivio باش يأكدلك الدفع ويكمل طلب ChatGPT Plus بـ1900 دج.`,
+    };
+    answer = {
+      ...answer,
+      reply: variants[event.locale] || variants.ar,
+      locale: event.locale,
+      intent: isCard ? "website_checkout_selected" : "manual_checkout",
+      confidence: 1,
+      handoff: true,
+      precise: true,
+      needsClarification: false,
+      source: "rules",
+    };
+    memory.selected_payment_method = campaignPaymentMethod;
+    memory.preferred_route = isCard ? "website" : "chat";
+    memory.stage = isCard ? "website" : "handoff";
+    if (isCard) {
+      campaignActions = [{
+        type: "web_url",
+        title: event.locale === "fr" ? "Ouvrir le site" : event.locale === "en" ? "Open website" : "فتح الموقع",
+        url: websiteUrl.toString(),
+      }];
+    }
+  } else if (isChatOrderPostback) {
     const variants: Record<string, string> = {
       ar: "ممتاز، سنكمل الطلب هنا. اكتب الخدمة والمدة والكمية التي تريدها، وسيستلم فريق Strivio المحادثة لتأكيد الطلب والدفع.",
       fr: "Parfait, nous continuons ici. Indiquez le service, la durée et la quantité. L’équipe Strivio prendra la conversation pour confirmer la commande et le paiement.",
@@ -1456,7 +1597,9 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
         service: selectedService,
       }) as MetaAction[]
     : [];
-  const baseActions = qualificationActions.length
+  const baseActions = campaignActions.length
+    ? campaignActions
+    : qualificationActions.length
     ? qualificationActions
     : shouldAttachActions(answer, memory, botData.services, stage)
     ? buildMetaActions({

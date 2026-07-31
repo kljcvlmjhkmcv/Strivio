@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  applyCampaignOfferMemory,
+  buildCampaignOfferActions,
   buildMetaActions,
   buildQualificationActions,
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
   compactDzdPrices,
   detectLanguage,
   deterministicReply,
+  detectCampaignOffer,
   formatDzdAmount,
   getSalesReadiness,
   identifyIntent,
@@ -276,6 +280,33 @@ const chatGptDurationActions = buildQualificationActions({
   service: services[2],
 });
 assert.deepEqual(chatGptDurationActions.map((action) => action.title), ["1 mois"]);
+
+assert.equal(
+  detectCampaignOffer({ text: "نحب نطلب حساب ChatGPT Plus الشهري بـ1900 دج" }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
+assert.equal(
+  detectCampaignOffer({ payload: "STRIVIO_CAMPAIGN_ORDER:chatgpt_monthly_1900" }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
+assert.equal(detectCampaignOffer({ text: "نحب نتفلكس شهر" }), null);
+const campaignMemory = applyCampaignOfferMemory({}, CHATGPT_MONTHLY_CAMPAIGN_ID);
+assert.equal(campaignMemory.service_id, "chatgpt");
+assert.equal(campaignMemory.duration_months, 1);
+assert.equal(campaignMemory.quantity, 1);
+assert.equal(campaignMemory.offer_price_dzd, 1900);
+assert.deepEqual(campaignMemory.missing_fields, []);
+const campaignOfferActions = buildCampaignOfferActions("ar", "offer");
+assert.deepEqual(campaignOfferActions.map((action) => action.title), [
+  "إكمال الطلب",
+  "طرق الدفع",
+  "لدي سؤال",
+]);
+assert.match(campaignOfferActions[0].payload, /chatgpt_monthly_1900/);
+const campaignPaymentActions = buildCampaignOfferActions("fr", "payment");
+assert.equal(campaignPaymentActions.length, 6);
+assert.equal(campaignPaymentActions[0].title, "BaridiMob");
+assert.equal(campaignPaymentActions.at(-1).title, "Edahabia / CIB");
 assert.equal(isSalesContinuation("سلام"), false);
 assert.equal(isSalesContinuation("السلام عليكم"), false);
 assert.equal(isSalesContinuation("كيف حالكم"), false);
@@ -408,6 +439,9 @@ assert.match(runtimeSource, /isWebsitePostback/);
 assert.match(runtimeSource, /website_checkout_selected/);
 assert.match(runtimeSource, /event\.eventType === "admin_echo"/);
 assert.match(runtimeSource, /handoff_reason: "native_admin_reply"/);
+assert.match(runtimeSource, /intent: "campaign_offer"/);
+assert.match(runtimeSource, /STRIVIO_PAYMENT_METHOD:/);
+assert.match(runtimeSource, /paid_social_chatbot/);
 assert.doesNotMatch(runtimeSource, /عبر SATIM/);
 assert.doesNotMatch(runtimeSource, /maximumClarifications|max_clarifying_questions/);
 assert.doesNotMatch(runtimeSource, /out_of_stock/);

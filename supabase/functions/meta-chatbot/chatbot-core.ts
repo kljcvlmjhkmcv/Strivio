@@ -156,6 +156,112 @@ export function identifyService(value) {
 
 const DURATION_MONTHS = [1, 2, 3, 6, 12];
 
+export const CHATGPT_MONTHLY_CAMPAIGN_ID = "chatgpt_monthly_1900";
+
+export function detectCampaignOffer({
+  text = "",
+  payload = "",
+  attribution = {},
+} = {}) {
+  const rawPayload = String(payload || "").trim().toLowerCase();
+  const attributionMarker = [
+    attribution?.ref,
+    attribution?.campaign_key,
+    attribution?.campaign_id,
+  ].map((value) => String(value || "").trim().toLowerCase()).join(" ");
+  if (
+    rawPayload.includes(CHATGPT_MONTHLY_CAMPAIGN_ID)
+    || attributionMarker.includes(CHATGPT_MONTHLY_CAMPAIGN_ID)
+    || attributionMarker.includes("chatgpt_august_messages")
+  ) return CHATGPT_MONTHLY_CAMPAIGN_ID;
+
+  const normalized = normalizeMessage(text);
+  const mentionsChatGpt = identifyService(text) === "chatgpt";
+  const mentionsPrice = /(?:^|\D)1900(?:\D|$)/u.test(String(text || ""));
+  const campaignLead = /(?:نحب نطلب|اريد|أريد|ابي|أبي|عرض|شهري|commander|acheter|offre|monthly|order)/iu
+    .test(normalized);
+  return mentionsChatGpt && mentionsPrice && campaignLead
+    ? CHATGPT_MONTHLY_CAMPAIGN_ID
+    : null;
+}
+
+export function applyCampaignOfferMemory(previous = {}, campaignOfferId = "") {
+  const next = { ...(previous && typeof previous === "object" ? previous : {}) };
+  if (campaignOfferId !== CHATGPT_MONTHLY_CAMPAIGN_ID) return next;
+  return {
+    ...next,
+    campaign_offer_id: CHATGPT_MONTHLY_CAMPAIGN_ID,
+    campaign_source: "meta_ads",
+    service_id: "chatgpt",
+    duration_months: 1,
+    quantity: 1,
+    offer_price_dzd: 1900,
+    missing_fields: [],
+    stage: "campaign_offer",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export function buildCampaignOfferActions(locale = "ar", step = "offer") {
+  const labels = {
+    ar: {
+      order: "إكمال الطلب",
+      payment: "طرق الدفع",
+      question: "لدي سؤال",
+    },
+    fr: {
+      order: "Commander",
+      payment: "Moyens de paiement",
+      question: "Une question",
+    },
+    en: {
+      order: "Continue order",
+      payment: "Payment methods",
+      question: "Ask a question",
+    },
+    dz: {
+      order: "نكمل الطلب",
+      payment: "طرق الدفع",
+      question: "عندي سؤال",
+    },
+  }[locale] || {
+    order: "Commander",
+    payment: "Moyens de paiement",
+    question: "Une question",
+  };
+  if (step === "payment") {
+    return [
+      ["BaridiMob", "baridimob"],
+      ["CCP", "ccp"],
+      ["Flexy (+19%)", "flexy"],
+      ["Wise", "wise"],
+      ["USDT", "usdt"],
+      ["Edahabia / CIB", "card"],
+    ].map(([title, method]) => ({
+      type: "quick_reply",
+      title,
+      payload: `STRIVIO_PAYMENT_METHOD:${method}:${CHATGPT_MONTHLY_CAMPAIGN_ID}`,
+    }));
+  }
+  return [
+    {
+      type: "quick_reply",
+      title: labels.order,
+      payload: `STRIVIO_CAMPAIGN_ORDER:${CHATGPT_MONTHLY_CAMPAIGN_ID}`,
+    },
+    {
+      type: "quick_reply",
+      title: labels.payment,
+      payload: `STRIVIO_CAMPAIGN_PAYMENT:${CHATGPT_MONTHLY_CAMPAIGN_ID}`,
+    },
+    {
+      type: "quick_reply",
+      title: labels.question,
+      payload: `STRIVIO_CAMPAIGN_QUESTION:${CHATGPT_MONTHLY_CAMPAIGN_ID}`,
+    },
+  ];
+}
+
 function numberFromToken(value) {
   const normalized = normalizeMessage(value);
   const directMatch = normalized.match(
