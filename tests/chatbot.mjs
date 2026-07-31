@@ -354,6 +354,25 @@ const takeoverActions = buildMetaActions({
 assert.equal(takeoverActions[0].type, "postback");
 assert.equal(takeoverActions[0].payload, "STRIVIO_WEBSITE:netflix");
 
+const officialNetflixReply = deterministicReply({
+  text: "هل حساب نتفلكس رسمي؟",
+  locale: "ar",
+  services,
+});
+assert.equal(officialNetflixReply.intent, "product_authenticity");
+assert.equal(officialNetflixReply.handoff, false);
+assert.match(officialNetflixReply.reply, /رسمية/);
+
+const privateChatGptReply = deterministicReply({
+  text: "هل حساب شات جي بي تي خاص وغير مشترك؟",
+  locale: "ar",
+  services,
+});
+assert.equal(privateChatGptReply.intent, "account_privacy");
+assert.equal(privateChatGptReply.handoff, false);
+assert.match(privateChatGptReply.reply, /خاص/);
+assert.match(privateChatGptReply.reply, /حسابك الشخصي/);
+
 const bidiReply = stabilizeBidiReply("السعر: 1,900 DZD\nالخدمة: Netflix", "ar");
 assert.match(bidiReply, /\u2067/);
 assert.match(bidiReply, /\u2069/);
@@ -367,8 +386,9 @@ assert.match(runtimeSource, /signal: AbortSignal\.timeout\(1500\)/);
 assert.match(runtimeSource, /debounce_ms \|\| 2500/);
 assert.match(runtimeSource, /ten_minute_limit \|\| 60/);
 assert.match(runtimeSource, /sales_stage: stage/);
-assert.match(runtimeSource, /Never hand the conversation to a human merely because a question is unclear/);
-assert.match(runtimeSource, /intent: "clarification",\s+handoff: false/);
+assert.match(runtimeSource, /intent: "unresolved_question",\s+handoff: true/);
+assert.match(runtimeSource, /"unresolved_question",/);
+assert.match(runtimeSource, /conversation\.mode !== "bot"/);
 assert.match(runtimeSource, /handoff_reason: "admin_reply_pending"/);
 assert.match(runtimeSource, /reason: "manual_takeover"/);
 assert.match(runtimeSource, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);

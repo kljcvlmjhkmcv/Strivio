@@ -476,12 +476,14 @@ async function askGemini({
     "There are exactly two customer-friendly order routes. Route 1: order on the website and pay directly by Edahabia or CIB card, then track delivery and support from My Account. Route 2: continue manually in the conversation and pay by BaridiMob, CCP, Wise, USDT, or Flexy; Flexy adds a 19% service fee. Explain these routes simply and never mention implementation details or payment gateway names.",
     "Delivery modes: automatic_slot and automatic_account use automatic delivery after payment confirmation; manual_activation asks the customer for their service login inside the protected order page and Strivio activates it; manual_delivery is prepared and delivered by the Strivio team.",
     "First understand the requested service, duration, type/quantity and missing needs. Ask only one short, relevant clarification in each reply, but keep helping for as many turns as the customer needs.",
-    "Never hand the conversation to a human merely because a question is unclear. Keep the bot active and ask one shorter clarification. Set handoff=true only when the customer explicitly asks for a human/manual order, or when there is a real account, order, payment or warranty problem that requires staff action.",
+    "Netflix subscriptions sold by Strivio are official and guaranteed for the paid duration. Do not claim that a customer owns the whole Netflix account unless the catalog explicitly offers a full account.",
+    "ChatGPT Plus can be delivered as a private account that is not shared with another customer, or activated on the customer's own account. Never ask the customer to send credentials in social chat; credentials are entered only inside the protected order page.",
+    "Ask one short clarification only when a recognized service or purchase choice is missing a required field. If the customer's actual question remains unsupported or cannot be understood from the supplied data, do not guess or restart the sales flow: set intent='unresolved_question', handoff=true, needs_clarification=false, and say that the Strivio team will continue.",
     "Only when the purchase choice is sufficiently clear, explain briefly that the website supports CIB and Edahabia card payment plus protected tracking and account support, while manual chat ordering supports BaridiMob and the other listed manual methods.",
     "For sales variant A, emphasize secure CIB/Dahabia payment and protected tracking. For variant B, emphasize ease, current offers, and managing the subscription from My Account. Do not change any factual claim.",
     "When the customer is ready to buy, offer both choices: order securely on the website, or continue manually in this chat. Interactive buttons are added by the backend, so do not write button labels.",
     "Warranty: answer only from supplied Knowledge. If no warranty fact exists, hand off rather than inventing a promise.",
-    "If a request is broad, answer all parts that are supported by the supplied facts. If it is ambiguous, ask one useful clarification and keep the bot active. Set handoff=true only when the customer explicitly asks for a person/manual handling, or reports a customer-specific account, order, payment, or warranty problem that needs staff action.",
+    "If a request is broad, answer all supported parts. If the question itself cannot be answered accurately after using the supplied facts, return unknown_question with the original short question and hand it to the Strivio team. Never repeat a generic service question when the customer already named a service.",
     "Return only JSON matching: {reply:string, language:'ar'|'fr'|'en'|'dz', intent:string, confidence:number, handoff:boolean, needs_clarification:boolean, summary:string, unknown_question:string}.",
     `Preferred detected language: ${locale}`,
     `Catalog: ${JSON.stringify(catalog)}`,
@@ -1329,19 +1331,21 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     aiDiagnostics.error = "AI usage limit reached; deterministic reply used";
   }
 
-  if (!answer.reply) {
+  const unresolvedAfterAi = Boolean(answer.unknownQuestion)
+    || ["unknown", "clarification", "unresolved_question"].includes(String(answer.intent || ""));
+  if (!answer.reply || unresolvedAfterAi) {
     const variants: Record<string, string> = {
-      ar: "حتى أساعدك بدقة، اكتب اسم الخدمة التي تريدها وسؤالك عنها باختصار.",
-      fr: "Pour vous répondre précisément, indiquez le service recherché et votre question en quelques mots.",
-      en: "To help you precisely, tell me the service you need and your question in a few words.",
-      dz: "باش نعاونك بدقة، اكتبلي اسم الخدمة لي تحتاجها والسؤال تاعك باختصار.",
+      ar: "لم أتمكن من فهم سؤالك بدقة، لذلك حوّلت المحادثة إلى فريق Strivio. سيتابع معك أحد أفراد الفريق قريبًا.",
+      fr: "Je n’ai pas pu comprendre votre question avec assez de précision. J’ai transmis la conversation à l’équipe Strivio, qui vous répondra bientôt.",
+      en: "I could not understand your question accurately, so I handed the conversation to the Strivio team. A team member will continue with you shortly.",
+      dz: "ما قدرتش نفهم سؤالك بدقة، لذلك حولت المحادثة لفريق Strivio. واحد من الفريق يكمل معاك قريب.",
     };
     answer = {
       ...answer,
       reply: variants[event.locale] || variants.fr,
-      intent: "clarification",
-      handoff: false,
-      needsClarification: true,
+      intent: "unresolved_question",
+      handoff: true,
+      needsClarification: false,
       source: "rules",
       confidence: 0.2,
     };
@@ -1385,6 +1389,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     "website_checkout_selected",
     "support_issue",
     "warranty_inquiry",
+    "unresolved_question",
   ]);
   if (answer.handoff && !allowedHandoffIntents.has(String(answer.intent || ""))) {
     answer.handoff = false;

@@ -773,6 +773,55 @@ export function deterministicReply({
     dz: "باش تشوف كامل العروض والأسعار:\nhttps://www.striviodz.store",
   });
 
+  const normalizedQuestion = normalizeMessage(text);
+  const subjectServiceId = String(analysis.serviceId || rememberedService || "");
+  const reportsServiceProblem = /(?:مشكلة|مشكل|لا يعمل|ما يخدم|تعطل|problem|probl[eè]me|marche pas|not working)/iu
+    .test(normalizedQuestion);
+  const asksIfOfficial = /(?:رسمي|اصل[ىي]|official|officiel|authentique|legit)/iu
+    .test(normalizedQuestion);
+  const asksIfPrivateOrOwnAccount = /(?:خاص|غير مشترك|مش مشترك|حسابي|حساب الزبون|private|priv[eé]|personnel|non partag[eé]|not shared|own account|my account|mon compte|تفعيل.*حساب|activ(?:ate|er).*(?:account|compte))/iu
+    .test(normalizedQuestion);
+
+  if (subjectServiceId === "netflix" && asksIfOfficial && !reportsServiceProblem) {
+    return {
+      ...analysis,
+      ...salesMeta,
+      intent: "product_authenticity",
+      serviceId: "netflix",
+      locale: detectedLocale,
+      confidence: 1,
+      handoff: false,
+      precise: true,
+      reply: localized(detectedLocale, {
+        ar: "نعم، اشتراكات نتفلكس التي نوفرها رسمية ومضمونة طوال المدة المدفوعة. يكون التسليم حسب الخطة وعدد الشاشات المختارة، مع الالتزام بشروط الاستخدام.",
+        fr: "Oui. Les abonnements Netflix proposés par Strivio sont officiels et garantis pendant toute la durée payée. La livraison dépend de la formule et du nombre d’écrans choisis, sous réserve du respect des conditions d’utilisation.",
+        en: "Yes. The Netflix subscriptions provided by Strivio are official and guaranteed for the full paid period. Delivery follows the selected plan and screen count, subject to the usage terms.",
+        dz: "نعم، اشتراكات نتفلكس لي نوفرهم رسميين ومضمونين طول المدة المخلصة. التسليم يكون حسب الخطة وعدد الشاشات لي تختارهم، مع احترام شروط الاستعمال.",
+      }),
+      source: "rules",
+    };
+  }
+
+  if (subjectServiceId === "chatgpt" && asksIfPrivateOrOwnAccount && !reportsServiceProblem) {
+    return {
+      ...analysis,
+      ...salesMeta,
+      intent: "account_privacy",
+      serviceId: "chatgpt",
+      locale: detectedLocale,
+      confidence: 1,
+      handoff: false,
+      precise: true,
+      reply: localized(detectedLocale, {
+        ar: "نعم. يمكنك اختيار حساب ChatGPT Plus خاص وغير مشترك مع أي عميل آخر، أو تفعيل الاشتراك مباشرة على حسابك الشخصي. عند الطلب تختار طريقة التسليم المناسبة لك.",
+        fr: "Oui. Vous pouvez choisir un compte ChatGPT Plus privé, non partagé avec un autre client, ou activer l’abonnement directement sur votre compte personnel. Vous choisissez le mode de livraison lors de la commande.",
+        en: "Yes. You can choose a private ChatGPT Plus account that is not shared with another customer, or activate the subscription directly on your own account. You select the delivery method when ordering.",
+        dz: "نعم. تقدر تختار حساب ChatGPT Plus خاص وما هوش مشترك مع زبون آخر، أو نفعّلو الاشتراك مباشرة في حسابك الشخصي. وقت الطلب تختار طريقة التسليم لي تناسبك.",
+      }),
+      source: "rules",
+    };
+  }
+
   if (analysis.intent === "human_handoff") {
     return {
       ...analysis,
