@@ -6,15 +6,18 @@ import {
   buildMetaActions,
   buildQualificationActions,
   CHATGPT_MONTHLY_CAMPAIGN_ID,
+  compactCampaignAttribution,
   compactDzdPrices,
   detectLanguage,
   deterministicReply,
   detectCampaignOffer,
+  extractMetaEvents,
   formatDzdAmount,
   getSalesReadiness,
   identifyIntent,
   isReadyForCompletionActions,
   isSalesContinuation,
+  mergeCampaignAttribution,
   mergeConversationMemory,
   normalizeMessage,
   redactSensitiveText,
@@ -306,6 +309,87 @@ assert.equal(
   null,
 );
 assert.equal(detectCampaignOffer({ text: "نحب نتفلكس شهر" }), null);
+assert.equal(
+  detectCampaignOffer({ text: "hello", attribution: { source: "ADS", ad_title: "ChatGPT Plus monthly" } }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
+assert.equal(
+  detectCampaignOffer({ text: "Interested in ChatGPT Plus for 1900 DZD" }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
+assert.deepEqual(
+  compactCampaignAttribution({ ad_id: " 123 ", campaign_id: null, source: "" }),
+  { ad_id: "123" },
+);
+assert.deepEqual(
+  mergeCampaignAttribution(
+    { ad_id: "120255208574770273", source: "ADS" },
+    { ad_id: null, source: "" },
+  ),
+  { ad_id: "120255208574770273", source: "ADS" },
+);
+
+const postbackReferralEvents = extractMetaEvents({
+  object: "instagram",
+  entry: [{
+    id: "ig-business",
+    time: 100,
+    messaging: [{
+      sender: { id: "customer-1" },
+      recipient: { id: "ig-business" },
+      timestamp: 101,
+      postback: {
+        mid: "postback-mid",
+        title: "Get offer",
+        payload: "GET_OFFER",
+        referral: {
+          source: "ADS",
+          ads_context_data: {
+            ad_id: "120255208574770273",
+            ad_title: "ChatGPT Plus monthly",
+          },
+        },
+      },
+    }],
+  }],
+});
+assert.equal(postbackReferralEvents.length, 1);
+assert.equal(postbackReferralEvents[0].eventType, "postback");
+assert.equal(postbackReferralEvents[0].attribution.ad_id, "120255208574770273");
+assert.equal(postbackReferralEvents[0].attribution.ad_title, "ChatGPT Plus monthly");
+
+const attributionOnlyEvents = extractMetaEvents({
+  object: "instagram",
+  entry: [{
+    id: "ig-business",
+    time: 200,
+    messaging: [{
+      sender: { id: "customer-2" },
+      recipient: { id: "ig-business" },
+      referral: { source: "ADS", ad_id: "120255208574770273" },
+    }],
+  }],
+});
+assert.equal(attributionOnlyEvents.length, 1);
+assert.equal(attributionOnlyEvents[0].eventType, "referral");
+assert.equal(attributionOnlyEvents[0].text, "");
+
+const standbyAdminEvents = extractMetaEvents({
+  object: "instagram",
+  entry: [{
+    id: "ig-business",
+    time: 300,
+    standby: [{
+      sender: { id: "ig-business" },
+      recipient: { id: "customer-3" },
+      message: { mid: "native-reply-mid", text: "Manual answer" },
+    }],
+  }],
+});
+assert.equal(standbyAdminEvents.length, 1);
+assert.equal(standbyAdminEvents[0].eventType, "admin_echo");
+assert.equal(standbyAdminEvents[0].senderId, "customer-3");
+
 const campaignMemory = applyCampaignOfferMemory({}, CHATGPT_MONTHLY_CAMPAIGN_ID);
 assert.equal(campaignMemory.service_id, "chatgpt");
 assert.equal(campaignMemory.duration_months, 1);

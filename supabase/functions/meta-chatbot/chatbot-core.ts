@@ -134,6 +134,121 @@ export function detectLanguage(value) {
   return "fr";
 }
 
+export function compactCampaignAttribution(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  const keys = [
+    "ref",
+    "source",
+    "type",
+    "ad_id",
+    "adset_id",
+    "campaign_id",
+    "campaign_key",
+    "campaign_name",
+    "offer_id",
+    "ad_title",
+    "post_id",
+    "product_id",
+  ];
+  return keys.reduce((result, key) => {
+    const raw = source[key];
+    if (raw === null || raw === undefined) return result;
+    const normalized = String(raw).trim();
+    if (normalized) result[key] = normalized.slice(0, key === "ref" ? 500 : 200);
+    return result;
+  }, {});
+}
+
+export function mergeCampaignAttribution(previous = {}, incoming = {}) {
+  return {
+    ...compactCampaignAttribution(previous),
+    ...compactCampaignAttribution(incoming),
+  };
+}
+
+export function extractMetaEvents(payload) {
+  const channel = payload?.object === "instagram" ? "instagram" : "messenger";
+  const events = [];
+  for (const entry of Array.isArray(payload?.entry) ? payload.entry : []) {
+    const entryId = String(entry?.id || "").trim();
+    const deliveryItems = [
+      ...(Array.isArray(entry?.messaging) ? entry.messaging : []),
+      ...(Array.isArray(entry?.standby) ? entry.standby : []),
+    ];
+    for (const item of deliveryItems) {
+      const payloadValue = String(item?.postback?.payload || item?.message?.quick_reply?.payload || "").trim();
+      const text = String(item?.message?.text || item?.postback?.title || payloadValue || "").trim();
+      const providerMessageId = String(item?.message?.mid || item?.postback?.mid || "").trim();
+      const rawSenderId = String(item?.sender?.id || "").trim();
+      const rawRecipientId = String(item?.recipient?.id || "").trim();
+      const isAdminEcho = item?.message?.is_echo === true
+        || Boolean(entryId && rawSenderId === entryId && rawRecipientId && rawRecipientId !== entryId);
+
+      if (isAdminEcho) {
+        const accountId = entryId || rawSenderId;
+        const customerId = rawRecipientId;
+        if (!text || !accountId || !customerId) continue;
+        events.push({
+          channel,
+          accountId,
+          senderId: customerId,
+          threadId: customerId,
+          providerMessageId: providerMessageId
+            || `${channel}:echo:${entry?.time || Date.now()}:${customerId}`,
+          text: text.slice(0, 4000),
+          payload: "",
+          locale: detectLanguage(text),
+          eventType: "admin_echo",
+          timestamp: Number(item?.timestamp || entry?.time || Date.now()),
+        });
+        continue;
+      }
+
+      const referral = [item?.referral, item?.message?.referral, item?.postback?.referral]
+        .filter((value) => value && typeof value === "object")
+        .reduce((result, value) => ({ ...result, ...value }), {});
+      const adsContext = [
+        item?.ads_context_data,
+        item?.message?.ads_context_data,
+        item?.postback?.ads_context_data,
+        referral?.ads_context_data,
+      ].filter((value) => value && typeof value === "object")
+        .reduce((result, value) => ({ ...result, ...value }), {});
+      const attribution = compactCampaignAttribution({
+        ref: referral?.ref || adsContext?.ref,
+        source: referral?.source || adsContext?.source,
+        type: referral?.type || adsContext?.type,
+        ad_id: referral?.ad_id || adsContext?.ad_id,
+        adset_id: referral?.adset_id || referral?.adgroup_id
+          || adsContext?.adset_id || adsContext?.adgroup_id,
+        campaign_id: referral?.campaign_id || adsContext?.campaign_id,
+        campaign_name: referral?.campaign_name || adsContext?.campaign_name,
+        ad_title: referral?.ad_title || adsContext?.ad_title,
+        post_id: referral?.post_id || adsContext?.post_id,
+        product_id: referral?.product_id || adsContext?.product_id,
+      });
+      const senderId = rawSenderId;
+      const accountId = rawRecipientId || entryId;
+      if (!senderId || !accountId || (!text && !Object.keys(attribution).length)) continue;
+      events.push({
+        channel,
+        accountId,
+        senderId,
+        threadId: senderId,
+        providerMessageId: providerMessageId
+          || `${channel}:${text ? "message" : "referral"}:${entry?.time || Date.now()}:${senderId}`,
+        text: text.slice(0, 4000),
+        payload: payloadValue.slice(0, 1000),
+        locale: detectLanguage(text),
+        eventType: text ? (item?.postback ? "postback" : "message") : "referral",
+        timestamp: Number(item?.timestamp || entry?.time || Date.now()),
+        attribution,
+      });
+    }
+  }
+  return events;
+}
+
 function hasAny(text, values) {
   return values.some((value) => text.includes(normalizeMessage(value)));
 }
@@ -177,6 +292,9 @@ export function detectCampaignOffer({
     attribution?.ref,
     attribution?.campaign_key,
     attribution?.campaign_id,
+    attribution?.campaign_name,
+    attribution?.ad_title,
+    attribution?.offer_id,
   ].map((value) => String(value || "").trim().toLowerCase()).join(" ");
   const attributedMetaIds = [
     attribution?.campaign_id,
@@ -187,15 +305,13 @@ export function detectCampaignOffer({
     rawPayload.includes(CHATGPT_MONTHLY_CAMPAIGN_ID)
     || attributionMarker.includes(CHATGPT_MONTHLY_CAMPAIGN_ID)
     || attributionMarker.includes("chatgpt_august_messages")
+    || /chat\s*gpt/u.test(attributionMarker)
     || attributedMetaIds.some((value) => CHATGPT_MONTHLY_META_IDS.has(value))
   ) return CHATGPT_MONTHLY_CAMPAIGN_ID;
 
-  const normalized = normalizeMessage(text);
   const mentionsChatGpt = identifyService(text) === "chatgpt";
   const mentionsPrice = /(?:^|\D)1900(?:\D|$)/u.test(String(text || ""));
-  const campaignLead = /(?:نحب نطلب|اريد|أريد|ابي|أبي|عرض|شهري|commander|acheter|offre|monthly|order)/iu
-    .test(normalized);
-  return mentionsChatGpt && mentionsPrice && campaignLead
+  return mentionsChatGpt && mentionsPrice
     ? CHATGPT_MONTHLY_CAMPAIGN_ID
     : null;
 }

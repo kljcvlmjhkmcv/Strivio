@@ -9,8 +9,10 @@ import {
   detectCampaignOffer,
   detectLanguage,
   deterministicReply,
+  extractMetaEvents,
   identifyIntent,
   isSalesContinuation,
+  mergeCampaignAttribution,
   mergeConversationMemory,
   normalizeMessage,
   redactSensitiveText,
@@ -740,6 +742,7 @@ function localeForInbound(text: string, detectedLocale: string, previousLocale =
 
 async function upsertConversation(db: any, event: any, settings: any) {
   const now = new Date().toISOString();
+  const attributionOnly = event.eventType === "referral";
   const existing = await db.from("chatbot_conversations")
     .select("*")
     .eq("channel", event.channel)
@@ -749,6 +752,21 @@ async function upsertConversation(db: any, event: any, settings: any) {
   if (existing.error) throw existing.error;
   if (existing.data) {
     const resolvedLocale = localeForInbound(event.text, event.locale, existing.data.locale);
+    const previousMetadata = existing.data.metadata || {};
+    const attribution = settings.campaign_attribution_enabled === false
+      ? mergeCampaignAttribution(
+          existing.data.campaign_metadata || previousMetadata.attribution || {},
+          {},
+        )
+      : mergeCampaignAttribution(
+          existing.data.campaign_metadata || previousMetadata.attribution || {},
+          event.attribution || {},
+        );
+    event.campaignOfferId = event.campaignOfferId || detectCampaignOffer({
+      text: event.text,
+      payload: event.payload,
+      attribution,
+    });
     const memory = applyCampaignOfferMemory(
       mergeConversationMemory(
         existing.data.memory || existing.data.metadata?.memory || {},
@@ -757,17 +775,10 @@ async function upsertConversation(db: any, event: any, settings: any) {
       ),
       event.campaignOfferId,
     );
-    const previousMetadata = existing.data.metadata || {};
     const salesVariant = previousMetadata.sales_variant
       || (settings.website_pitch_ab_enabled === true
         ? stableSalesVariant(`${event.channel}:${event.senderId}`)
         : null);
-    const attribution = settings.campaign_attribution_enabled === false
-      ? previousMetadata.attribution || {}
-      : {
-          ...(previousMetadata.attribution || {}),
-          ...(event.attribution || {}),
-        };
     const leadSource = String(
       attribution.source
         || (attribution.ad_id ? "meta_ads" : "")
@@ -777,8 +788,8 @@ async function upsertConversation(db: any, event: any, settings: any) {
     const updated = await db.from("chatbot_conversations")
       .update({
         locale: resolvedLocale,
-        last_inbound_at: now,
-        unread_count: Number(existing.data.unread_count || 0) + 1,
+        last_inbound_at: attributionOnly ? existing.data.last_inbound_at : now,
+        unread_count: Number(existing.data.unread_count || 0) + (attributionOnly ? 0 : 1),
         memory,
         follow_up_due_at: null,
         follow_up_count: 0,
@@ -804,6 +815,14 @@ async function upsertConversation(db: any, event: any, settings: any) {
     if (updated.error) throw updated.error;
     return updated.data;
   }
+  const attribution = settings.campaign_attribution_enabled === false
+    ? {}
+    : mergeCampaignAttribution({}, event.attribution || {});
+  event.campaignOfferId = event.campaignOfferId || detectCampaignOffer({
+    text: event.text,
+    payload: event.payload,
+    attribution,
+  });
   const memory = applyCampaignOfferMemory(
     mergeConversationMemory({}, event.text, event.payload),
     event.campaignOfferId,
@@ -811,9 +830,6 @@ async function upsertConversation(db: any, event: any, settings: any) {
   const salesVariant = settings.website_pitch_ab_enabled === true
     ? stableSalesVariant(`${event.channel}:${event.senderId}`)
     : null;
-  const attribution = settings.campaign_attribution_enabled === false
-    ? {}
-    : event.attribution || {};
   const leadSource = String(
     attribution.source || (attribution.ad_id ? "meta_ads" : "") || event.channel,
   ).slice(0, 100);
@@ -823,8 +839,8 @@ async function upsertConversation(db: any, event: any, settings: any) {
     external_user_id: event.senderId,
     external_thread_id: event.threadId || null,
     locale: event.locale,
-    last_inbound_at: now,
-    unread_count: 1,
+    last_inbound_at: attributionOnly ? null : now,
+    unread_count: attributionOnly ? 0 : 1,
     memory,
     lead_source: leadSource,
     campaign_metadata: attribution,
@@ -854,70 +870,6 @@ async function upsertConversation(db: any, event: any, settings: any) {
     throw created.error;
   }
   return created.data;
-}
-
-function extractMetaEvents(payload: any) {
-  const channel = payload?.object === "instagram" ? "instagram" : "messenger";
-  const events: any[] = [];
-  for (const entry of Array.isArray(payload?.entry) ? payload.entry : []) {
-    for (const item of Array.isArray(entry?.messaging) ? entry.messaging : []) {
-      const payloadValue = String(item?.postback?.payload || item?.message?.quick_reply?.payload || "").trim();
-      const text = String(item?.message?.text || item?.postback?.title || payloadValue || "").trim();
-      const providerMessageId = String(item?.message?.mid || item?.postback?.mid || "").trim();
-      if (item?.message?.is_echo) {
-        const accountId = String(entry?.id || item?.sender?.id || "").trim();
-        const customerId = String(item?.recipient?.id || "").trim();
-        if (!text || !accountId || !customerId) continue;
-        events.push({
-          channel,
-          accountId,
-          senderId: customerId,
-          threadId: customerId,
-          providerMessageId: providerMessageId
-            || `${channel}:echo:${entry?.time || Date.now()}:${customerId}`,
-          text: text.slice(0, 4000),
-          payload: "",
-          locale: detectLanguage(text),
-          eventType: "admin_echo",
-          timestamp: Number(item?.timestamp || entry?.time || Date.now()),
-        });
-        continue;
-      }
-      const senderId = String(item?.sender?.id || "").trim();
-      const accountId = String(item?.recipient?.id || entry?.id || "").trim();
-      if (!text || !senderId || !accountId) continue;
-      const referral = item?.referral || item?.message?.referral || {};
-      events.push({
-        channel,
-        accountId,
-        senderId,
-        threadId: senderId,
-        providerMessageId: providerMessageId || `${channel}:${entry?.time || Date.now()}:${senderId}`,
-        text: text.slice(0, 4000),
-        payload: payloadValue.slice(0, 1000),
-        locale: detectLanguage(text),
-        eventType: item?.postback ? "postback" : "message",
-        timestamp: Number(item?.timestamp || entry?.time || Date.now()),
-        attribution: {
-          ref: String(referral?.ref || "").slice(0, 200) || null,
-          source: String(referral?.source || "").slice(0, 100) || null,
-          type: String(referral?.type || "").slice(0, 100) || null,
-          ad_id: String(referral?.ad_id || referral?.ads_context_data?.ad_id || "").slice(0, 120) || null,
-          adset_id: String(
-            referral?.adset_id
-              || referral?.adgroup_id
-              || referral?.ads_context_data?.adset_id
-              || referral?.ads_context_data?.adgroup_id
-              || "",
-          ).slice(0, 120) || null,
-          campaign_id: String(
-            referral?.campaign_id || referral?.ads_context_data?.campaign_id || "",
-          ).slice(0, 120) || null,
-        },
-      });
-    }
-  }
-  return events;
 }
 
 async function handleAdminEcho(db: any, event: any) {
@@ -2130,6 +2082,15 @@ serve(async (req) => {
   const results = await Promise.all(events.slice(0, 20).map(async (event) => {
     try {
       if (event.eventType === "admin_echo") return await handleAdminEcho(db, event);
+      if (event.eventType === "referral") {
+        const conversation = await upsertConversation(db, event, botData.settings);
+        return {
+          stored: true,
+          replied: false,
+          attribution_only: true,
+          campaign_offer_id: event.campaignOfferId || conversation.memory?.campaign_offer_id || null,
+        };
+      }
       return await handleInbound(db, event, botData, true);
     } catch (error) {
       return { success: false, error: String(error?.message || error) };
