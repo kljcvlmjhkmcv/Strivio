@@ -157,6 +157,15 @@ export function identifyService(value) {
 const DURATION_MONTHS = [1, 2, 3, 6, 12];
 
 export const CHATGPT_MONTHLY_CAMPAIGN_ID = "chatgpt_monthly_1900";
+export const CHATGPT_MONTHLY_META_CAMPAIGN_ID = "120255208574750273";
+export const CHATGPT_MONTHLY_META_ADSET_ID = "120255208574760273";
+export const CHATGPT_MONTHLY_META_AD_ID = "120255208574770273";
+
+const CHATGPT_MONTHLY_META_IDS = new Set([
+  CHATGPT_MONTHLY_META_CAMPAIGN_ID,
+  CHATGPT_MONTHLY_META_ADSET_ID,
+  CHATGPT_MONTHLY_META_AD_ID,
+]);
 
 export function detectCampaignOffer({
   text = "",
@@ -169,10 +178,16 @@ export function detectCampaignOffer({
     attribution?.campaign_key,
     attribution?.campaign_id,
   ].map((value) => String(value || "").trim().toLowerCase()).join(" ");
+  const attributedMetaIds = [
+    attribution?.campaign_id,
+    attribution?.adset_id,
+    attribution?.ad_id,
+  ].map((value) => String(value || "").trim());
   if (
     rawPayload.includes(CHATGPT_MONTHLY_CAMPAIGN_ID)
     || attributionMarker.includes(CHATGPT_MONTHLY_CAMPAIGN_ID)
     || attributionMarker.includes("chatgpt_august_messages")
+    || attributedMetaIds.some((value) => CHATGPT_MONTHLY_META_IDS.has(value))
   ) return CHATGPT_MONTHLY_CAMPAIGN_ID;
 
   const normalized = normalizeMessage(text);

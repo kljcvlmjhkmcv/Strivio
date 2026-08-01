@@ -289,6 +289,22 @@ assert.equal(
   detectCampaignOffer({ payload: "STRIVIO_CAMPAIGN_ORDER:chatgpt_monthly_1900" }),
   CHATGPT_MONTHLY_CAMPAIGN_ID,
 );
+assert.equal(
+  detectCampaignOffer({ text: "سلام", attribution: { campaign_id: "120255208574750273" } }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
+assert.equal(
+  detectCampaignOffer({ text: "سلام", attribution: { adset_id: "120255208574760273" } }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
+assert.equal(
+  detectCampaignOffer({ text: "سلام", attribution: { ad_id: "120255208574770273" } }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
+assert.equal(
+  detectCampaignOffer({ text: "سلام", attribution: { ad_id: "999999999999999999" } }),
+  null,
+);
 assert.equal(detectCampaignOffer({ text: "نحب نتفلكس شهر" }), null);
 const campaignMemory = applyCampaignOfferMemory({}, CHATGPT_MONTHLY_CAMPAIGN_ID);
 assert.equal(campaignMemory.service_id, "chatgpt");

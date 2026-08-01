@@ -903,6 +903,13 @@ function extractMetaEvents(payload: any) {
           source: String(referral?.source || "").slice(0, 100) || null,
           type: String(referral?.type || "").slice(0, 100) || null,
           ad_id: String(referral?.ad_id || referral?.ads_context_data?.ad_id || "").slice(0, 120) || null,
+          adset_id: String(
+            referral?.adset_id
+              || referral?.adgroup_id
+              || referral?.ads_context_data?.adset_id
+              || referral?.ads_context_data?.adgroup_id
+              || "",
+          ).slice(0, 120) || null,
           campaign_id: String(
             referral?.campaign_id || referral?.ads_context_data?.campaign_id || "",
           ).slice(0, 120) || null,
