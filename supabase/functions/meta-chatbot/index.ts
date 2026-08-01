@@ -874,8 +874,10 @@ async function upsertConversation(db: any, event: any, settings: any) {
 
 async function handleAdminEcho(db: any, event: any) {
   // Meta also echoes messages sent through this function. Give the outbound
-  // insert a brief head start, then distinguish it from a native Inbox reply.
-  await sleep(900);
+  // insert a very short head start, then distinguish it from a native Inbox
+  // reply. A long delay lets an already-running bot response escape after the
+  // administrator has replied in Meta Inbox.
+  await sleep(120);
   const providerMessageId = String(event.providerMessageId || "");
   if (providerMessageId) {
     const knownMessage = await db.from("chatbot_messages")
@@ -1057,11 +1059,20 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     : Math.max(500, Math.min(5000, Number(botData.settings.debounce_ms || 2500)));
   event.replyGeneration = crypto.randomUUID();
   event.replyNotBefore = new Date(Date.now() + debounceMs).toISOString();
-  event.campaignOfferId = detectCampaignOffer({
+  const directCampaignOfferId = detectCampaignOffer({
     text: event.text,
     payload: event.payload,
     attribution: event.attribution || {},
   });
+  const inboundHadCampaignContext = Boolean(
+    directCampaignOfferId
+    && (
+      Object.keys(event.attribution || {}).length
+      || String(event.payload || "").trim()
+      || /(?:مهتم.*عرض|عرض.*شهري|interested.*offer|int[eé]ress[eé].*offre)/iu.test(String(event.text || ""))
+    )
+  );
+  event.campaignOfferId = directCampaignOfferId;
   if (event.campaignOfferId) {
     event.attribution = {
       ...(event.attribution || {}),
@@ -1091,7 +1102,8 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   const campaignPaymentMethod = String(
     payloadValue.match(/^STRIVIO_PAYMENT_METHOD:([^:]+):/i)?.[1] || "",
   ).toLowerCase();
-  const isCampaignEntry = event.campaignOfferId === CHATGPT_MONTHLY_CAMPAIGN_ID
+  const isCampaignEntry = inboundHadCampaignContext
+    && event.campaignOfferId === CHATGPT_MONTHLY_CAMPAIGN_ID
     && !isCampaignOrderPostback
     && !isCampaignPaymentPostback
     && !isCampaignQuestionPostback
@@ -1529,14 +1541,6 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     text: turnText,
   });
 
-  if (answer.handoff) {
-    await db.from("chatbot_conversations").update({
-      mode: "human",
-      handoff_reason: answer.intent || "requested",
-      follow_up_due_at: null,
-    }).eq("id", conversation.id);
-  }
-
   let providerMessageId = "";
   let deliveryStatus = shouldSend ? "queued" : "sent";
   let deliveryError = "";
@@ -1588,7 +1592,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     if (sendLease.error) throw sendLease.error;
     if (
       !sendLease.data
-      || (sendLease.data.mode !== "bot" && !(answer.handoff && sendLease.data.mode === "human"))
+      || sendLease.data.mode !== "bot"
       || sendLease.data.metadata?.reply_generation !== event.replyGeneration
     ) {
       return { stored: true, replied: false, superseded: true };
@@ -1603,7 +1607,7 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
     if (finalLease.error) throw finalLease.error;
     if (
       !finalLease.data
-      || (finalLease.data.mode !== "bot" && !(answer.handoff && finalLease.data.mode === "human"))
+      || finalLease.data.mode !== "bot"
       || finalLease.data.metadata?.reply_generation !== event.replyGeneration
     ) {
       return { stored: true, replied: false, superseded: true, reason: "manual_takeover" };
@@ -1691,6 +1695,11 @@ async function handleInbound(db: any, event: any, botData: any, shouldSend: bool
   if (stage === "website") conversationChanges.conversion_route = "website";
   if (stage === "manual") conversationChanges.conversion_route = "manual";
   if (stage === "handoff") conversationChanges.conversion_route = "human";
+  if (answer.handoff) {
+    conversationChanges.mode = "human";
+    conversationChanges.handoff_reason = answer.intent || "requested";
+    conversationChanges.follow_up_due_at = null;
+  }
   const maximumFollowUps = Math.min(
     2,
     Math.max(0, Number(botData.settings.max_followups_per_conversation ?? 2)),
@@ -2079,22 +2088,36 @@ serve(async (req) => {
   const events = extractMetaEvents(payload);
   if (!events.length) return json(req, { success: true, ignored: true });
   const botData = await loadBotData(db);
-  const results = await Promise.all(events.slice(0, 20).map(async (event) => {
+  // Apply native administrator replies first and process the remaining events
+  // in order. Parallel webhook handling allowed an inbound customer event to
+  // generate a bot reply while the administrator takeover event was still
+  // waiting to update the conversation.
+  const orderedEvents = [...events.slice(0, 20)].sort((left, right) => {
+    const priority = (event: any) => event.eventType === "admin_echo" ? 0 : 1;
+    return priority(left) - priority(right)
+      || Number(left.timestamp || 0) - Number(right.timestamp || 0);
+  });
+  const results: any[] = [];
+  for (const event of orderedEvents) {
     try {
-      if (event.eventType === "admin_echo") return await handleAdminEcho(db, event);
+      if (event.eventType === "admin_echo") {
+        results.push(await handleAdminEcho(db, event));
+        continue;
+      }
       if (event.eventType === "referral") {
         const conversation = await upsertConversation(db, event, botData.settings);
-        return {
+        results.push({
           stored: true,
           replied: false,
           attribution_only: true,
           campaign_offer_id: event.campaignOfferId || conversation.memory?.campaign_offer_id || null,
-        };
+        });
+        continue;
       }
-      return await handleInbound(db, event, botData, true);
+      results.push(await handleInbound(db, event, botData, true));
     } catch (error) {
-      return { success: false, error: String(error?.message || error) };
+      results.push({ success: false, error: String(error?.message || error) });
     }
-  }));
+  }
   return json(req, { success: true, results });
 });

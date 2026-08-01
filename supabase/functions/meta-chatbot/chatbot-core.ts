@@ -69,7 +69,8 @@ const HUMAN_WORDS = [
 ];
 const PAYMENT_WORDS = [
   "دفع", "ادفع", "نخلص", "بريدي موب", "بطاقة", "payment", "pay", "payer",
-  "paiement", "baridimob", "nkhalles",
+  "paiement", "baridimob", "nkhalles", "ccp", "cib", "الذهبية", "ذهبية",
+  "wise", "usdt", "flexy", "فليكسي",
 ];
 const DELIVERY_WORDS = [
   "تسليم", "يوصل", "استلم", "delivery", "deliver", "livraison", "instant",
@@ -309,9 +310,14 @@ export function detectCampaignOffer({
     || attributedMetaIds.some((value) => CHATGPT_MONTHLY_META_IDS.has(value))
   ) return CHATGPT_MONTHLY_CAMPAIGN_ID;
 
-  const mentionsChatGpt = identifyService(text) === "chatgpt";
-  const mentionsPrice = /(?:^|\D)1900(?:\D|$)/u.test(String(text || ""));
-  return mentionsChatGpt && mentionsPrice
+  const normalizedText = normalizeMessage(text)
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)));
+  const mentionsChatGpt = identifyService(normalizedText) === "chatgpt";
+  const mentionsPrice = /(?:^|\D)1900(?:\D|$)/u.test(normalizedText);
+  const explicitCampaignInterest = /(?:مهتم.*عرض|عرض.*شهري|interested.*offer|int[eé]ress[eé].*offre)/iu
+    .test(normalizedText);
+  return mentionsChatGpt && (mentionsPrice || explicitCampaignInterest)
     ? CHATGPT_MONTHLY_CAMPAIGN_ID
     : null;
 }
@@ -1018,6 +1024,12 @@ export function deterministicReply({
     .test(normalizedQuestion);
   const asksIfPrivateOrOwnAccount = /(?:خاص|غير مشترك|مش مشترك|حسابي|حساب الزبون|private|priv[eé]|personnel|non partag[eé]|not shared|own account|my account|mon compte|تفعيل.*حساب|activ(?:ate|er).*(?:account|compte))/iu
     .test(normalizedQuestion);
+  const asksActivationOnOwnEmail = /(?:ا?يميل(?:ي| تاعي)?|بريدي|email|e-mail|mail).*(?:تفعيل|يتفعل|نفعل|activation|activ[eé]|activate)|(?:تفعيل|يتفعل|نفعل|activation|activ[eé]|activate).*(?:ا?يميل(?:ي| تاعي)?|بريدي|email|e-mail|mail)/iu
+    .test(normalizedQuestion);
+  const asksForPreparedAccount = /(?:حساب|compte|account).*(?:جاهز|محضر|مجهز|pr[eé]par[eé]|prepar[eé]|pripari)|(?:جاهز|محضر|مجهز|pr[eé]par[eé]|prepar[eé]|pripari).*(?:حساب|compte|account)/iu
+    .test(normalizedQuestion);
+  const asksPaymentBeforeDelivery = /(?:دفع|نخلص|نخلس|pay|payer|paiement).*(?:قبل|avant|before).*(?:استلام|تسليم|livraison|delivery)|(?:قبل|avant|before).*(?:استلام|تسليم|livraison|delivery).*(?:دفع|نخلص|نخلس|pay|payer|paiement)/iu
+    .test(normalizedQuestion);
 
   if (subjectServiceId === "netflix" && asksIfOfficial && !reportsServiceProblem) {
     return {
@@ -1039,7 +1051,11 @@ export function deterministicReply({
     };
   }
 
-  if (subjectServiceId === "chatgpt" && asksIfPrivateOrOwnAccount && !reportsServiceProblem) {
+  if (
+    (subjectServiceId === "chatgpt" || (!subjectServiceId && asksIfPrivateOrOwnAccount))
+    && asksIfPrivateOrOwnAccount
+    && !reportsServiceProblem
+  ) {
     return {
       ...analysis,
       ...salesMeta,
@@ -1054,6 +1070,66 @@ export function deterministicReply({
         fr: "Oui. Vous pouvez choisir un compte ChatGPT Plus privé, non partagé avec un autre client, ou activer l’abonnement directement sur votre compte personnel. Vous choisissez le mode de livraison lors de la commande.",
         en: "Yes. You can choose a private ChatGPT Plus account that is not shared with another customer, or activate the subscription directly on your own account. You select the delivery method when ordering.",
         dz: "نعم. تقدر تختار حساب ChatGPT Plus خاص وما هوش مشترك مع زبون آخر، أو نفعّلو الاشتراك مباشرة في حسابك الشخصي. وقت الطلب تختار طريقة التسليم لي تناسبك.",
+      }),
+      source: "rules",
+    };
+  }
+
+  if (subjectServiceId === "chatgpt" && asksActivationOnOwnEmail && !reportsServiceProblem) {
+    return {
+      ...analysis,
+      ...salesMeta,
+      intent: "account_activation",
+      serviceId: "chatgpt",
+      locale: detectedLocale,
+      confidence: 1,
+      handoff: false,
+      precise: true,
+      reply: localized(detectedLocale, {
+        ar: "نعم، يمكن تفعيل ChatGPT Plus على بريدك وحسابك الشخصي. لا ترسل كلمة السر داخل Instagram أو Messenger؛ بعد إنشاء الطلب تدخل بياناتك فقط في صفحة الطلب المحمية.",
+        fr: "Oui, ChatGPT Plus peut être activé sur votre adresse e-mail et votre compte personnel. N’envoyez jamais votre mot de passe sur Instagram ou Messenger : saisissez vos informations uniquement dans la page de commande protégée.",
+        en: "Yes, ChatGPT Plus can be activated on your own email and personal account. Never send your password through Instagram or Messenger; enter it only on the protected order page.",
+        dz: "نعم، نقدروا نفعلولك ChatGPT Plus في الإيميل والحساب تاعك. ما تبعثش كلمة السر في Instagram ولا Messenger؛ تدخل معلوماتك غير في صفحة الطلب المحمية.",
+      }),
+      source: "rules",
+    };
+  }
+
+  if (subjectServiceId === "chatgpt" && asksForPreparedAccount && !reportsServiceProblem) {
+    return {
+      ...analysis,
+      ...salesMeta,
+      intent: "prepared_account",
+      serviceId: "chatgpt",
+      locale: detectedLocale,
+      confidence: 1,
+      handoff: false,
+      precise: true,
+      reply: localized(detectedLocale, {
+        ar: "نعم، يتوفر حساب ChatGPT Plus جاهز وخاص وغير مشترك مع عميل آخر. ويمكنك بدلًا منه اختيار التفعيل على حسابك الشخصي.",
+        fr: "Oui, un compte ChatGPT Plus prêt, privé et non partagé avec un autre client est disponible. Vous pouvez aussi choisir l’activation sur votre compte personnel.",
+        en: "Yes, a ready private ChatGPT Plus account that is not shared with another customer is available. You can also choose activation on your own account.",
+        dz: "نعم، كاين compte ChatGPT Plus واجد وخاص وماهوش مشترك مع زبون آخر. وتقدر ثاني تختار التفعيل في حسابك الشخصي.",
+      }),
+      source: "rules",
+    };
+  }
+
+  if (asksPaymentBeforeDelivery && !reportsServiceProblem) {
+    return {
+      ...analysis,
+      ...salesMeta,
+      intent: "payment_timing",
+      serviceId: subjectServiceId || null,
+      locale: detectedLocale,
+      confidence: 1,
+      handoff: false,
+      precise: true,
+      reply: localized(detectedLocale, {
+        ar: "يتم تأكيد الدفع أولًا ثم يبدأ التسليم أو التفعيل. طلبك يبقى مسجلًا ويمكنك متابعته من حسابك، والخدمة مضمونة طوال المدة المدفوعة.",
+        fr: "Le paiement est confirmé avant la livraison ou l’activation. Votre commande reste enregistrée et suivie depuis votre compte, avec une garantie pendant toute la durée payée.",
+        en: "Payment is confirmed before delivery or activation. Your order remains recorded and trackable from your account, with coverage for the full paid period.",
+        dz: "نأكدوا الدفع أولًا ومن بعد يبدا التسليم ولا التفعيل. الطلب يبقى مسجل وتقدر تتابعو من حسابك، والخدمة مضمونة طول المدة المخلصة.",
       }),
       source: "rules",
     };
@@ -1124,6 +1200,45 @@ export function deterministicReply({
   }
 
   if (analysis.intent === "payment") {
+    const directMethod = /\bccp\b/i.test(normalizedQuestion)
+      ? "CCP"
+      : /\bbaridi\s*mob\b|بريدي موب/i.test(normalizedQuestion)
+      ? "BaridiMob"
+      : /\bflexy\b|فليكسي/i.test(normalizedQuestion)
+      ? "Flexy"
+      : /\bwise\b/i.test(normalizedQuestion)
+      ? "Wise"
+      : /\busdt\b/i.test(normalizedQuestion)
+      ? "USDT"
+      : /\bcib\b|الذهبية|ذهبية/i.test(normalizedQuestion)
+      ? "Edahabia / CIB"
+      : "";
+    if (directMethod) {
+      const isCard = directMethod === "Edahabia / CIB";
+      const flexyNote = directMethod === "Flexy" ? " (مع إضافة رسوم 19%)" : "";
+      return {
+        ...analysis,
+        ...salesMeta,
+        locale: detectedLocale,
+        handoff: false,
+        precise: true,
+        reply: localized(detectedLocale, {
+          ar: isCard
+            ? "نعم، الدفع بالبطاقة الذهبية أو CIB متاح مباشرة عبر الموقع، وبعد الدفع تتابع الطلب من حسابك."
+            : `نعم، الدفع عبر ${directMethod} متاح هنا في المحادثة${flexyNote}. إذا تريد الإكمال، أخبرني بالخدمة والمدة.`,
+          fr: isCard
+            ? "Oui, le paiement par carte Edahabia ou CIB est disponible directement sur le site, avec suivi depuis votre compte."
+            : `Oui, le paiement par ${directMethod} est disponible ici dans la conversation${directMethod === "Flexy" ? " avec 19 % de frais" : ""}. Indiquez le service et la durée pour continuer.`,
+          en: isCard
+            ? "Yes, Edahabia or CIB card payment is available directly on the website, with order tracking from your account."
+            : `Yes, ${directMethod} payment is available here in the conversation${directMethod === "Flexy" ? " with a 19% fee" : ""}. Tell me the service and duration to continue.`,
+          dz: isCard
+            ? "نعم، تقدر تخلص بالبطاقة الذهبية ولا CIB مباشرة من الموقع، ومن بعد تتابع الطلب من حسابك."
+            : `نعم، تقدر تخلص بـ ${directMethod} هنا في المحادثة${flexyNote}. إذا تحب تكمل، قولّي الخدمة والمدة.`,
+        }),
+        source: "rules",
+      };
+    }
     return {
       ...analysis,
       ...salesMeta,

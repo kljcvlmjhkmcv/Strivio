@@ -317,6 +317,10 @@ assert.equal(
   detectCampaignOffer({ text: "Interested in ChatGPT Plus for 1900 DZD" }),
   CHATGPT_MONTHLY_CAMPAIGN_ID,
 );
+assert.equal(
+  detectCampaignOffer({ text: "مهتم بعرض ChatGPT Plus الشهري بـ١٩٠٠ دج" }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
 assert.deepEqual(
   compactCampaignAttribution({ ad_id: " 123 ", campaign_id: null, source: "" }),
   { ad_id: "123" },
@@ -504,6 +508,52 @@ assert.equal(privateChatGptReply.handoff, false);
 assert.match(privateChatGptReply.reply, /خاص/);
 assert.match(privateChatGptReply.reply, /حسابك الشخصي/);
 
+const contextFreePrivateReply = deterministicReply({
+  text: "هل الحساب خاص وغير مشترك؟",
+  locale: "ar",
+  services,
+});
+assert.equal(contextFreePrivateReply.intent, "account_privacy");
+assert.equal(contextFreePrivateReply.handoff, false);
+
+const ownEmailActivationReply = deterministicReply({
+  text: "يتفعل على الايميل تاعي؟",
+  locale: "dz",
+  services,
+  memory: { service_id: "chatgpt", duration_months: 1, quantity: 1 },
+});
+assert.equal(ownEmailActivationReply.intent, "account_activation");
+assert.equal(ownEmailActivationReply.handoff, false);
+assert.match(ownEmailActivationReply.reply, /صفحة الطلب المحمية/);
+
+const preparedAccountReply = deterministicReply({
+  text: "ab3ali khoya compte pripari",
+  locale: "dz",
+  services,
+  memory: { service_id: "chatgpt", duration_months: 1, quantity: 1 },
+});
+assert.equal(preparedAccountReply.intent, "prepared_account");
+assert.equal(preparedAccountReply.handoff, false);
+
+const ccpReply = deterministicReply({
+  text: "CCP?",
+  locale: "fr",
+  services,
+  memory: { service_id: "chatgpt", duration_months: 1, quantity: 1 },
+});
+assert.equal(ccpReply.intent, "payment");
+assert.equal(ccpReply.handoff, false);
+assert.match(ccpReply.reply, /CCP/);
+
+const paymentTimingReply = deterministicReply({
+  text: "الدفع قبل الاستلام؟",
+  locale: "ar",
+  services,
+  memory: { service_id: "chatgpt", duration_months: 1, quantity: 1 },
+});
+assert.equal(paymentTimingReply.intent, "payment_timing");
+assert.equal(paymentTimingReply.handoff, false);
+
 const bidiReply = stabilizeBidiReply("السعر: 1,900 DZD\nالخدمة: Netflix", "ar");
 assert.match(bidiReply, /\u2067/);
 assert.match(bidiReply, /\u2069/);
@@ -522,6 +572,9 @@ assert.match(runtimeSource, /"unresolved_question",/);
 assert.match(runtimeSource, /conversation\.mode !== "bot"/);
 assert.match(runtimeSource, /handoff_reason: "admin_reply_pending"/);
 assert.match(runtimeSource, /reason: "manual_takeover"/);
+assert.match(runtimeSource, /sendLease\.data\.mode !== "bot"/);
+assert.match(runtimeSource, /const orderedEvents = \[\.\.\.events\.slice\(0, 20\)\]\.sort/);
+assert.doesNotMatch(runtimeSource, /answer\.handoff && sendLease\.data\.mode === "human"/);
 assert.match(runtimeSource, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
 assert.match(runtimeSource, /AbortSignal\.timeout\(9000\)/);
 assert.match(runtimeSource, /comprehensiveFallbackAnswer/);
