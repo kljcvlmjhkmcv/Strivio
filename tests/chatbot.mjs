@@ -305,6 +305,14 @@ assert.equal(
   CHATGPT_MONTHLY_CAMPAIGN_ID,
 );
 assert.equal(
+  detectCampaignOffer({ text: "سلام", attribution: { adset_id: "120255278422410273" } }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
+assert.equal(
+  detectCampaignOffer({ text: "سلام", attribution: { ad_id: "120255278422420273" } }),
+  CHATGPT_MONTHLY_CAMPAIGN_ID,
+);
+assert.equal(
   detectCampaignOffer({ text: "سلام", attribution: { ad_id: "999999999999999999" } }),
   null,
 );
