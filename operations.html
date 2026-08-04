@@ -730,6 +730,16 @@
             <button type="button" class="btn" onclick="closeActivationModal()">إغلاق</button>
           </div>
         <div id="activation-customer" class="grid md:grid-cols-2 gap-3 mt-5"></div>
+        <form id="activation-expiry-form" class="hidden mt-5 rounded-2xl border border-[#39ff14]/20 bg-[#39ff14]/5 p-4">
+          <div class="flex flex-col md:flex-row md:items-end gap-3">
+            <label class="text-xs muted flex-1">تاريخ انتهاء الاشتراك
+              <input id="activation-expiry-date" type="date" class="input mt-1" required />
+            </label>
+            <label class="flex items-center gap-2 text-xs pb-3"><input id="activation-expiry-notify" type="checkbox" /> إشعار العميل بالتاريخ الجديد</label>
+            <button id="activation-expiry-save" class="btn neon" type="submit">حفظ تاريخ الانتهاء</button>
+          </div>
+          <p class="muted text-[11px] mt-2">يُحدّث هذا التاريخ اشتراك Spotify المُسلَّم، وصفحة العميل، وسجل المزامنة.</p>
+        </form>
         <div id="manual-delivery-options" class="mt-5 rounded-2xl border border-[#292929] bg-black/25 p-4">
           <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
@@ -3266,6 +3276,14 @@
           ' <span class="badge b-gray">' +
           esc(manualStrategyLabel(f)) +
           "</span>";
+        var delivered = ["delivered", "completed"].includes(
+          String(f.status || "").toLowerCase(),
+        );
+        $("activation-expiry-form").classList.toggle("hidden", !delivered);
+        $("activation-expiry-date").value = String(
+          (f.delivery_summary && f.delivery_summary.ends_at) || "",
+        ).slice(0, 10);
+        $("activation-expiry-notify").checked = false;
         $("activation-customer").innerHTML =
           '<div class="secret"><b>العميل</b><div class="mt-2">' + esc(customerFor(o)) + '</div><div class="muted text-xs mt-1" dir="ltr">' + esc(info.email || "—") + " · " + esc(info.phone || "—") + "</div></div>" +
           '<div class="secret"><b>حساب الخدمة</b><div class="mt-2">' + activationCredentialsHtml(f) + "</div></div>";
@@ -3317,6 +3335,30 @@
         editingActivation = null;
         $("activation-modal").classList.add("hidden");
       }
+      $("activation-expiry-form").addEventListener("submit", async function (event) {
+        event.preventDefault();
+        if (!editingActivation) return;
+        var button = $("activation-expiry-save"),
+          originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "جاري حفظ التاريخ…";
+        try {
+          var result = await inventoryCall({
+            action: "update_manual_fulfillment_end",
+            fulfillment_id: editingActivation.id,
+            ends_at: $("activation-expiry-date").value,
+            notify: $("activation-expiry-notify").checked,
+          });
+          toast("تم تحديث تاريخ انتهاء الاشتراك في الطلب وصفحة العميل.");
+          await loadAll();
+          openActivationModal(result.fulfillment_id || editingActivation.id);
+        } catch (error) {
+          toast("تعذر تحديث تاريخ الانتهاء: " + error.message, true);
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      });
       function activationOrderLink() {
         if (!editingActivation) return "";
         return (

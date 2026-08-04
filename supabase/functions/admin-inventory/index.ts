@@ -1860,6 +1860,62 @@ serve(async (req) => {
         headers: cors,
       });
     }
+    if (action === "update_manual_fulfillment_end") {
+      const fulfillmentId = String(body.fulfillment_id || "").trim();
+      const requestedEndDate = String(body.ends_at || "").trim();
+      if (!fulfillmentId || !/^\d{4}-\d{2}-\d{2}$/.test(requestedEndDate)) {
+        throw new Error("Fulfillment and a valid end date are required");
+      }
+      const endsAt = `${requestedEndDate}T12:00:00.000Z`;
+      const { data: fulfillment, error: fulfillmentError } = await db
+        .from("fulfillments")
+        .select("id,order_id,service_id,mode,status,delivery_summary,encrypted_delivery")
+        .eq("id", fulfillmentId)
+        .maybeSingle();
+      if (fulfillmentError || !fulfillment) {
+        throw fulfillmentError || new Error("Fulfillment not found");
+      }
+      if (!["manual_activation", "manual_delivery"].includes(String(fulfillment.mode || "").toLowerCase())) {
+        throw new Error("Only a manual service subscription can be updated here");
+      }
+      if (!["delivered", "completed"].includes(String(fulfillment.status || "").toLowerCase())) {
+        throw new Error("The service must be delivered before its expiry can be updated");
+      }
+
+      let encryptedDelivery = fulfillment.encrypted_delivery || null;
+      if (encryptedDelivery) {
+        const delivery = plainObject(await decrypt(encryptedDelivery));
+        const entries = Array.isArray(delivery.entries)
+          ? delivery.entries.map((entry: any) => ({ ...plainObject(entry), ends_at: endsAt }))
+          : delivery.entries;
+        encryptedDelivery = await encrypt({ ...delivery, ends_at: endsAt, entries });
+      }
+      const userDb = createClient(url, service, {
+        global: { headers: { Authorization: auth } },
+      });
+      const { data: result, error: updateError } = await userDb.rpc(
+        "ops_update_manual_fulfillment_end",
+        {
+          p_fulfillment_id: fulfillmentId,
+          p_ends_at: endsAt,
+          p_encrypted_delivery: encryptedDelivery,
+          p_notify: body.notify === true,
+        },
+      );
+      if (updateError) throw updateError;
+      const syncResult = await syncInventory(
+        db,
+        url,
+        service,
+        fulfillmentId,
+        fulfillment.service_id,
+      );
+      if (body.notify === true) dispatchNotifications(url, service);
+      return new Response(
+        JSON.stringify({ ...result, success: true, sheet_sync_queued: syncResult.ok }),
+        { headers: cors },
+      );
+    }
     if (action === "release_allocation") {
       if (!body.allocation_id)
         throw new Error("Subscription allocation is required");
