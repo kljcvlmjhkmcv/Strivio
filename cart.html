@@ -953,7 +953,9 @@ async function confirmOrder(){
     if (rpcData.error_message) {
       console.error("SlickPay / create-payment failure details:", rpcData.error_message);
     }
-    showAppNotice(L === 'ar' ? '⚠️ تعذر الاتصال ببوابة الدفع الإلكتروني حالياً. سيتم توجيهك إلى واتساب لإتمام الدفع مباشرة مع الدعم الفني.' : (L === 'fr' ? '⚠️ Impossible de contacter la passerelle de paiement. Redirection vers WhatsApp...' : '⚠️ Could not reach payment gateway. Redirecting to WhatsApp...'), { tone: 'error' });
+    showAppNotice(L === 'ar' ? 'تعذر تجهيز بوابة الدفع بأمان. لم يتم خصم أي مبلغ، ويمكنك المحاولة لاحقًا أو التواصل مع الدعم.' : (L === 'fr' ? 'La passerelle de paiement sécurisée n’a pas pu être préparée. Aucun montant n’a été débité.' : 'The secure payment gateway could not be prepared. No amount was charged.'), { tone: 'error' });
+    setCheckoutBusy(false, btn);
+    return;
   }
 
   var msg = buildMessage(rpcData);
@@ -1009,6 +1011,12 @@ async function confirmOrderSocial(platform){
     localStorage.setItem('strivio_pending_order_id', String(rpcData.order_id || ''));
     localStorage.removeItem("strivio_cart");
     window.location.href = rpcData.payment_url;
+    return;
+  }
+
+  if (selPay === 'cib') {
+    showAppNotice(L === 'ar' ? 'تعذر تجهيز بوابة الدفع بأمان. لم يتم خصم أي مبلغ.' : (L === 'fr' ? 'La passerelle de paiement sécurisée n’a pas pu être préparée. Aucun montant n’a été débité.' : 'The secure payment gateway could not be prepared. No amount was charged.'), { tone: 'error' });
+    setCheckoutBusy(false, btn);
     return;
   }
 
