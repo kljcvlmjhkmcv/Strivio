@@ -149,11 +149,14 @@ serve(async (req) => {
   const { data: refreshedOrder } = await admin.from("orders").select("*").eq("id", attempt.order_id).single();
   if (state.verified_paid) {
     // Fulfillment is idempotent and uses its own database claim.
-    fetch(`${supabaseUrl}/functions/v1/fulfill-order`, {
+    const fulfillment = fetch(`${supabaseUrl}/functions/v1/fulfill-order`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey, "Content-Type": "application/json" },
       body: JSON.stringify({ order_id: attempt.order_id }),
     }).catch((error) => console.error("fulfillment dispatch failed", { order_id: attempt.order_id, error: String(error) }));
+    const edgeRuntime = (globalThis as any).EdgeRuntime;
+    if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(fulfillment);
+    else await fulfillment;
   }
   return reply(req, 200, {
     success: true,
