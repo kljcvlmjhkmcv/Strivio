@@ -293,41 +293,12 @@ async function saveOrderToDB(orderData) {
           return rpcData;
         } else if (invokeErr || (invokeData && !invokeData.success)) {
           console.error("create-payment Edge Function invoke error:", invokeErr || invokeData);
-          if (invokeData && invokeData.error) rpcData.error_message = invokeData.error;
+          rpcData.error_code = invokeData && invokeData.code ? invokeData.code : 'payment_initialization_failed';
+          rpcData.error_message = rpcData.error_code;
         }
       }
-
-      if (!rpcData.payment_url) {
-        const edgeUrl = `${supabaseClient.supabaseUrl}/functions/v1/create-payment`;
-        const edgeRes = await fetch(edgeUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'apikey': SUPABASE_ANON_KEY
-          },
-          body: JSON.stringify({
-            order_id: rpcData.order_id,
-            origin_url: window.location.origin
-          })
-        });
-
-        if (edgeRes.ok) {
-          const edgeJson = await edgeRes.json();
-          if (edgeJson.success && edgeJson.payment_url) {
-            rpcData.payment_url = edgeJson.payment_url;
-            if (edgeJson.telegram_msg_id) rpcData.telegram_msg_id = edgeJson.telegram_msg_id;
-            return rpcData;
-          } else {
-            console.error("create-payment edgeJson not success:", edgeJson);
-            if (edgeJson.error) rpcData.error_message = edgeJson.error;
-          }
-        } else {
-          var errText = await edgeRes.text().catch(function(){ return ""; });
-          console.error("create-payment fetch error status:", edgeRes.status, errText);
-          rpcData.error_message = `HTTP ${edgeRes.status}: ${errText}`;
-        }
-      }
+      // Never retry with the public anon key. A second ambiguous request can
+      // create another provider invoice and orphan a real payment.
     } catch (edgeErr) {
       console.error("create-payment exception:", edgeErr);
       rpcData.error_message = edgeErr && edgeErr.message ? edgeErr.message : String(edgeErr);

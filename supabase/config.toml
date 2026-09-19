@@ -12,6 +12,14 @@ verify_jwt = false
 [functions.meta-chatbot]
 verify_jwt = false
 
+# These functions authenticate normal callers themselves because verify-payment
+# must also accept signed server-to-server SlickPay webhooks.
+[functions.create-payment]
+verify_jwt = false
+
+[functions.verify-payment]
+verify_jwt = false
+
 # This endpoint performs its own constant-time comparison against the server
 # service key or SYNC_SECRET. Disabling gateway JWT parsing keeps server-to-
 # server sync compatible with Supabase's current and legacy key formats.

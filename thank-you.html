@@ -263,6 +263,9 @@ const TEXTS = {
     paidTitle: "تم الدفع وإتمام الطلب بنجاح!",
     paidDesc: "شكراً لثقتك في Strivio. تم تأكيد دفعتك رسميًا عبر SATIM ونقوم الآن بمعالجة طلبك.",
     paidStatus: "مكتمل ومؤكد ✅",
+    delayedTitle: "دفعتك ما زالت قيد التحقق",
+    delayedDesc: "لم نعتبر العملية فاشلة ولم نلغِ طلبك. سنواصل التحقق تلقائيًا، ويمكنك فتح حسابك لاحقًا لمتابعة الحالة.",
+    delayedStatus: "بانتظار تأكيد بوابة الدفع",
     itemsLbl: "المنتجات:",
     gatewayLbl: "بوابة الدفع:",
     timeLbl: "التوقيت:",
@@ -277,6 +280,9 @@ const TEXTS = {
     paidTitle: "Paiement Effectué avec Succès !",
     paidDesc: "Votre paiement SATIM a été officiellement confirmé. Nous traitons maintenant votre commande.",
     paidStatus: "Validé et Payé ✅",
+    delayedTitle: "Votre paiement est toujours en cours de vérification",
+    delayedDesc: "La transaction n’a pas été déclarée échouée et votre commande n’a pas été annulée. La vérification continuera automatiquement.",
+    delayedStatus: "En attente de la confirmation de la passerelle",
     itemsLbl: "Produits :",
     gatewayLbl: "Passerelle :",
     timeLbl: "Heure :",
@@ -291,6 +297,9 @@ const TEXTS = {
     paidTitle: "Payment Completed Successfully!",
     paidDesc: "Your SATIM payment has been officially confirmed. We are now processing your order.",
     paidStatus: "Verified & Paid ✅",
+    delayedTitle: "Your payment is still being verified",
+    delayedDesc: "The transaction was not marked as failed and your order was not cancelled. Verification will continue automatically.",
+    delayedStatus: "Waiting for gateway confirmation",
     itemsLbl: "Products:",
     gatewayLbl: "Payment Gateway:",
     timeLbl: "Timestamp:",
@@ -305,11 +314,12 @@ let paymentSecondsLeft = 10 * 60;
 function renderPaymentState(lang) {
   const t = TEXTS[lang] || TEXTS.ar;
   const paid = paymentUiState === 'paid';
-  document.getElementById('T_TITLE').textContent = paid ? t.paidTitle : t.title;
-  document.getElementById('T_DESC').textContent = paid ? t.paidDesc : t.desc;
+  const delayed = paymentUiState === 'delayed';
+  document.getElementById('T_TITLE').textContent = paid ? t.paidTitle : delayed ? t.delayedTitle : t.title;
+  document.getElementById('T_DESC').textContent = paid ? t.paidDesc : delayed ? t.delayedDesc : t.desc;
   const minutes = String(Math.floor(paymentSecondsLeft / 60)).padStart(2, '0');
   const seconds = String(paymentSecondsLeft % 60).padStart(2, '0');
-  document.getElementById('T_STATUS_VAL').textContent = paid ? t.paidStatus : `${t.statusVal} ${minutes}:${seconds}`;
+  document.getElementById('T_STATUS_VAL').textContent = paid ? t.paidStatus : delayed ? t.delayedStatus : `${t.statusVal} ${minutes}:${seconds}`;
   document.getElementById('T_STATUS_VAL').style.color = paid ? '#39ff14' : '#facc15';
 }
 
@@ -333,7 +343,7 @@ function setLang(lang) {
 }
 
 const VERIFY_INTERVAL_MS = 5000;
-const VERIFY_TIMEOUT_MS = 10 * 60 * 1000;
+const VERIFY_TIMEOUT_MS = 15 * 60 * 1000;
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -353,7 +363,10 @@ async function verifyAndFetchOrder(orderId, action = 'check') {
       ? { order_id: orderId, action }
       : { payment_id: orderId, action }
   });
-  if (result.error || !result.data?.success || !result.data?.order) return null;
+  if (result.error) return { transientError: true, state: { code: 'network_error' } };
+  if (!result.data?.success || !result.data?.order) {
+    return { transientError: result.data?.retryable !== false, state: result.data || {} };
+  }
   return { order: result.data.order, state: result.data };
 }
 
@@ -451,9 +464,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   let initialVerification = null;
-  try { initialVerification = await verifyAndFetchOrder(orderId); } catch (_) {}
-  if (!initialVerification) {
-    window.location.replace(`cart?payment_cancelled=1&order_id=${encodeURIComponent(orderId)}&reason=order_not_found`);
+  for (let initialTry = 0; initialTry < 12; initialTry++) {
+    try { initialVerification = await verifyAndFetchOrder(orderId); } catch (_) {}
+    if (initialVerification && !initialVerification.transientError && initialVerification.order) break;
+    if (initialVerification?.state?.code === 'order_forbidden' || initialVerification?.state?.code === 'payment_attempt_not_found') break;
+    await wait(VERIFY_INTERVAL_MS);
+  }
+  // A temporary SlickPay/network failure is not evidence that an order or a
+  // payment failed. Keep polling instead of sending the customer back to cart.
+  if (!initialVerification || initialVerification.transientError || !initialVerification.order) {
+    paymentUiState = 'delayed';
+    renderPaymentState(savedLang);
+    updateWhatsApp(orderId, savedLang, false);
     return;
   }
   const order = initialVerification.order;
@@ -516,19 +538,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     await wait(VERIFY_INTERVAL_MS);
   }
 
-  try {
-    const timeoutResult = await window.supabaseClient.functions.invoke('verify-payment', {
-      body: { order_id: order.id, payment_id: order.payment_id, action: 'timeout' }
-    });
-    const finalState = timeoutResult.data || {};
-    if (isPaidStatus(finalState.status) && finalState.verified !== false) {
-      order.status = finalState.status;
-      showPaid(order, savedLang);
-      return;
-    }
-  } catch (_) {}
-
-  returnCancelled(order, 'verification_timeout');
+  // Timeout is only a UI timeout. It must never cancel or restore a possibly
+  // paid transaction. The server/webhook remains the source of truth.
+  paymentUiState = 'delayed';
+  paymentSecondsLeft = 0;
+  renderPaymentState(savedLang);
+  const accountBtn = document.getElementById('T_ACCOUNT_BTN');
+  accountBtn.style.display = 'flex';
+  accountBtn.href = `my-account?order=${encodeURIComponent(order.id)}`;
 });
 
 /* ═══════════════════════════════════════════════════════════════
