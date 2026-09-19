@@ -16,6 +16,8 @@ assert.match(createSource, /Never retry invoice creation automatically/,
   'invoice POSTs must not be retried after an ambiguous network result');
 assert.match(createSource, /payment_claim_attempt/,
   'invoice creation must use the atomic attempt claim');
+assert.match(createSource, /\(\?:\\\/api\\\/v2\)\?\\\/users\\\/invoices\\\/satim\\\/payment/,
+  'invoice creation must accept the documented SlickPay API-prefixed SATIM URL');
 assert.match(migration, /payment_attempts_one_active_per_order/,
   'the database must enforce one active attempt per order');
 assert.match(migration, /provider_invoice_id\)\s*\n?\s*\)/,

@@ -48,8 +48,10 @@ function directSatimUrl(raw: any): string | null {
     try {
       const url = new URL(String(candidate));
       if (!(url.protocol === "https:" && /(^|\.)slick-pay\.com$/i.test(url.hostname))) continue;
-      if (/^\/users\/invoices\/satim\/payment\/[^/]+\/?$/i.test(url.pathname)) return url.toString();
-      if (/^\/users\/invoices\/payment\/[^/]+\/?$/i.test(url.pathname)) {
+      // The documented create-invoice response includes `/api/v2`; older saved
+      // invoice URLs may omit it. Keep the allow-list strict, but accept both.
+      if (/^(?:\/api\/v2)?\/users\/invoices\/satim\/payment\/[^/]+\/?$/i.test(url.pathname)) return url.toString();
+      if (/^(?:\/api\/v2)?\/users\/invoices\/payment\/[^/]+\/?$/i.test(url.pathname)) {
         url.pathname = url.pathname.replace("/users/invoices/payment/", "/users/invoices/satim/payment/");
         return url.toString();
       }
