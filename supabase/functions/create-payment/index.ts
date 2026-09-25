@@ -48,6 +48,10 @@ function directSatimUrl(raw: any): string | null {
     try {
       const url = new URL(String(candidate));
       if (!(url.protocol === "https:" && /(^|\.)slick-pay\.com$/i.test(url.hostname))) continue;
+      // Production currently returns the hosted invoice URL. It is the only
+      // supported entry point because SlickPay collects its own terms consent
+      // and creates the one-time SATIM session before redirecting to cib.satim.dz.
+      if (/^\/invoice\/payment\/[a-z0-9-]+(?:\/user)?\/?$/i.test(url.pathname)) return url.toString();
       // The documented create-invoice response includes `/api/v2`; older saved
       // invoice URLs may omit it. Keep the allow-list strict, but accept both.
       if (/^(?:\/api\/v2)?\/users\/invoices\/satim\/payment\/[^/]+\/?$/i.test(url.pathname)) return url.toString();
