@@ -22,6 +22,16 @@ function first(...values: unknown[]) {
   return values.find((v) => v !== undefined && v !== null && String(v).trim() !== "") ?? null;
 }
 function normalized(value: unknown) { return value == null ? null : String(value).trim().toLowerCase(); }
+function canonicalStatus(value: unknown): string | null {
+  const raw = normalized(value);
+  if (!raw) return null;
+  const plain = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (["paid", "paye", "payee", "completed", "success", "successful"].includes(plain)) return "paid";
+  if (["cancelled", "canceled", "annule", "annulee", "ignored", "ignore", "rejected", "refused", "refuse"].includes(plain)) return "cancelled";
+  if (["failed", "failure", "error", "erreur", "declined", "decline"].includes(plain)) return "failed";
+  if (["expired", "expire", "timeout", "session time limit"].includes(plain)) return "expired";
+  return raw;
+}
 function envelope(raw: any) {
   let data = raw?.data;
   if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = null; } }
@@ -30,11 +40,18 @@ function envelope(raw: any) {
 function paymentStatus(raw: any): string | null {
   const x = envelope(raw);
   // Deliberately exclude generic status/completed fields: they are invoice lifecycle metadata, not payment proof.
-  return normalized(first(x.invoice?.payment_status, x.invoice?.payment?.status, x.raw?.payment_status));
+  const explicit = first(x.invoice?.payment_status, x.invoice?.payment?.status, x.raw?.payment_status);
+  if (explicit != null) return canonicalStatus(explicit);
+  // SlickPay uses pay_status=1 as an explicit paid flag. Zero means only
+  // "not paid" and must never be treated as failure by itself.
+  const payFlag = first(x.invoice?.pay_status, x.raw?.pay_status);
+  if (String(payFlag) === "1") return "paid";
+  const lifecycle = canonicalStatus(first(x.invoice?.invoice_status, x.raw?.invoice_status, x.invoice?.status));
+  return ["cancelled", "failed", "expired"].includes(String(lifecycle)) ? lifecycle : null;
 }
 function invoiceStatus(raw: any): string | null {
   const x = envelope(raw);
-  return normalized(first(x.invoice?.invoice_status, x.raw?.invoice_status, x.invoice?.status));
+  return canonicalStatus(first(x.invoice?.invoice_status, x.raw?.invoice_status, x.invoice?.status));
 }
 function paidAt(raw: any): string | null {
   const x = envelope(raw);

@@ -440,10 +440,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const orderId = params.get('order_id') || params.get('id') || params.get('invoice_id');
   const msgParam = (params.get('message') || '').toLowerCase();
   const errorParam = String(params.get('error') || '').toLowerCase();
+  const gatewayResult = String(params.get('gateway_result') || '').toLowerCase();
   const cancellationReturned = Boolean(
     params.get('cancelled') === '1' || params.get('cancel') === '1' || params.get('payment_cancelled') === '1'
     || params.get('status') === 'cancelled' || params.get('status') === 'failed'
     || ['1', 'true', 'cancelled', 'failed', 'error'].includes(errorParam)
+    || ['cancelled', 'failed', 'expired'].includes(gatewayResult)
     || msgParam.includes('annul') || msgParam.includes('cancel') || msgParam.includes('error')
   );
 

@@ -200,16 +200,20 @@ serve(async (req) => {
   if (!contact) return reply(req, 422, { success: false, code: "billing_contact_missing" });
 
   const returnUrl = `${origin}/thank-you?order_id=${encodeURIComponent(orderId)}`;
+  const redirectBridge = `${origin}/payment-redirect?order_id=${encodeURIComponent(orderId)}`;
   const webhookSecret = Deno.env.get("SLICKPAY_WEBHOOK_SECRET") || "";
   const payload: Record<string, unknown> = {
     amount,
     contact,
-    url: returnUrl,
-    success_url: `${returnUrl}&success=1`,
-    return_url: returnUrl,
-    cancel_url: `${returnUrl}&cancelled=1`,
-    failed_url: `${returnUrl}&status=failed`,
-    back_url: returnUrl,
+    // SATIM may use `url` rather than the more specific callbacks for its
+    // cancel/back button. Route every browser return through one bridge which
+    // preserves the provider result, then let verify-payment confirm it.
+    url: redirectBridge,
+    success_url: `${redirectBridge}&result=success`,
+    return_url: redirectBridge,
+    cancel_url: `${redirectBridge}&result=cancelled`,
+    failed_url: `${redirectBridge}&result=failed`,
+    back_url: `${redirectBridge}&result=cancelled`,
     webhook_url: `${supabaseUrl}/functions/v1/verify-payment?webhook=1&attempt_id=${encodeURIComponent(attemptId)}`,
     webhook_meta_data: { order_id: orderId, attempt_id: attemptId, store: "strivio" },
     // A single exact-total line prevents item totals or discounts from overriding the invoice amount.
