@@ -24,6 +24,10 @@ assert.match(createSource, /providerIdFromPaymentUrl\(paymentUrl\)/,
   'invoice creation must recover the production invoice id from its trusted URL');
 assert.match(createSource, /Object\.values\(current\)/,
   'invoice creation must discover trusted payment URLs in nested SlickPay envelopes');
+assert.match(createSource, /url\.hostname\.toLowerCase\(\) === "cib\.satim\.dz"/,
+  'invoice creation must accept only the official SATIM card-entry host');
+assert.match(createSource, /url\.searchParams\.has\("mdOrder"\)/,
+  'invoice creation must require a SATIM session identifier');
 assert.match(migration, /payment_attempts_one_active_per_order/,
   'the database must enforce one active attempt per order');
 assert.match(migration, /provider_invoice_id\)\s*\n?\s*\)/,

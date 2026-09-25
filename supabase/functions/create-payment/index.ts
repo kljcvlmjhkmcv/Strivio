@@ -61,6 +61,12 @@ function directSatimUrl(raw: any): string | null {
     if (!candidate) continue;
     try {
       const url = new URL(String(candidate));
+      if (url.protocol === "https:"
+        && url.hostname.toLowerCase() === "cib.satim.dz"
+        && url.pathname === "/payment/epg/merchants/merchantsatim/payment.html"
+        && url.searchParams.has("mdOrder")) {
+        return url.toString();
+      }
       if (!(url.protocol === "https:" && /(^|\.)slick-pay\.com$/i.test(url.hostname))) continue;
       // Production currently returns the hosted invoice URL. It is the only
       // supported entry point because SlickPay collects its own terms consent
@@ -242,11 +248,6 @@ serve(async (req) => {
     raw?.id, raw?.invoice_id, raw?.payment_id,
     providerIdFromPaymentUrl(paymentUrl),
   );
-  console.info("SlickPay create invoice identity", {
-    order_id: orderId,
-    attempt_id: attemptId,
-    diagnostic: providerDiagnostic(providerJson),
-  });
   if (!paymentId || !paymentUrl) {
     console.error("SlickPay response missing direct SATIM identity", {
       order_id: orderId,
