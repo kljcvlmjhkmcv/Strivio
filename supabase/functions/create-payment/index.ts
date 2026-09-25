@@ -43,6 +43,20 @@ function directSatimUrl(raw: any): string | null {
     envelope?.url, envelope?.payment_url, envelope?.redirect_url,
     invoice?.payment_url, invoice?.redirect_url, invoice?.url,
   ];
+  // SlickPay production has returned the hosted URL under different nested
+  // envelopes over time. Search every response value, while the strict
+  // HTTPS host/path allow-list below remains the security boundary.
+  const seen = new Set<any>();
+  const stack = [raw];
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+    for (const value of Object.values(current)) {
+      if (typeof value === "string") candidates.push(value);
+      else if (value && typeof value === "object") stack.push(value);
+    }
+  }
   for (const candidate of candidates) {
     if (!candidate) continue;
     try {
