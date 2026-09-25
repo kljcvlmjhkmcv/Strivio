@@ -43,6 +43,10 @@ assert.match(verifySource, /"annule", "annulee", "ignored", "ignore"/,
   'provider cancellation states in English and French must be canonicalized');
 assert.match(verifySource, /String\(payFlag\) === "1"/,
   'SlickPay pay_status=1 must be accepted as an explicit paid flag');
+assert.match(verifySource, /342034\|annul\|cancel\|ignore/,
+  'SlickPay cancellation rejection reasons must terminate pending payments');
+assert.match(verifySource, /const rejected = rejectionStatus\(raw\)/,
+  'provider rejection reasons must be considered before lifecycle metadata');
 assert.doesNotMatch(verifySource, /String\(payFlag\) === "0"\) return "failed"/,
   'pay_status=0 alone must not be treated as failure');
 assert.match(redirectSource, /gateway_result=/,

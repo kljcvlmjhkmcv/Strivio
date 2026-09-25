@@ -37,6 +37,22 @@ function envelope(raw: any) {
   if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = null; } }
   return { raw: raw || {}, invoice: data?.invoice || data || raw?.invoice || raw || {} };
 }
+function rejectionStatus(raw: any): "cancelled" | "failed" | "expired" | null {
+  const x = envelope(raw);
+  const reason = first(
+    x.invoice?.rejection_reason, x.invoice?.reject_reason, x.invoice?.failure_reason,
+    x.invoice?.error_message, x.raw?.rejection_reason, x.raw?.reject_reason,
+    x.raw?.failure_reason, x.raw?.error_message,
+  );
+  if (reason == null) return null;
+  const plain = String(reason).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // SlickPay currently keeps invoice_status="Initié" and pay_status=0 after
+  // a cardholder cancels, but returns this authoritative rejection reason.
+  if (/342034|annul|cancel|ignore/.test(plain)) return "cancelled";
+  if (/expir|timeout|session time limit|delai/.test(plain)) return "expired";
+  if (/rejet|refus|declin|echec|echou|fail|error|erreur/.test(plain)) return "failed";
+  return null;
+}
 function paymentStatus(raw: any): string | null {
   const x = envelope(raw);
   // Deliberately exclude generic status/completed fields: they are invoice lifecycle metadata, not payment proof.
@@ -46,6 +62,8 @@ function paymentStatus(raw: any): string | null {
   // "not paid" and must never be treated as failure by itself.
   const payFlag = first(x.invoice?.pay_status, x.raw?.pay_status);
   if (String(payFlag) === "1") return "paid";
+  const rejected = rejectionStatus(raw);
+  if (rejected) return rejected;
   const lifecycle = canonicalStatus(first(x.invoice?.invoice_status, x.raw?.invoice_status, x.invoice?.status));
   return ["cancelled", "failed", "expired"].includes(String(lifecycle)) ? lifecycle : null;
 }
