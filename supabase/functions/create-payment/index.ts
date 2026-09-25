@@ -242,6 +242,11 @@ serve(async (req) => {
     raw?.id, raw?.invoice_id, raw?.payment_id,
     providerIdFromPaymentUrl(paymentUrl),
   );
+  console.info("SlickPay create invoice identity", {
+    order_id: orderId,
+    attempt_id: attemptId,
+    diagnostic: providerDiagnostic(providerJson),
+  });
   if (!paymentId || !paymentUrl) {
     console.error("SlickPay response missing direct SATIM identity", {
       order_id: orderId,
