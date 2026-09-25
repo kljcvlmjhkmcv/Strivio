@@ -65,7 +65,12 @@ function directSatimUrl(raw: any): string | null {
       // Production currently returns the hosted invoice URL. It is the only
       // supported entry point because SlickPay collects its own terms consent
       // and creates the one-time SATIM session before redirecting to cib.satim.dz.
-      if (/^\/invoice\/payment\/[a-z0-9-]+(?:\/user)?\/?$/i.test(url.pathname)) return url.toString();
+      if (/^\/invoice\/payment\/[a-z0-9-]+(?:\/user)?\/?$/i.test(url.pathname)) {
+        // SlickPay may return the merchant dashboard variant (`/user`).
+        // Customers must always receive the public hosted invoice URL.
+        url.pathname = url.pathname.replace(/\/user\/?$/i, "");
+        return url.toString();
+      }
       // The documented create-invoice response includes `/api/v2`; older saved
       // invoice URLs may omit it. Keep the allow-list strict, but accept both.
       if (/^(?:\/api\/v2)?\/users\/invoices\/satim\/payment\/[^/]+\/?$/i.test(url.pathname)) return url.toString();
