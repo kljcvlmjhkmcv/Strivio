@@ -148,6 +148,15 @@ serve(async (req) => {
 
   const explicitPaymentStatus = paymentStatus(providerJson);
   const explicitInvoiceStatus = invoiceStatus(providerJson);
+  const providerView = envelope(providerJson);
+  console.info("SlickPay verification state", {
+    attempt_id: attempt.id,
+    payment_status: explicitPaymentStatus,
+    invoice_status: explicitInvoiceStatus,
+    pay_status: first(providerView.invoice?.pay_status, providerView.raw?.pay_status),
+    status: first(providerView.invoice?.status, providerView.raw?.status),
+    rejection_reason: first(providerView.invoice?.rejection_reason, providerView.invoice?.reject_reason, providerView.raw?.rejection_reason),
+  });
   const amount = verifiedAmount(providerJson, Number(attempt.expected_amount));
   const paidTimestamp = paidAt(providerJson);
   const { data: state, error: stateError } = await admin.rpc("payment_record_provider_state", {
