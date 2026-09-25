@@ -92,6 +92,30 @@ function providerIdFromPaymentUrl(value: string | null): string | null {
   }
 }
 
+function providerDiagnostic(raw: any) {
+  const output: Array<[string, string]> = [];
+  const seen = new Set<any>();
+  const visit = (value: any, path: string, depth: number) => {
+    if (value == null || depth > 6 || output.length >= 60) return;
+    if (typeof value !== "object") return;
+    if (seen.has(value)) return;
+    seen.add(value);
+    const entries = Array.isArray(value)
+      ? value.slice(0, 8).map((item, index) => [String(index), item] as const)
+      : Object.entries(value);
+    for (const [key, child] of entries) {
+      const childPath = path ? `${path}.${key}` : key;
+      if (/(id|url|link|payment|invoice|success|status|message|reference|number)/i.test(key)
+        && ["string", "number", "boolean"].includes(typeof child)) {
+        output.push([childPath, String(child).slice(0, 300)]);
+      }
+      visit(child, childPath, depth + 1);
+    }
+  };
+  visit(raw, "", 0);
+  return output;
+}
+
 function bearer(req: Request) {
   const value = req.headers.get("authorization") || "";
   const match = value.match(/^Bearer\s+(.+)$/i);
@@ -214,7 +238,11 @@ serve(async (req) => {
     providerIdFromPaymentUrl(paymentUrl),
   );
   if (!paymentId || !paymentUrl) {
-    console.error("SlickPay response missing direct SATIM identity", { order_id: orderId, attempt_id: attemptId });
+    console.error("SlickPay response missing direct SATIM identity", {
+      order_id: orderId,
+      attempt_id: attemptId,
+      diagnostic: providerDiagnostic(providerJson),
+    });
     return reply(req, 502, { success: false, code: "gateway_direct_url_missing", retryable: false });
   }
 
