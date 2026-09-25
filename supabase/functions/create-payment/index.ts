@@ -64,6 +64,20 @@ function directSatimUrl(raw: any): string | null {
   return null;
 }
 
+function providerIdFromPaymentUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (!(url.protocol === "https:" && /(^|\.)slick-pay\.com$/i.test(url.hostname))) return null;
+    const hosted = url.pathname.match(/^\/invoice\/payment\/([^/]+)(?:\/user)?\/?$/i);
+    if (hosted?.[1]) return hosted[1];
+    const api = url.pathname.match(/^(?:\/api\/v2)?\/users\/invoices\/(?:satim\/)?payment\/([^/]+)\/?$/i);
+    return api?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
 function bearer(req: Request) {
   const value = req.headers.get("authorization") || "";
   const match = value.match(/^Bearer\s+(.+)$/i);
@@ -178,9 +192,13 @@ serve(async (req) => {
     return reply(req, 502, { success: false, code: "gateway_rejected_invoice", retryable: false });
   }
 
-  const { raw, invoice } = invoiceEnvelope(providerJson);
-  const paymentId = first(invoice?.id, invoice?.invoice_id, invoice?.payment_id, raw?.id, raw?.invoice_id, raw?.payment_id);
   const paymentUrl = directSatimUrl(providerJson);
+  const { raw, invoice } = invoiceEnvelope(providerJson);
+  const paymentId = first(
+    invoice?.id, invoice?.invoice_id, invoice?.payment_id,
+    raw?.id, raw?.invoice_id, raw?.payment_id,
+    providerIdFromPaymentUrl(paymentUrl),
+  );
   if (!paymentId || !paymentUrl) {
     console.error("SlickPay response missing direct SATIM identity", { order_id: orderId, attempt_id: attemptId });
     return reply(req, 502, { success: false, code: "gateway_direct_url_missing", retryable: false });

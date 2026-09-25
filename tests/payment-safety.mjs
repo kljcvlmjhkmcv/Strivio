@@ -20,6 +20,8 @@ assert.match(createSource, /\(\?:\\\/api\\\/v2\)\?\\\/users\\\/invoices\\\/satim
   'invoice creation must accept the documented SlickPay API-prefixed SATIM URL');
 assert.match(createSource, /\\\/invoice\\\/payment\\\//,
   'invoice creation must accept SlickPay production hosted invoice URLs');
+assert.match(createSource, /providerIdFromPaymentUrl\(paymentUrl\)/,
+  'invoice creation must recover the production invoice id from its trusted URL');
 assert.match(migration, /payment_attempts_one_active_per_order/,
   'the database must enforce one active attempt per order');
 assert.match(migration, /provider_invoice_id\)\s*\n?\s*\)/,
