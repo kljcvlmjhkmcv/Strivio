@@ -6,7 +6,6 @@ const wilayaSelect = byId('wilaya');
 const communeSelect = byId('commune');
 const statusElement = byId('form-status');
 const config = { price: 2900, home_fee: 600, office_fee: 400 };
-let wilayas = [];
 let communes = [];
 let quantity = 1;
 let submitting = false;
@@ -17,11 +16,16 @@ function selectedDelivery() {
 }
 
 function updateTotal() {
-  const total = config.price * quantity + (selectedDelivery() === 'home' ? config.home_fee : config.office_fee);
+  const subtotal = config.price * quantity;
+  const fee = selectedDelivery() === 'home' ? config.home_fee : config.office_fee;
+  const total = subtotal + fee;
   byId('hero-price').textContent = money(config.price);
   byId('mobile-price').textContent = money(config.price);
   byId('home-fee').textContent = money(config.home_fee);
   byId('office-fee').textContent = money(config.office_fee);
+  byId('item-count').textContent = `× ${quantity}`;
+  byId('products-subtotal').textContent = money(subtotal);
+  byId('shipping-total').textContent = money(fee);
   byId('order-total').textContent = money(total);
   byId('quantity').value = quantity;
   byId('quantity').textContent = quantity;
@@ -36,6 +40,11 @@ function setStatus(message, kind = '') {
 
 function fillCommunes() {
   const code = Number(wilayaSelect.value);
+  if (code && !communes.length) {
+    communeSelect.replaceChildren(new Option('جار تحميل البلديات...', ''));
+    communeSelect.disabled = true;
+    return;
+  }
   const matching = communes.filter(item => item.wilaya_code === code);
   communeSelect.replaceChildren(new Option(code ? 'اختر البلدية' : 'اختر الولاية أولًا', ''));
   for (const item of matching) communeSelect.add(new Option(item.name_ar, item.id));
@@ -43,12 +52,18 @@ function fillCommunes() {
 }
 
 async function loadLocations() {
-  const [wilayaResponse, communeResponse] = await Promise.all([
-    fetch('./data/wilayas.json'), fetch('./data/communes.json')
-  ]);
-  if (!wilayaResponse.ok || !communeResponse.ok) throw new Error('Location data unavailable');
-  [wilayas, communes] = await Promise.all([wilayaResponse.json(), communeResponse.json()]);
-  for (const item of wilayas) wilayaSelect.add(new Option(`${String(item.code).padStart(2, '0')} · ${item.name_ar}`, item.code));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch('./data/communes.json', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Location data unavailable');
+      communes = await response.json();
+      fillCommunes();
+      return;
+    } catch (error) {
+      if (attempt === 2) throw error;
+      await new Promise(resolve => setTimeout(resolve, 450 * (attempt + 1)));
+    }
+  }
 }
 
 async function loadConfig() {
@@ -61,30 +76,36 @@ async function loadConfig() {
 }
 
 function setupGallery() {
-  const image = byId('main-product-image');
+  const stage = byId('gallery-stage');
+  const images = [...stage.querySelectorAll('.gallery-image')];
   const counter = document.querySelector('.media-index');
   const thumbs = [...document.querySelectorAll('.thumb')];
-  thumbs.forEach((button, index) => button.addEventListener('click', () => {
-    thumbs.forEach(item => { item.classList.remove('is-active'); item.setAttribute('aria-pressed', 'false'); });
-    button.classList.add('is-active');
-    button.setAttribute('aria-pressed', 'true');
-    image.classList.add('is-changing');
-    const next = new Image();
-    next.onload = () => { image.src = next.src; image.alt = button.dataset.alt; image.classList.remove('is-changing'); };
-    next.onerror = () => image.classList.remove('is-changing');
-    next.src = button.dataset.image;
-    counter.textContent = `${String(index + 1).padStart(2, '0')} / 03`;
-  }));
+  let active = 0;
+  const show = index => {
+    active = (index + images.length) % images.length;
+    images.forEach((image, itemIndex) => {
+      image.classList.toggle('is-active', itemIndex === active);
+      image.setAttribute('aria-hidden', String(itemIndex !== active));
+    });
+    thumbs.forEach((button, itemIndex) => {
+      button.classList.toggle('is-active', itemIndex === active);
+      button.setAttribute('aria-pressed', String(itemIndex === active));
+    });
+    counter.textContent = `${String(active + 1).padStart(2, '0')} / ${String(images.length).padStart(2, '0')}`;
+  };
+  thumbs.forEach((button, index) => button.addEventListener('click', () => show(index)));
+  byId('gallery-prev').addEventListener('click', () => show(active - 1));
+  byId('gallery-next').addEventListener('click', () => show(active + 1));
   let touchStart = null;
-  image.addEventListener('touchstart', event => { touchStart = event.changedTouches[0].clientX; }, { passive: true });
-  image.addEventListener('touchend', event => {
+  stage.addEventListener('touchstart', event => { touchStart = event.changedTouches[0].clientX; }, { passive: true });
+  stage.addEventListener('touchend', event => {
     if (touchStart === null) return;
     const distance = event.changedTouches[0].clientX - touchStart;
     touchStart = null;
     if (Math.abs(distance) < 40) return;
-    const active = thumbs.findIndex(button => button.classList.contains('is-active'));
-    thumbs[(active + (distance < 0 ? 1 : -1) + thumbs.length) % thumbs.length].click();
+    show(active + (distance < 0 ? 1 : -1));
   }, { passive: true });
+  show(0);
 }
 
 function detectLocation() {
@@ -153,6 +174,7 @@ async function submitOrder(event) {
     wilaya_code: Number(wilayaSelect.value),
     commune_id: Number(communeSelect.value),
     delivery_method: selectedDelivery(),
+    address: form.elements.address.value.trim(),
     quantity,
     website: form.elements.website.value,
     attribution
@@ -194,7 +216,7 @@ byId('detect-location').addEventListener('click', detectLocation);
 form.addEventListener('submit', submitOrder);
 setupGallery();
 updateTotal();
-loadLocations().catch(() => setStatus('تعذر تحميل قائمة الولايات. أعد تحميل الصفحة.', 'error'));
+loadLocations().catch(() => setStatus('تعذر تحميل قائمة البلديات. أعد تحميل الصفحة.', 'error'));
 loadConfig().catch(() => {});
 
 function setupReviews() {
@@ -216,3 +238,18 @@ function setupReviews() {
   update();
 }
 setupReviews();
+
+function setupScrollMotion() {
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const targets = document.querySelectorAll('.hero-copy, .hero-media, .order-context, .order-form, .results-section .section-heading, .results-layout, .proof-section .section-heading, .proof-track, .faq-section');
+  document.documentElement.classList.add('js-motion');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+  targets.forEach(target => { target.classList.add('reveal'); observer.observe(target); });
+}
+setupScrollMotion();
