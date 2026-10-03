@@ -1,5 +1,6 @@
 :root{--ink:#14283a;--muted:#64727d;--line:#dce2e5;--paper:#f8fafb;--soft:#eef3f4;--rose:#be7770;--white:#fff;--font-ar:Cairo,Tahoma,Arial,sans-serif}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{scroll-behavior:smooth;scroll-padding-top:82px}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-ar);font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
 img{display:block;max-width:100%}button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}
