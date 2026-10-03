@@ -54,6 +54,12 @@ create table if not exists trivance_private.rate_limits (
   attempt_count integer not null default 1
 );
 
+alter table trivance_private.settings enable row level security;
+alter table trivance_private.wilayas enable row level security;
+alter table trivance_private.communes enable row level security;
+alter table trivance_private.orders enable row level security;
+alter table trivance_private.rate_limits enable row level security;
+
 revoke all on all tables in schema trivance_private from public, anon, authenticated;
 
 create or replace function public.trivance_public_config()
