@@ -61,7 +61,7 @@ serve(async request => {
   const digest = await crypto.subtle.sign('HMAC', hmacKey, encoder.encode(`trivance:${ip}`));
   const fingerprint = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
   const { data, error } = await db.rpc('trivance_place_order', { p_order: payload, p_fingerprint: fingerprint });
-  if (error) return json(origin, 400, { message: 'تعذر إرسال الطلب. راجعي البيانات وحاولي مجددًا.' });
-  if (data?.rate_limited) return json(origin, 429, { message: 'محاولات كثيرة. حاولي بعد قليل.' });
+  if (error) return json(origin, 400, { message: 'تعذر إرسال الطلب. راجع البيانات وحاول مجددًا.' });
+  if (data?.rate_limited) return json(origin, 429, { message: 'محاولات كثيرة. حاول بعد قليل.' });
   return json(origin, 200, data);
 });

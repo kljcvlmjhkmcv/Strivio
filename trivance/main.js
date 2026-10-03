@@ -5,8 +5,6 @@ const form = byId('order-form');
 const wilayaSelect = byId('wilaya');
 const communeSelect = byId('commune');
 const statusElement = byId('form-status');
-const addressField = byId('address-field');
-const addressInput = form.elements.address;
 const config = { price: 2900, home_fee: 600, office_fee: 400 };
 let wilayas = [];
 let communes = [];
@@ -29,9 +27,6 @@ function updateTotal() {
   byId('quantity').textContent = quantity;
   byId('decrease').disabled = quantity === 1;
   byId('increase').disabled = quantity === 3;
-  const home = selectedDelivery() === 'home';
-  addressField.hidden = !home;
-  addressInput.required = home;
 }
 
 function setStatus(message, kind = '') {
@@ -42,7 +37,7 @@ function setStatus(message, kind = '') {
 function fillCommunes() {
   const code = Number(wilayaSelect.value);
   const matching = communes.filter(item => item.wilaya_code === code);
-  communeSelect.replaceChildren(new Option(code ? 'اختاري البلدية' : 'اختاري الولاية أولًا', ''));
+  communeSelect.replaceChildren(new Option(code ? 'اختر البلدية' : 'اختر الولاية أولًا', ''));
   for (const item of matching) communeSelect.add(new Option(item.name_ar, item.id));
   communeSelect.disabled = !code;
 }
@@ -80,18 +75,28 @@ function setupGallery() {
     next.src = button.dataset.image;
     counter.textContent = `${String(index + 1).padStart(2, '0')} / 03`;
   }));
+  let touchStart = null;
+  image.addEventListener('touchstart', event => { touchStart = event.changedTouches[0].clientX; }, { passive: true });
+  image.addEventListener('touchend', event => {
+    if (touchStart === null) return;
+    const distance = event.changedTouches[0].clientX - touchStart;
+    touchStart = null;
+    if (Math.abs(distance) < 40) return;
+    const active = thumbs.findIndex(button => button.classList.contains('is-active'));
+    thumbs[(active + (distance < 0 ? 1 : -1) + thumbs.length) % thumbs.length].click();
+  }, { passive: true });
 }
 
 function detectLocation() {
   const button = byId('detect-location');
   if (!navigator.geolocation) { setStatus('تحديد الموقع غير متاح على هذا الجهاز.', 'error'); return; }
-  if (!communes.length) { setStatus('انتظري تحميل قائمة البلديات ثم أعيدي المحاولة.', 'error'); return; }
+  if (!communes.length) { setStatus('انتظر تحميل قائمة البلديات ثم أعد المحاولة.', 'error'); return; }
   button.disabled = true;
   button.textContent = 'جار تحديد الموقع...';
   navigator.geolocation.getCurrentPosition(position => {
     const { latitude, longitude } = position.coords;
     if (latitude < 18 || latitude > 38 || longitude < -9 || longitude > 12) {
-      setStatus('موقعك خارج الجزائر. اختاري الولاية والبلدية يدويًا.', 'error');
+      setStatus('موقعك خارج الجزائر. اختر الولاية والبلدية يدويًا.', 'error');
     } else {
       const candidate = communes.filter(item => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
         .reduce((best, item) => {
@@ -104,13 +109,13 @@ function detectLocation() {
         wilayaSelect.value = String(candidate.item.wilaya_code);
         fillCommunes();
         communeSelect.value = String(candidate.item.id);
-        setStatus('تم اختيار أقرب بلدية. راجعيها قبل إرسال الطلب.', 'success');
+        setStatus('تم اختيار أقرب بلدية. راجعها قبل إرسال الطلب.', 'success');
       }
     }
     button.disabled = false;
     button.textContent = 'تحديد موقعي تلقائيًا';
   }, () => {
-    setStatus('لم نتمكن من تحديد موقعك. اختاري الولاية والبلدية يدويًا.', 'error');
+    setStatus('لم نتمكن من تحديد موقعك. اختر الولاية والبلدية يدويًا.', 'error');
     button.disabled = false;
     button.textContent = 'تحديد موقعي تلقائيًا';
   }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
@@ -125,7 +130,7 @@ function validate() {
   const phone = String(form.elements.phone.value).replace(/[\s.\-()]/g, '');
   if (!/^(?:\+213|0)[567]\d{8}$/.test(phone)) {
     form.elements.phone.setAttribute('aria-invalid', 'true');
-    setStatus('أدخلي رقم هاتف جزائري صحيحًا.', 'error');
+    setStatus('أدخل رقم هاتف جزائري صحيحًا.', 'error');
     form.elements.phone.focus();
     return false;
   }
@@ -148,8 +153,6 @@ async function submitOrder(event) {
     wilaya_code: Number(wilayaSelect.value),
     commune_id: Number(communeSelect.value),
     delivery_method: selectedDelivery(),
-    address: selectedDelivery() === 'home' ? addressInput.value.trim() : '',
-    note: form.elements.note.value.trim(),
     quantity,
     website: form.elements.website.value,
     attribution
@@ -164,7 +167,7 @@ async function submitOrder(event) {
       body: JSON.stringify(payload), credentials: 'omit'
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok) throw new Error(result.message || 'تعذر إرسال الطلب الآن. حاولي مرة أخرى.');
+    if (!response.ok || !result.ok) throw new Error(result.message || 'تعذر إرسال الطلب الآن. حاول مرة أخرى.');
     setStatus(`وصل طلبك رقم ${result.reference}. سنتصل بك للتأكيد قبل التجهيز، والدفع عند الاستلام.`, 'success');
     form.reset();
     wilayaSelect.value = '';
@@ -173,7 +176,7 @@ async function submitOrder(event) {
     updateTotal();
     requestId = crypto.randomUUID();
   } catch (error) {
-    setStatus(error.message || 'تعذر إرسال الطلب الآن. حاولي مرة أخرى.', 'error');
+    setStatus(error.message || 'تعذر إرسال الطلب الآن. حاول مرة أخرى.', 'error');
   } finally {
     submitting = false;
     submit.disabled = false;
@@ -191,5 +194,25 @@ byId('detect-location').addEventListener('click', detectLocation);
 form.addEventListener('submit', submitOrder);
 setupGallery();
 updateTotal();
-loadLocations().catch(() => setStatus('تعذر تحميل قائمة الولايات. أعيدي تحميل الصفحة.', 'error'));
+loadLocations().catch(() => setStatus('تعذر تحميل قائمة الولايات. أعد تحميل الصفحة.', 'error'));
 loadConfig().catch(() => {});
+
+function setupReviews() {
+  const track = byId('review-track');
+  const slides = [...track.children];
+  let active = 0;
+  const update = () => {
+    const center = track.getBoundingClientRect().left + track.clientWidth / 2;
+    active = slides.reduce((best, slide, index) =>
+      Math.abs(slide.getBoundingClientRect().left + slide.clientWidth / 2 - center) < Math.abs(slides[best].getBoundingClientRect().left + slides[best].clientWidth / 2 - center) ? index : best, 0);
+    byId('review-position').textContent = `${String(active + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
+    byId('review-prev').disabled = active === 0;
+    byId('review-next').disabled = active === slides.length - 1;
+  };
+  byId('review-prev').addEventListener('click', () => slides[Math.max(0, active - 1)].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }));
+  byId('review-next').addEventListener('click', () => slides[Math.min(slides.length - 1, active + 1)].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }));
+  track.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+  update();
+}
+setupReviews();

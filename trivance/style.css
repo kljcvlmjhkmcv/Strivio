@@ -22,3 +22,19 @@ footer{background:var(--ink);color:#fff}.footer-inner{min-height:90px;display:fl
 @media(max-width:480px){.announcement{font-size:10px}.hero h1{font-size:clamp(35px,10vw,46px)}.hero-media{aspect-ratio:1.14}.field-grid{grid-template-columns:1fr;gap:0}.delivery-options{gap:8px}.delivery-options label{padding:10px 7px}.delivery-options small{font-size:9px}.proof-grid{grid-template-columns:1fr}.proof-grid figure:nth-child(2){margin-top:3px}.policy{padding-block:45px}.policy h1{font-size:30px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
 .order-form .honeypot{left:auto!important;right:0!important;pointer-events:none!important}
+.results-section{padding-block:68px 76px;border-block:1px solid var(--line);background:#fff}
+.results-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,.7fr);gap:18px;align-items:stretch;margin-bottom:24px}
+.results-layout figure{margin:0;min-width:0;background:#f1f4f4}
+.results-photo img{width:100%;aspect-ratio:1;object-fit:cover}
+.routine-photo img{width:100%;height:100%;max-height:690px;object-fit:cover}
+.results-layout figcaption{padding:9px 12px;font-size:11px;color:var(--muted);background:#fff}
+.carousel-heading{display:flex;align-items:center;justify-content:space-between;direction:ltr;margin-bottom:12px;font:700 12px 'DM Sans',sans-serif;color:var(--muted)}
+.carousel-heading>div{display:flex;gap:7px;direction:rtl}
+.carousel-heading button{width:38px;height:38px;border:1px solid #c9d5d9;background:#fff;color:var(--ink);font-size:21px;line-height:1;border-radius:3px}
+.carousel-heading button:disabled{opacity:.4;cursor:default}
+.proof-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin;overscroll-behavior-inline:contain;padding-bottom:10px}
+.proof-track figure{flex:0 0 min(72%,700px);margin:0;background:#fff;border:1px solid #d7e0e3;padding:10px;scroll-snap-align:start;min-width:0}
+.proof-track img{width:100%;height:380px;object-fit:contain}
+.proof-track figcaption{padding:6px 8px 1px;color:var(--muted);font-size:11px}
+@media(max-width:780px){.results-section{padding-block:52px}.results-layout{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin;overscroll-behavior-inline:contain}.results-layout figure{flex:0 0 88%;scroll-snap-align:start}.results-layout img{height:auto;max-height:none;aspect-ratio:1;object-fit:cover}.proof-track figure{flex-basis:88%}.proof-track img{height:340px}}
+@media(max-width:480px){.proof-track figure{flex-basis:93%}.proof-track img{height:290px}}
