@@ -25,3 +25,6 @@ verify_jwt = false
 # server sync compatible with Supabase's current and legacy key formats.
 [functions.sync-google-sheet]
 verify_jwt = false
+
+[functions.trivance-order]
+verify_jwt = false
