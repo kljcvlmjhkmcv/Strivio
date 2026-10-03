@@ -253,3 +253,14 @@ function setupScrollMotion() {
   targets.forEach(target => { target.classList.add('reveal'); observer.observe(target); });
 }
 setupScrollMotion();
+
+function setupStickyCta() {
+  if (!('IntersectionObserver' in window)) return;
+  const cta = document.querySelector('.mobile-cta');
+  let heroVisible = true;
+  let formVisible = false;
+  const update = () => cta.classList.toggle('is-shown', !heroVisible && !formVisible);
+  new IntersectionObserver(([entry]) => { heroVisible = entry.isIntersecting; update(); }).observe(document.querySelector('.hero-purchase'));
+  new IntersectionObserver(([entry]) => { formVisible = entry.isIntersecting; update(); }).observe(form);
+}
+setupStickyCta();
