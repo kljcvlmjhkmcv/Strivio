@@ -118,7 +118,7 @@ footer{background:var(--ink);color:#fff}.footer-inner{min-height:90px;display:fl
   .results-section{padding-block:48px}
   .proof-section{padding-block:51px}
   .faq-section{padding-block:60px 120px}
-  .whatsapp-link{left:14px;bottom:calc(110px + env(safe-area-inset-bottom));width:52px;height:52px}
+  .whatsapp-link{left:14px;bottom:calc(102px + env(safe-area-inset-bottom));width:52px;height:52px}
   .mobile-cta{display:none}
   .mobile-cta.is-shown{display:flex}
 }
