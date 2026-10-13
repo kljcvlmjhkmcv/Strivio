@@ -76,11 +76,11 @@
     lucide.createIcons();
     const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('in-view');observer.unobserve(entry.target)}}),{threshold:.14});
     document.querySelectorAll('[data-reveal],.spec-major').forEach((item,index)=>{item.dataset.motion=index%3===0?'left':index%3===1?'right':'up';observer.observe(item)});
-    const asset='../assets/the-plaza-the-yards/';
+    const asset='../assets/the-plaza-the-yards/optimized/';
     const features={
       business:{images:['interior/business-centre.jpg','interior/board-room.jpg','interior/workspace.jpg','interior/workspace-reception.jpg'],alt:'The Plaza Business Centre',kicker:'Business Centre',title:'A more considered place to work.',text:'Professional meeting and collaboration spaces bring a refined business rhythm to the destination.'},
       wellness:{images:['amenities/pool-and-gym.jpg','amenities/pool-deck.jpg','amenities/padel-court.jpg'],alt:'Wellness and gym at The Plaza',kicker:'Wellness & Gym',title:'Wellness is part of the workday.',text:'A commercial gym and pool setting give the daily routine room for energy, focus and a proper reset.'},
-      outdoor:{images:['amenities/garden-lounge.jpg','amenities/public-terraces.jpg','amenities/courtyard-day.jpg','amenities/courtyard-night.jpeg','amenities/feature-stair.jpg'],alt:'Landscaped outdoor space at The Plaza',kicker:'Shaded Plazas',title:'A greener way to step outside.',text:'Landscaped seating areas and shaded plazas make room for informal conversations and a change of pace.'},
+      outdoor:{images:['amenities/garden-lounge.jpg','amenities/public-terraces.jpg','amenities/courtyard-day.jpg','amenities/courtyard-night.jpg','amenities/feature-stair.jpg'],alt:'Landscaped outdoor space at The Plaza',kicker:'Shaded Plazas',title:'A greener way to step outside.',text:'Landscaped seating areas and shaded plazas make room for informal conversations and a change of pace.'},
       social:{images:['amenities/padel-court.jpg','amenities/pool-and-gym.jpg','amenities/pool-deck.jpg'],alt:'Padel and pool at The Plaza',kicker:'Padel & Pool',title:'A destination with a social pulse.',text:'Two padel courts and a swimming pool extend the destination beyond the office floor.'},
       retail:{images:['amenities/retail-levels.jpg','interior/cafe.jpg','interior/restaurant.jpg'],alt:'Retail and dining at The Plaza',kicker:'Retail & F&B',title:'Everything close to hand.',text:'Fifty retail and dining units create an active ground plane for meetings, breaks and evenings.'}
     };
@@ -92,6 +92,8 @@
     preview.addEventListener('touchstart',event=>startX=event.changedTouches[0].clientX,{passive:true});preview.addEventListener('touchend',event=>{const distance=event.changedTouches[0].clientX-startX;if(Math.abs(distance)>42)moveImage(distance>0?-1:1)},{passive:true});
     document.querySelectorAll('.feature-tab').forEach(button=>button.addEventListener('click',()=>{activeFeature=button.dataset.feature;activeImage=0;document.querySelectorAll('.feature-tab').forEach(tab=>tab.classList.toggle('active',tab===button));renderFeature()}));
     renderFeature(false);
+    const preloadAmenityImages=()=>[...new Set(Object.values(features).flatMap(feature=>feature.images))].forEach(src=>{const preload=new Image();preload.src=asset+src});
+    if('requestIdleCallback' in window)requestIdleCallback(preloadAmenityImages,{timeout:1800});else setTimeout(preloadAmenityImages,500);
     document.getElementById('lead-form').addEventListener('submit',event=>{event.preventDefault();const data=new FormData(event.currentTarget);const message=`Hello, I would like a private briefing for The Plaza at The Yards.\n\nName: ${data.get('first')} ${data.get('last')}\nPhone: ${data.get('phone')}\nNote: ${data.get('note')||'—'}`;const success=document.getElementById('form-success');success.textContent='WhatsApp will now open to send your enquiry directly to the 72 Real Estate team.';success.style.display='block';window.open(`https://wa.me/971501669372?text=${encodeURIComponent(message)}`,'_blank','noopener')});
   </script>
 </body>
