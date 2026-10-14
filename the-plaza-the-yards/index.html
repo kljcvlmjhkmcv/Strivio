@@ -103,6 +103,7 @@
     renderFeature(false);
     const preloadAmenityImages=()=>[...new Set(Object.values(features).flatMap(feature=>feature.images))].forEach(src=>{const preload=new Image();preload.src=asset+src});
     if('requestIdleCallback' in window)requestIdleCallback(preloadAmenityImages,{timeout:1800});else setTimeout(preloadAmenityImages,500);
+    document.querySelectorAll('a[href^="#"]').forEach(link=>link.addEventListener('click',event=>{const target=document.querySelector(link.getAttribute('href'));if(!target||window.parent===window)return;event.preventDefault();window.parent.postMessage({type:'plaza-scroll',offset:target.getBoundingClientRect().top+window.scrollY},'https://seventytworealestate.com')}));
     document.getElementById('lead-form').addEventListener('submit',event=>{event.preventDefault();const data=new FormData(event.currentTarget);const message=`Hello, I would like a private briefing for The Plaza at The Yards.\n\nName: ${data.get('first')} ${data.get('last')}\nPhone: ${data.get('phone')}\nNote: ${data.get('note')||'—'}`;const success=document.getElementById('form-success');success.textContent='WhatsApp will now open to send your enquiry directly to the 72 Real Estate team.';success.style.display='block';window.open(`https://wa.me/971501669372?text=${encodeURIComponent(message)}`,'_blank','noopener')});
   </script>
 </body>
