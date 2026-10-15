@@ -77,7 +77,12 @@ serve(async request => {
       })
     });
     const upstreamBody = await upstream.json().catch(() => null) as Record<string, unknown> | null;
-    if (!upstream.ok || upstreamBody?.success === false || upstreamBody?.status === false) {
+    const delivered =
+      upstream.ok &&
+      upstreamBody?.statusCode === 200 &&
+      upstreamBody?.data !== null &&
+      upstreamBody?.data !== false;
+    if (!delivered) {
       return response(origin, 502, { message: 'Unable to send your enquiry. Please try again.' });
     }
     return response(origin, 200, { ok: true });
