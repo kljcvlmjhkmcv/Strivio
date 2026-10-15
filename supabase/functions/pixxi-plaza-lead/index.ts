@@ -61,6 +61,7 @@ serve(async request => {
       headers: { 'Content-Type': 'application/json', 'X-PIXXI-TOKEN': token },
       body: JSON.stringify({
         formId,
+        formName: 'The Plaza at The Yards | Website',
         name: `${first} ${last}`,
         // Pixxi requires an email field. This non-deliverable value records that the visitor chose phone contact.
         email: `phone-${phoneDigits}@not-provided.invalid`,
@@ -75,7 +76,10 @@ serve(async request => {
         }
       })
     });
-    if (!upstream.ok) return response(origin, 502, { message: 'Unable to send your enquiry. Please try again.' });
+    const upstreamBody = await upstream.json().catch(() => null) as Record<string, unknown> | null;
+    if (!upstream.ok || upstreamBody?.success === false || upstreamBody?.status === false) {
+      return response(origin, 502, { message: 'Unable to send your enquiry. Please try again.' });
+    }
     return response(origin, 200, { ok: true });
   } catch {
     return response(origin, 400, { message: 'Invalid request' });
