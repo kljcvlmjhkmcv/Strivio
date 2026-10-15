@@ -28,3 +28,6 @@ verify_jwt = false
 
 [functions.trivance-order]
 verify_jwt = false
+
+[functions.pixxi-plaza-lead]
+verify_jwt = false
