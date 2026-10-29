@@ -40,6 +40,15 @@ test('the browser configuration never contains server credentials or an embedded
   assert.match(auth, /mfa\.challengeAndVerify/);
 });
 
+test('admin password recovery stays in the Supabase recovery session and updates the signed-in user', async () => {
+  const auth = await readFile(new URL('../src/admin/AdminApp.jsx', import.meta.url), 'utf8');
+  assert.match(auth, /resetPasswordForEmail/);
+  assert.match(auth, /PASSWORD_RECOVERY/);
+  assert.match(auth, /updateUser\(\{\s*password\s*\}\)/);
+  assert.match(auth, /confirmPassword/);
+  assert.match(auth, /import\.meta\.env\.BASE_URL/);
+});
+
 test('checkout uses the database RPC and delivery/product settings come from Supabase', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8');
   assert.match(app, /rpc\('submit_glow_order'/);

@@ -29,12 +29,14 @@ function AuthScreen({ onAuthenticated }) {
   const [phase, setPhase] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [code, setCode] = useState('');
   const [factorId, setFactorId] = useState('');
   const [qrUrl, setQrUrl] = useState('');
   const [manualSecret, setManualSecret] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const requireFactor = async (user) => {
     const { data: member, error: memberError } = await supabase.from('glow_admins').select('user_id').eq('user_id', user.id).maybeSingle();
@@ -64,13 +66,42 @@ function AuthScreen({ onAuthenticated }) {
     setPhase('enroll');
   };
 
-  useEffect(() => () => { if (qrUrl) URL.revokeObjectURL(qrUrl); }, [qrUrl]);
+  useEffect(() => {
+    const isRecoveryLink = new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery';
+    if (isRecoveryLink) setPhase('reset');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        window.history.replaceState(null, document.title, window.location.pathname);
+        setPhase('reset');
+        setNotice('');
+      }
+    });
+    return () => {
+      subscription.unsubscribe();
+      if (qrUrl) URL.revokeObjectURL(qrUrl);
+    };
+  }, [qrUrl]);
 
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true); setError('');
     try {
-      if (phase === 'login') {
+      if (phase === 'request-reset') {
+        const redirectTo = new URL(`${import.meta.env.BASE_URL}admin/`, window.location.origin).toString();
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+        if (resetError) throw resetError;
+        setPhase('recovery-sent');
+        setNotice('If that account exists, a password reset link is on its way.');
+      } else if (phase === 'reset') {
+        if (password !== confirmPassword) throw new Error('Passwords do not match.');
+        if (password.length < 6) throw new Error('Use at least 6 characters.');
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) throw updateError;
+        await supabase.auth.signOut();
+        setPassword(''); setConfirmPassword(''); setEmail('');
+        setPhase('login');
+        setNotice('Password updated. Sign in with your new password.');
+      } else if (phase === 'login') {
         const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (authError) throw authError;
         await requireFactor(data.user);
@@ -80,7 +111,12 @@ function AuthScreen({ onAuthenticated }) {
         onAuthenticated();
       }
     } catch (caught) {
-      setError(phase === 'login' ? 'Sign-in failed. Check your credentials or administrator access.' : 'That code could not be verified. Try the latest six-digit code.');
+      setError(caught.message === 'Passwords do not match.' || caught.message === 'Use at least 6 characters.'
+        ? caught.message
+        : phase === 'login' ? 'Sign-in failed. Check your credentials or administrator access.'
+          : phase === 'reset' ? 'Could not update the password. Request a new reset link and try again.'
+            : phase === 'request-reset' ? 'Could not send the reset email. Check the address and try again.'
+              : 'That code could not be verified. Try the latest six-digit code.');
     } finally { setBusy(false); }
   };
 
@@ -90,16 +126,21 @@ function AuthScreen({ onAuthenticated }) {
     <div className="auth-art"><span className="art-caption">GLOW STORE · PRIVATE ADMIN</span><div className="art-monogram">G<span>·</span></div><p>Thoughtful beauty.<br />A store in good order.</p><small>Orders · stock · delivery</small><div className="art-orbit orbit-one" /><div className="art-orbit orbit-two" /></div>
     <section className="auth-main"><div className="auth-main-top"><Logo /><span><LockKeyhole size={14} /> Secure workspace</span></div>
       <div className="auth-form-wrap"><div className="auth-mark"><ShieldCheck size={20} /></div>
-        <p className="eyebrow">{phase === 'login' ? 'ADMIN ACCESS' : 'TWO-STEP VERIFICATION'}</p>
-        <h1>{phase === 'login' ? 'Welcome back.' : phase === 'enroll' ? 'Protect your account.' : 'One last check.'}</h1>
-        <p className="auth-description">{phase === 'login' ? 'Sign in with the invited admin account to manage Glow Store.' : phase === 'enroll' ? 'Scan this code in an authenticator app, or enter the setup key, then verify the six-digit code.' : 'Enter the current code from your authenticator app.'}</p>
+        <p className="eyebrow">{phase === 'verify' || phase === 'enroll' ? 'TWO-STEP VERIFICATION' : phase === 'reset' || phase === 'request-reset' || phase === 'recovery-sent' ? 'ACCOUNT RECOVERY' : 'ADMIN ACCESS'}</p>
+        <h1>{phase === 'login' ? 'Welcome back.' : phase === 'enroll' ? 'Protect your account.' : phase === 'verify' ? 'One last check.' : phase === 'request-reset' ? 'Reset your password.' : phase === 'recovery-sent' ? 'Check your email.' : phase === 'reset' ? 'Choose a new password.' : 'Welcome back.'}</h1>
+        <p className="auth-description">{phase === 'login' ? 'Sign in with the invited admin account to manage Glow Store.' : phase === 'enroll' ? 'Scan this code in an authenticator app, or enter the setup key, then verify the six-digit code.' : phase === 'verify' ? 'Enter the current code from your authenticator app.' : phase === 'request-reset' ? 'Enter your administrator email and we’ll send a secure reset link.' : phase === 'recovery-sent' ? 'If the address is registered, Supabase will send a link to continue.' : phase === 'reset' ? 'Enter your new password twice to confirm it.' : 'Sign in with the invited admin account to manage Glow Store.'}</p>
         {phase === 'enroll' && <div className="mfa-setup">{qrUrl && <img className="mfa-qr" src={qrUrl} alt="Authenticator setup QR code" />}<div><span className="field-caption">MANUAL SETUP KEY</span><code className="secret-code">{manualSecret}</code></div></div>}
-        <form className="auth-form" onSubmit={submit}>
-          {phase === 'login' ? <><label>Email address<input type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required /></label><label>Password<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label></>
-            : <label>Authenticator code<input className="otp-input" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(event) => setCode(event.target.value)} required /></label>}
+        {notice && <p className="form-notice" role="status">{notice}</p>}
+        {phase !== 'recovery-sent' && <form className="auth-form" onSubmit={submit}>
+          {(phase === 'login' || phase === 'request-reset') && <label>Email address<input type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            {phase === 'login' && <button type="button" className="text-button" onClick={() => { setPhase('request-reset'); setError(''); setNotice(''); }}>Forgot password?</button>}</label>}
+          {phase === 'login' && <label>Password<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>}
+          {phase === 'reset' && <><label>New password<input type="password" autoComplete="new-password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} required /></label><label>Confirm new password<input type="password" autoComplete="new-password" minLength={6} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></label></>}
+          {(phase === 'verify' || phase === 'enroll') && <label>Authenticator code<input className="otp-input" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(event) => setCode(event.target.value)} required /></label>}
           {error && <p className="form-error" role="alert">{error}</p>}
-          <button className="primary-button" disabled={busy}>{busy ? 'Verifying…' : phase === 'login' ? 'Continue securely' : 'Verify and continue'}<ChevronRight size={17} /></button>
-        </form>
+          <button className="primary-button" disabled={busy}>{busy ? 'Please wait…' : phase === 'login' ? 'Continue securely' : phase === 'request-reset' ? 'Send reset link' : phase === 'reset' ? 'Save new password' : 'Verify and continue'}<ChevronRight size={17} /></button>
+        </form>}
+        {(phase === 'request-reset' || phase === 'recovery-sent' || phase === 'reset') && <button type="button" className="text-button auth-back" onClick={() => { setPhase('login'); setError(''); setNotice(''); setPassword(''); setConfirmPassword(''); }}>Back to sign in</button>}
         <div className="auth-assurance"><BadgeCheck size={15} /><span>Protected by Supabase Auth, database permissions and MFA.</span></div>
       </div><footer className="auth-foot"><span>© {new Date().getFullYear()} Glow Store</span><span>Private admin · v1.0</span></footer>
     </section>
@@ -124,6 +165,7 @@ function SessionMfaPrompt({ factorId, onVerified }) {
 }
 
 function AdminApp() {
+  const [recoveryFlow] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery');
   const [session, setSession] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessReady, setAccessReady] = useState(false);
@@ -142,6 +184,7 @@ function AdminApp() {
 
   useEffect(() => {
     if (!supabase) { setAuthChecked(true); return undefined; }
+    if (recoveryFlow) { setAuthChecked(true); return undefined; }
     let mounted = true;
     const checkInitial = async () => {
       const { data: { session: current } } = await supabase.auth.getSession();
@@ -177,7 +220,7 @@ function AdminApp() {
       }
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
-  }, []);
+  }, [recoveryFlow]);
 
   const loadData = useCallback(async () => {
     if (!session) return;
